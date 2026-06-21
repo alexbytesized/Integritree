@@ -1,0 +1,17 @@
+import React from 'react'
+import { Routes, Route } from 'react-router-dom'
+import LandingPage from './pages/LandingPage'
+import UploadPage from './pages/UploadPage'
+
+const App = () => {
+  return (
+    <div>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/upload" element={<UploadPage />} />
+      </Routes>
+    </div>
+  )
+}
+
+export default App

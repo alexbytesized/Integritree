@@ -1,0 +1,92 @@
+.navbar-container {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  background-color: #FFFFFF;
+}
+
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 20px 40px;
+  box-sizing: border-box;
+}
+
+.navbar-logo {
+  font-family: 'Future Earth', sans-serif;
+  font-size: 20px;
+  text-decoration: none;
+  color: #181818;
+}
+
+.navbar-links {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+}
+
+.nav-link {
+  font-family: 'SF-Pro-Display-Regular', sans-serif;
+  font-size: 14px;
+  text-decoration: none;
+  color: #181818;
+}
+
+.nav-link:hover {
+  color: #412D15;
+}
+
+.navbar-actions {
+  display: flex;
+  align-items: center;
+}
+
+.btn-begin {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  font-family: 'Future Earth', sans-serif;
+  font-size: 12px;
+  text-decoration: none;
+  background-color: #412D15;
+  color: #FFFFFF;
+  border: 1px solid transparent;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-begin:hover {
+  background-color: #FFFFFF;
+  color: #412D15;
+  border-color: #412D15;
+}
+
+.btn-begin-icon {
+  font-size: 9px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .navbar {
+    padding: 15px 20px;
+  }
+  
+  .navbar-links {
+    gap: 20px;
+  }
+  
+  .nav-link {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 576px) {
+  .navbar-links {
+    display: none;
+  }
+}
