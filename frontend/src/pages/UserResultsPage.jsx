@@ -30,7 +30,7 @@ const UserResultsPage = () => {
     }, []);
 
     return(
-        <div className='main'>
+        <div className='user-results-container'>
             <div id="particles-js"></div>
 
             <div data-aos="fade-up">

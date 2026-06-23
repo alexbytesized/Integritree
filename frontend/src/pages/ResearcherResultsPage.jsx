@@ -3,7 +3,7 @@ import './ResearcherResultsPage.css'
 
 const ResearcherResultsPage = () => {
     return(
-        <div className="main">
+        <div className="researcher-results-container">
             <UserResultsPage/>
 
             <div className="statistics">

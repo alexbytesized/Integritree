@@ -2,6 +2,15 @@
   box-sizing: border-box;
 }
 
+.researcher-results-container {
+  position: relative;
+  width: 100%;
+}
+
+.researcher-results-container .user-results-container {
+  position: static;
+}
+
 .statistics {
   display: flex;
   flex-direction: column;
