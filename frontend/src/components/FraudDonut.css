@@ -1,0 +1,58 @@
+.fraudDonutCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.fraudDonutTitle {
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: clamp(12px, 3vw, 25px);
+  color: #412D15;
+  margin-bottom: clamp(8px, 1vw, 16px);
+}
+
+.fraudDonut {
+  --size: clamp(110px, 14vw, 170px);
+  --thickness: clamp(14px, 2vw, 24px);
+
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-top: clamp(12px, 3vw, 40px);
+
+  background:
+    conic-gradient(
+      from -90deg,
+      red 0deg var(--value),
+      transparent var(--value) 360deg
+    ),
+    repeating-conic-gradient(
+      from -90deg,
+      #c9c9c9 0deg 25deg,
+      #f0eee4 25deg 30deg
+    );
+}
+
+.fraudDonut::after {
+  content: "";
+  position: absolute;
+  inset: var(--thickness);
+  background-color: #f0eee4;
+  border-radius: 50%;
+}
+
+.fraudDonut span {
+  position: relative;
+  z-index: 1;
+
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: clamp(16px, 4vw, 30px);
+  font-weight: bold;
+  color: black;
+}
