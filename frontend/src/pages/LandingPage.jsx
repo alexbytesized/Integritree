@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import treeSvg from '../assets/tree.svg'
 import feature1Svg from '../assets/feature1.svg'
@@ -19,6 +19,23 @@ import footerblobsSvg from '../assets/footerblobs.svg'
 import './LandingPage.css'
 
 const LandingPage = () => {
+  const location = useLocation()
+
+  // Handle scrolling when navigated from a different page with state
+  useEffect(() => {
+    if (location.state?.scrollToId) {
+      const id = location.state.scrollToId
+      // Clear state to avoid scrolling again on page reload
+      window.history.replaceState({}, document.title)
+      setTimeout(() => {
+        const element = document.getElementById(id)
+        if (element) {
+          const y = element.getBoundingClientRect().top + window.pageYOffset
+          window.scrollTo({ top: y, behavior: 'smooth' })
+        }
+      }, 100)
+    }
+  }, [location])
 
   // Initialize particles effect
   useEffect(() => {
@@ -61,6 +78,7 @@ const LandingPage = () => {
 
       {/* Features Section */}
       <section className="features-section">
+        <div id="features-anchor" className="scroll-anchor" />
         <h2 className="features-section-title">
           Enabling Transparent E-Wallet Fraud Detection
         </h2>
@@ -99,6 +117,7 @@ const LandingPage = () => {
 
       {/* How it Works Section */}
       <section className="how-it-works-section">
+        <div id="how-it-works-anchor" className="scroll-anchor" />
         <h2 className="how-it-works-title">Integritree in Action: How it Works</h2>
         <div className="how-it-works-grid">
           {/* Column 1 */}
@@ -137,6 +156,7 @@ const LandingPage = () => {
 
       {/* Team Section */}
       <section className="team-section">
+        <div id="meet-the-team-anchor" className="scroll-anchor" />
         <h2 className="team-section-title">Meet the Cultivators Behind Integritree</h2>
         
         <div className="team-grid">

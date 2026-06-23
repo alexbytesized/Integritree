@@ -160,6 +160,7 @@
 }
 
 .features-section {
+  position: relative;
   max-width: 1270px;
   margin: 0 auto 130px auto;
   padding: 80px 40px;
@@ -235,6 +236,7 @@
 }
 
 .how-it-works-section {
+  position: relative;
   background-color: #F0EEE4;
   padding: 60px 40px;
 }
@@ -321,6 +323,7 @@
 }
 
 .team-section {
+  position: relative;
   max-width: 1270px;
   margin: 0 auto;
   padding: 200px 40px;
@@ -504,4 +507,26 @@
     justify-content: center;
     width: 100%;
   }
+}
+
+/* For navbar scrolling */
+.scroll-anchor {
+  position: absolute;
+  left: 0;
+  width: 0;
+  height: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+#features-anchor {
+  top: -80px;
+}
+
+#how-it-works-anchor {
+  top: -180px;
+}
+
+#meet-the-team-anchor {
+  top: 75px;
 }
