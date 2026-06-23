@@ -1,83 +1,104 @@
 * {
-    box-sizing: border-box;
+  box-sizing: border-box;
 }
 
-.statistics{
-    display: flex;
-    flex-direction: column;
-    width: auto;
-    height: clamp(300px, 250vh, 2200px);
-    padding-left: clamp(16px, 5vw, 60px);
-    padding-right: clamp(16px, 5vw, 60px);
+.statistics {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+
+  min-height: 100vh;
+  height: auto;
+
+  padding-left: clamp(16px, 5vw, 60px);
+  padding-right: clamp(16px, 5vw, 60px);
 }
 
-.statistics-title{
-    font-family: 'SF Pro Display', sans-serif;
-    font-size: clamp(16px, 5vw, 45px);
-    font-weight: bold;
-    color: #412D15;
-    padding-top: clamp(16px, 5vw, 60px);
+.statistics-title {
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: clamp(16px, 5vw, 45px);
+  font-weight: bold;
+  color: #412D15;
+  padding-top: clamp(16px, 5vw, 60px);
 }
 
-.statistics-upper{
-    display: flex;
-    flex-direction: row;
-    width: auto;
-    height: clamp(300px, 90vh, 1000px);
-    gap: clamp(12px, 2.5vw, 34px);
-    padding-top: clamp(12px, 2.0vw, 22px);
+.statistics-upper {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+
+  min-height: clamp(700px, 90vh, 1000px);
+  height: auto;
+
+  gap: clamp(12px, 2.5vw, 34px);
+  padding-top: clamp(12px, 2vw, 22px);
 }
 
-.stat-model{
-    display: flex;
-    flex-direction: column;
-    border-color: #412D15;
-    border-style: solid;
-    border-radius: 5px;
-    border-width: 2px;
-    background-color: #F0EEE4;
-    width: 50%;
-    font-family: 'SF Pro Display', sans-serif;
-    font-size: clamp(12px, 1.5vw, 25px);
-    padding-left: clamp(8px, 2vw, 30px);
-    padding-right: clamp(8px, 2vw, 30px);
-    align-items: center;
-    padding-top: clamp(16px, 5vw, 30px);
-    gap: clamp(16px, 4vw, 50px);
+.stat-model {
+  display: flex;
+  flex-direction: column;
+
+  border: 2px solid #412D15;
+  border-radius: 5px;
+  background-color: #F0EEE4;
+
+  width: 50%;
+
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: clamp(12px, 1.5vw, 25px);
+
+  padding-left: clamp(8px, 2vw, 30px);
+  padding-right: clamp(8px, 2vw, 30px);
+  padding-top: clamp(16px, 5vw, 30px);
+  padding-bottom: clamp(16px, 3vw, 30px);
+
+  align-items: center;
+  gap: clamp(16px, 3vw, 35px);
 }
 
-.column{
-    width: min(100%, clamp(240px, 60vw, 750px));
-    height: clamp(40px, 10vh, 200px);
-    border-radius: 5px;
-    border-color: #412D15;
-    border-width: 2px;
-    border-style: solid;
+.column {
+  width: min(100%, clamp(240px, 60vw, 750px));
+
+  min-height: clamp(90px, 12vh, 160px);
+  height: auto;
+
+  border-radius: 5px;
+  border: 2px solid #412D15;
 }
 
-.stat-title, .test-title{
-    font-weight: 600;
-    font-size: clamp(18px, 5vw, 40px);
-    margin: 0;
+.stat-title,
+.test-title {
+  font-weight: 600;
+  font-size: clamp(18px, 5vw, 40px);
+  margin: 0;
 }
 
-.row{
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    padding-left: clamp(8px, 2vw, 30px);
-    padding-right: clamp(8px, 2vw, 30px);
-    font-size: clamp(18px, 3vw, 30px);
+.row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+
+  width: 100%;
+  min-height: 100%;
+
+  padding-left: clamp(8px, 2vw, 30px);
+  padding-right: clamp(8px, 2vw, 30px);
+
+  font-size: clamp(18px, 3vw, 30px);
 }
 
 .middle {
   display: flex;
   flex-direction: column;
+
   width: 100%;
-  height: clamp(300px, 55vh, 500px);
+  min-height: clamp(300px, 55vh, 500px);
+  height: auto;
+
   border: 2px solid #412D15;
   border-radius: 5px;
+
   margin-top: clamp(12px, 2vw, 33px);
   background-color: #F0EEE4;
   padding: clamp(24px, 4vw, 60px);
@@ -88,6 +109,7 @@
   font-size: clamp(24px, 3vw, 45px);
   font-weight: 700;
   color: #1f1f1f;
+
   margin: 0;
   margin-bottom: clamp(24px, 4vw, 50px);
 }
@@ -101,14 +123,18 @@
 
 .percentage-card {
   grid-column: span 2;
+
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
+
   min-height: clamp(80px, 12vh, 120px);
+
   border: 2px solid #412D15;
   border-radius: 5px;
   background-color: #F0EEE4;
+
   font-family: 'SF Pro Display', sans-serif;
 }
 
@@ -122,7 +148,6 @@
 
 .percentage-card p {
   margin: 0;
-
   font-size: clamp(16px, 2vw, 28px);
   color: #009A0D;
 }
@@ -134,10 +159,13 @@
 .percentage-card h3 {
   margin: 0;
   margin-top: clamp(8px, 1vw, 16px);
+
   font-size: clamp(18px, 2vw, 30px);
   font-weight: 700;
   color: #1f1f1f;
 }
+
+/* McNemar */
 
 .mcnemar-section {
   height: auto;
@@ -147,16 +175,21 @@
 
 .mcnemar-content {
   display: flex;
-  align-items: flex-start; 
+  align-items: flex-start;
   gap: clamp(30px, 5vw, 70px);
   width: 100%;
+}
+
+.mcnemar-table-wrapper {
+  width: 60%;
+  overflow-x: visible;
 }
 
 .mcnemar-table {
   display: grid;
   grid-template-columns: clamp(150px, 15vw, 220px) repeat(2, 1fr);
 
-  width: 60%;
+  width: 100%;
   min-width: 520px;
 
   font-family: "SF Pro Display", sans-serif;
@@ -168,7 +201,9 @@
   background: transparent;
 }
 
-.table-header, .row-header, .table-value {
+.table-header,
+.row-header,
+.table-value {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -193,15 +228,24 @@
 
 .row-header {
   border-left: 2px solid #412D15;
+  border-right: 2px solid #412D15;
+  border-bottom: 2px solid #412D15;
+
   font-size: clamp(14px, 1.2vw, 20px);
   font-weight: 700;
   text-align: center;
 }
 
+.row-header:nth-child(4) {
+  border-top: 2px solid #412D15;
+}
+
 .table-value {
   font-size: clamp(22px, 2vw, 32px);
   font-weight: 400;
-  height: clamp(90px, 10vh, 130px);
+
+  min-height: clamp(90px, 10vh, 130px);
+  height: auto;
 }
 
 .mcnemar-result {
@@ -215,9 +259,11 @@
 .pvalue-box {
   width: 100%;
   margin-top: 0;
+
   border: 2px solid #412D15;
   border-radius: 5px;
   padding: clamp(18px, 3vw, 35px);
+
   font-family: "SF Pro Display", sans-serif;
 }
 
@@ -251,200 +297,259 @@
   line-height: 1.3;
 }
 
-.row-header {
-  border-left: 2px solid #412D15;
-  border-right: 2px solid #412D15;
-  border-bottom: 2px solid #412D15;
-}
-
-.row-header:nth-child(4) {
-  border-top: 2px solid #412D15;
-}
-
-
+/* =========================
+   SMALL LAPTOP / TABLET
+   ========================= */
 @media (max-width: 1024px) {
-.statistics {
+  .statistics {
     height: auto;
     min-height: 100vh;
   }
 
-.statistics-upper {
+  .statistics-upper {
     flex-direction: column;
     height: auto;
+    min-height: unset;
     gap: clamp(16px, 3vw, 28px);
   }
 
-.stat-model {
+  .stat-model {
     width: 100%;
     gap: clamp(12px, 2vw, 22px);
     padding-top: clamp(18px, 4vw, 28px);
     padding-bottom: clamp(18px, 4vw, 28px);
   }
 
-.column {
+  .column {
     width: 100%;
-    height: clamp(70px, 10vh, 110px);
+    min-height: clamp(80px, 12vh, 130px);
+    height: auto;
   }
 
-.row {
+  .row {
     font-size: clamp(16px, 3vw, 24px);
   }
 
-.middle {
+  .middle {
     height: auto;
     min-height: unset;
   }
 
-.mcnemar-content {
+  .mcnemar-content {
     flex-direction: column;
     align-items: stretch;
     gap: clamp(16px, 3vw, 28px);
   }
 
-.mcnemar-table-wrapper {
+  .mcnemar-table-wrapper {
     width: 100%;
     overflow-x: auto;
   }
 
-.mcnemar-table {
+  .mcnemar-table {
     width: 100%;
-    min-width: 720px;
+    min-width: 650px;
   }
 
-.mcnemar-result {
+  .mcnemar-result {
     width: 100%;
   }
 }
 
+/* =========================
+   MOBILE
+   ========================= */
 @media (max-width: 768px) {
-
-.middle {
+  .statistics {
     height: auto;
+    min-height: 100vh;
+    padding-left: clamp(16px, 5vw, 28px);
+    padding-right: clamp(16px, 5vw, 28px);
+  }
+
+  .statistics-title {
+    font-size: clamp(28px, 7vw, 38px);
+    padding-top: clamp(24px, 6vw, 40px);
+  }
+
+  .statistics-upper {
+    flex-direction: column;
+    height: auto;
+    min-height: unset;
+    gap: 18px;
+  }
+
+  .stat-model {
+    width: 100%;
+    gap: 16px;
+    padding: 20px 16px;
+  }
+
+  .stat-title {
+    font-size: clamp(24px, 7vw, 32px);
+  }
+
+  .column {
+    width: 100%;
+    min-height: 95px;
+    height: auto;
+  }
+
+  .row {
+    font-size: clamp(16px, 4vw, 22px);
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .middle {
+    height: auto;
+    min-height: unset;
     padding: 20px;
   }
 
-.percentage-grid {
-    display: grid;
+  .test-title {
+    font-size: clamp(26px, 7vw, 34px);
+    margin-bottom: 24px;
+  }
+
+  .percentage-grid {
     grid-template-columns: 1fr;
     gap: 16px;
     width: 100%;
   }
 
-.percentage-card, .percentage-card:nth-child(4), .percentage-card:nth-child(5) {
+  .percentage-card,
+  .percentage-card:nth-child(4),
+  .percentage-card:nth-child(5) {
     grid-column: auto;
     width: 100%;
     min-height: 95px;
   }
 
-.percentage-card {
-    display: flex;
-    justify-content: center;
-    align-items: center;
+  .percentage-card {
     text-align: center;
   }
 
-.percentage-card p {
+  .percentage-card p {
     width: 100%;
     text-align: center;
-    margin: 0;
     font-size: clamp(16px, 5vw, 24px);
   }
 
-.percentage-card p strong {
+  .percentage-card p strong {
     font-size: clamp(18px, 6vw, 28px);
   }
 
-.percentage-card h3 {
-    margin: 0;
-    margin-top: 8px;
+  .percentage-card h3 {
     text-align: center;
     font-size: clamp(18px, 5vw, 24px);
   }
-.mcnemar-section {
+
+  .mcnemar-section {
     height: auto;
+    min-height: unset;
     padding: 16px;
     overflow: hidden;
   }
 
-.mcnemar-content {
+  .mcnemar-content {
     flex-direction: column;
     width: 100%;
     gap: 16px;
     overflow: hidden;
   }
 
-.mcnemar-table-wrapper {
+  .mcnemar-table-wrapper {
     width: 100%;
     min-width: 0;
     overflow-x: hidden;
   }
 
-.mcnemar-table {
+  .mcnemar-table {
     width: 100%;
     min-width: 0 !important;
-
     grid-template-columns: 28% 36% 36%;
   }
 
-.empty-cell, .table-header, .row-header, .table-value {
+  .empty-cell,
+  .table-header,
+  .row-header,
+  .table-value {
     min-height: 65px;
     padding: 6px;
   }
 
-.table-header {
+  .table-header,
+  .row-header {
     font-size: 10px;
     line-height: 1.2;
     text-align: center;
   }
 
-.row-header {
-    font-size: 10px;
-    line-height: 1.2;
-    text-align: center;
-  }
-
-.table-value {
+  .table-value {
     font-size: clamp(16px, 4vw, 21px);
-    height: 65px;
+    min-height: 65px;
+    height: auto;
   }
 
-.mcnemar-result {
+  .mcnemar-result {
     width: 100%;
   }
 
-.pvalue-box {
+  .pvalue-box {
     width: 100%;
     padding: 16px;
   }
 
-.pvalue-box p {
+  .pvalue-box p {
     font-size: 13px;
   }
 
-.pvalue-box strong {
+  .pvalue-box strong {
     font-size: 22px;
   }
 
-.evaluation p:first-child, .evaluation p:last-child {
+  .evaluation p:first-child,
+  .evaluation p:last-child {
     font-size: 13px;
   }
 }
 
+/* =========================
+   SMALL MOBILE
+   ========================= */
 @media (max-width: 480px) {
-.mcnemar-table {
+  .column {
+    min-height: 90px;
+  }
+
+  .row {
+    font-size: 16px;
+  }
+
+  .percentage-card {
+    min-height: 90px;
+  }
+
+  .mcnemar-table {
     grid-template-columns: 27% 36.5% 36.5%;
   }
 
-.table-header, .row-header {
+  .table-header,
+  .row-header {
     font-size: 9px;
   }
 
-.table-value {
+  .table-value {
     font-size: 18px;
-    height: 58px;
+    min-height: 58px;
+    height: auto;
   }
 
-.empty-cell, .table-header, .row-header, .table-value {
+  .empty-cell,
+  .table-header,
+  .row-header,
+  .table-value {
     min-height: 58px;
     padding: 4px;
   }
