@@ -46,7 +46,7 @@ const LandingPage = () => {
               Branching Toward Integrity,<br/>
               Powered by Algorithmic Trees.
             </p>
-            <Link to="/results" className="hero-btn-begin">
+            <Link to="/researcher" className="hero-btn-begin">
               <span className="hero-btn-begin-icon">▶</span> BEGIN
             </Link>
           </div>
