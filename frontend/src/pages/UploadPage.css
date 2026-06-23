@@ -1,0 +1,260 @@
+.upload-page-container {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+#particles-js {
+  position: absolute;
+  z-index: -1;
+  height: 100%;
+}
+
+.upload-title-container {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.upload-title {
+  font-family: 'Future Earth', sans-serif;
+  font-size: 54px;
+  margin: 0;
+  color: #181818;
+}
+
+.upload-title-accent {
+  color: #412D15;
+}
+
+.upload-subtitle {
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: 15px;
+  color: #181818;
+  margin-bottom: 31px;
+}
+
+.upload-card-container {
+  width: 100%;
+  max-width: 950px;
+}
+
+.upload-card {
+  background-color: #F0EEE4;
+  border: 1px solid #363636;
+  border-radius: 8px;
+}
+
+.upload-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+}
+
+.upload-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.upload-header-icon {
+  width: 42px;
+  height: 42px; 
+  border: 1px solid #363636;
+  border-radius: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.upload-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.upload-card-title {
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: 16px;
+  font-weight: bold;
+  color: #181818;
+  margin: 0;
+}
+
+.upload-card-subtitle {
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: 12.5px;
+  color: #181818;
+  margin: 0;
+}
+
+.role-toggle-container {
+  display: inline-flex;
+  border: 1px solid #412D15;
+  border-radius: 20px;
+}
+
+.role-toggle-btn {
+  border: none;
+  background: none;
+  padding: 6px 16px;
+  font-family: 'SF Pro Display', sans-serif;
+  font-weight: bold;
+  font-size: 12px;
+  color: #363636;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.role-toggle-btn.active {
+  background-color: #412D15;
+  color: #FFFFFF;
+}
+
+.role-toggle-btn:hover:not(.active) {
+  background-color: #36363621;
+}
+
+.upload-card-divider {
+  width: 100%;
+  height: 1px;
+  background-color: #363636;
+}
+
+.upload-card-body {
+  padding: 32px;
+}
+
+.dropzone-area {
+  border: 1px dashed #363636;
+  border-radius: 8px;
+  padding: 32px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+  outline: none;
+}
+
+.dropzone-area.drag-active {
+  background-color: #36363621;
+  border-color: #412D15;
+}
+
+.dropzone-icon {
+  color: #412D15;
+  margin-bottom: 12px;
+}
+
+.dropzone-title {
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: 15px;
+  color: #181818;
+  margin: 0 0 4px 0;
+}
+
+.dropzone-desc {
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: 12px;
+  color: #363636;
+  margin: 0 0 15px 0;
+}
+
+.btn-browse {
+  padding: 8px 20px;
+  border: 1px solid #412D15;
+  border-radius: 4px;
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: 13.5px;
+  color: #181818;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+
+.btn-browse:hover {
+  background-color: #412D15;
+  color: #FFFFFF;
+}
+
+.file-details-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 12px 0;
+}
+
+.file-info-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  border: 1px solid #36363621;
+  border-radius: 4px;
+}
+
+.file-name {
+  font-family: 'SF Pro Display', sans-serif;
+  font-weight: bold;
+  font-size: 14px;
+  color: #181818;
+}
+
+.file-size {
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: 12px;
+  color: #777777;
+}
+
+.btn-remove-file {
+  background: none;
+  border: none;
+  color: #181818;
+  cursor: pointer;
+  display: flex;
+  padding: 2px;
+  border-radius: 50px;
+  transition: background-color 0.15s;
+}
+
+.btn-remove-file:hover {
+  background-color: #36363621;
+}
+
+.btn-analyze-submit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 24px;
+  font-family: 'Future Earth', sans-serif;
+  font-size: 12px;
+  background-color: #412D15;
+  color: #FFFFFF;
+  border: 1px solid transparent;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-analyze-submit:hover {
+  background-color: #FFFFFF;
+  color: #412D15;
+  border-color: #412D15;
+}
+
+.upload-error-msg {
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: 13px;
+  color: #a83232;
+  margin-top: 12px;
+  text-align: center;
+}
