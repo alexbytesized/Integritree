@@ -10,7 +10,7 @@ const Navbar = () => {
         <div className="navbar-links">
           <a href="#features" className="nav-link">Features</a>
           <a href="#how-it-works" className="nav-link">How It Works</a>
-          <a href="#meet-the-team" className="nav-link">Meet the Team</a>
+          <a href="#meet-the-team" className="nav-link">Meet The Team</a>
         </div>
         <div className="navbar-actions">
           <Link to="/upload" className="btn-begin">

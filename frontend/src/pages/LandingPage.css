@@ -14,6 +14,7 @@
   margin: 0 auto;
   padding: 80px 40px;
   box-sizing: border-box;
+  margin-top: 50px;
 }
 
 .hero-left {
@@ -92,7 +93,26 @@
 
 .hero-tree-svg {
   width: 100%;
+  width: 100%;
+  animation: floatTree 4s ease-in-out infinite;
+  transform-origin: center;
+  will-change: transform;
 }
+
+@keyframes floatTree {
+  0% {
+    transform: translateY(0px) rotate(0deg);
+  }
+
+  50% {
+    transform: translateY(-18px) rotate(1deg);
+  }
+
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+}
+
 
 #particles-js {
   position: absolute;
