@@ -108,6 +108,7 @@
   font-family: 'SF Pro Display', sans-serif;
   font-weight: bold;
   font-size: 12px;
+  letter-spacing: 1px;
   color: #363636;
   border-radius: 16px;
   cursor: pointer;
@@ -234,9 +235,10 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 11px 24px;
+  padding: 9px 21px;
   font-family: 'Future Earth', sans-serif;
   font-size: 12px;
+  letter-spacing: 3px;
   background-color: #412D15;
   color: #FFFFFF;
   border: 1px solid transparent;
