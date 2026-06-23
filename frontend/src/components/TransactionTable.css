@@ -1,0 +1,141 @@
+.tableContainer {
+  width: 100%;
+  margin-top: clamp(12px, 2vw, 20px);
+  overflow-x: auto;
+}
+
+.transactionTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: "SF Pro Display", sans-serif;
+  font-size: clamp(10px, 1vw, 14px);
+  color: #412d15;
+  background-color: #f0eee4;
+  border-color:#412d15;
+  border-width: 2px;
+  border-style: solid;
+}
+
+.transactionTable th,
+.transactionTable td {
+  border: 1px solid #9a8c78;
+  padding: clamp(7px, 1vw, 12px);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.transactionTable th {
+  font-weight: 700;
+  background-color: #f0eee4;
+}
+
+.transactionTable tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.transactionTable tbody tr:hover {
+  background-color: #e4dfcf;
+}
+
+.blueText {
+  color: #0078d7;
+}
+
+.purpleText {
+  color: #b000ff;
+}
+
+.statusDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 7px;
+}
+
+.green {
+  background-color: #009a0d;
+}
+
+.red {
+  background-color: #ff0000;
+}
+
+.riskBadge {
+  display: inline-block;
+  min-width: 38px;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin: 0 3px;
+  font-weight: 600;
+  font-size: clamp(9px, 0.9vw, 13px);
+  border-color:#412d15;
+  border-width: 2px;
+  border-style: solid;
+}
+
+.blueBadge {
+  background-color: #0078d7;
+}
+
+.purpleBadge {
+  background-color: #b000ff;
+}
+
+.featureBadge {
+  display: inline-block;
+  background-color: #0078d7;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: clamp(9px, 0.9vw, 13px);
+  border-color:#412d15;
+  border-width: 2px;
+  border-style: solid;
+}
+
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: clamp(10px, 2vw, 20px);
+  margin-top: clamp(12px, 2vw, 20px);
+  font-family: "SF Pro Display", sans-serif;
+}
+
+.paginationButton, .paginationText {
+  border: 1px solid #412d15;
+  background-color: #f0eee4;
+  color: #412d15;
+  padding: clamp(5px, 1vw, 8px) clamp(10px, 1.5vw, 16px);
+  border-radius: 4px;
+  font-size: clamp(11px, 1vw, 14px);
+}
+
+.paginationButton {
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.paginationButton:hover:not(:disabled) {
+  transform: translateY(-3px) scale(1.08);
+  background-color: #412d15;
+  color: #f0eee4;
+  box-shadow: 0 4px 10px rgba(65, 45, 21, 0.25);
+}
+
+.paginationButton:active:not(:disabled) {
+  transform: translateY(0) scale(0.95);
+}
+
+.paginationButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

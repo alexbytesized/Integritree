@@ -1,0 +1,161 @@
+* {
+    box-sizing: border-box;
+}
+
+#particles-js {
+  position: fixed;
+  inset: 0;
+
+  width: 100vw;
+  height: 100vh;
+
+  z-index: 0;
+  pointer-events: none;
+}
+
+.backButton{
+    width: clamp(32px, 4vw, 46px);
+    height: clamp(30px, 4vw, 44px);
+    margin-left: clamp(16px, 5vw, 60px);
+    margin-top: clamp(16px, 5vw, 60px);
+}
+
+.backButton:hover{
+    opacity: 0.5;
+    cursor: pointer;
+    transition: opacity 0.3s ease;
+}
+
+.results{
+    margin-bottom: clamp(16px, 5vw, 60px);
+}
+
+.results, .transaction{
+    display: flex;
+    flex-direction: column;
+    width: auto;
+    height: clamp(300px, 90vh, 1000px);
+    padding-left: clamp(16px, 5vw, 60px);
+    padding-right: clamp(16px, 5vw, 60px);
+}
+
+.results-title{
+    font-family: 'SF Pro Display', sans-serif;
+    font-size: clamp(16px, 5vw, 45px);
+    font-weight: bold;
+    color: #412D15;
+    padding-top: clamp(16px, 5vw, 60px);
+}
+
+.results-upper{
+    display: flex;
+    flex-direction: row;
+    width: auto;
+    height: clamp(40px, 6vh, 87px);
+    gap: clamp(12px, 2.5vw, 34px);
+    padding-top: clamp(12px, 2.0vw, 22px);
+}
+
+.csv{
+    display: flex;
+    border-color: #412D15;
+    border-style: solid;
+    border-radius: 5px;
+    border-width: 2px;
+    background-color: #F0EEE4;
+    width: 50%;
+    font-family: 'SF Pro Display', sans-serif;
+    font-size: clamp(12px, 1.5vw, 25px);
+    padding-left: clamp(8px, 2vw, 30px);
+    align-items: center;
+}
+
+.results-proper{
+    display: flex;
+    height: 100%;
+    margin-top: clamp(12px, 2.0vw, 22px);
+    gap: clamp(12px, 2.5vw, 34px);
+}
+
+.model{
+    border-color: #412D15;
+    border-style: solid;
+    border-width: 2px;
+    border-radius: 5px;
+    display: flex;
+    width: 60%;
+}
+
+.model-right{
+    border-color: #412D15;
+    border-style: solid;
+    border-width: 3px;
+    border-radius: 5px;
+    display: flex;
+    flex-direction: column;
+    width: 30%;
+    margin-left: auto;
+    background-color: #F0EEE4;
+    align-items: center;
+}
+
+.model-1{
+    border-color: #412D15;
+    border-style: solid;
+    border-width: 1px;
+    background-color: #F0EEE4;
+    display: flex;
+    flex-direction: column;
+    width: 50%;
+    align-items: center;
+}
+
+p{
+    font-family: 'SF Pro Display', sans-serif;
+}
+
+.model-title{
+    font-weight: 600;
+    font-size: clamp(18px, 4vw, 35px);
+}
+
+.legitimate-numbers, .fraudulent-numbers{
+    font-weight: 700;
+    font-size: clamp(18px, 4vw, 35px);
+    color: #009A0D;
+    margin: 0;
+    margin-top: clamp(12px, 2vw, 33px);
+    
+}
+
+.fraudulent-numbers{
+    color: #FF0000;
+}
+
+.records{
+    font-size: clamp(12px, 3vw, 25px);
+    margin: 0;
+    margin-top: clamp(6px, 1vw, 11px);
+}
+
+@media (max-width: 1024px) {
+  .results {
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .results-proper {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .model {
+    width: 100%;
+  }
+
+  .model-right {
+    width: 100%;
+    margin-left: 0;
+    min-height: 300px;
+  }
+}
