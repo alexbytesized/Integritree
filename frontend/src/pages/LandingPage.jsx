@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react' // 1. Added useEffect
+import React, { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import treeSvg from '../assets/tree.svg'
@@ -46,7 +46,7 @@ const LandingPage = () => {
               Branching Toward Integrity,<br/>
               Powered by Algorithmic Trees.
             </p>
-            <Link to="/results" className="hero-btn-begin">
+            <Link to="/upload" className="hero-btn-begin">
               <span className="hero-btn-begin-icon">▶</span> BEGIN
             </Link>
           </div>

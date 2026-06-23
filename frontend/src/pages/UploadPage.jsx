@@ -60,9 +60,9 @@ const UploadPage = () => {
   const handleAnalyze = () => {
     if (file) {
       if (role === 'researcher') {
-        navigate('/results/researcher')
+        navigate('/researcher')
       } else {
-        navigate('/results/user')
+        navigate('/results')
       }
     }
   }
