@@ -258,3 +258,31 @@
   margin-top: 12px;
   text-align: center;
 }
+
+.upload-back-button-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+}
+
+.upload-back-button {
+  width: clamp(32px, 4vw, 46px);
+  height: clamp(30px, 4vw, 44px);
+  margin-left: clamp(16px, 5vw, 60px);
+  margin-top: clamp(16px, 5vw, 60px);
+}
+
+.upload-back-button:hover {
+  opacity: 0.5;
+  cursor: pointer;
+  transition: opacity 0.3s ease;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .upload-back-button {
+    margin-left: 20px;
+    margin-top: 20px;
+  }
+}

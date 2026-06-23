@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useDropzone } from 'react-dropzone'
 import { Upload, X, FileText, Database } from 'lucide-react'
+import backButton from '../assets/back-button.png'
 import './UploadPage.css'
 
 const UploadPage = () => {
@@ -115,6 +116,10 @@ const UploadPage = () => {
   return (
     <div className="upload-page-container">
       <div id="particles-js"></div>
+
+      <Link to="/" className="upload-back-button-container">
+        <img src={backButton} alt="Back Button" className="upload-back-button" />
+      </Link>
 
       {/* Title Header */}
       <div className="upload-title-container">
