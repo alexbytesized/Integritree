@@ -6,6 +6,8 @@ import FraudDonut from "../components/FraudDonut";
 import { useState } from "react";
 import SearchBar from "../components/SearchBar";
 import TransactionTable from "../components/TransactionTable";
+import AOS from "aos";
+import "aos/dist/aos.css";
 
 
 const UserResultsPage = () => {
@@ -19,11 +21,20 @@ const UserResultsPage = () => {
     }
     }, []);
 
+    useEffect(() => {
+    AOS.init({
+        duration: 1000,
+        once: false,
+        offset: 100,
+    });
+    }, []);
+
     return(
         <div className='main'>
             <div id="particles-js"></div>
 
-            <Link to="/" className="backButtonContainer">
+            <div data-aos="fade-up">
+                 <Link to="/" className="backButtonContainer">
                 <img src={backButton} alt="Back Button" className="backButton" />
             </Link>
 
@@ -45,7 +56,7 @@ const UserResultsPage = () => {
                     <div className='model'>
                         <div className='model-1'>
                             <p className='model-title'>Benchmark RF</p>
-                            <p className='legitimate-numbers'>6012120</p>
+                            <p className='legitimate-numbers' >6012120</p>
                             <p className='records'>Legitimate Records</p>
 
                             <p className='fraudulent-numbers'>356549</p>
@@ -78,16 +89,17 @@ const UserResultsPage = () => {
                 </div>
             </div>
 
-            <div className="transaction">
-                <div className="results-title">Transaction Records</div>
+                <div className="transaction">
+                    <div className="results-title">Transaction Records</div>
 
-                <SearchBar
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search Transactions"
-                />
+                    <SearchBar
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Search Transactions"
+                    />
 
-                <TransactionTable searchTerm={searchTerm} />
+                    <TransactionTable searchTerm={searchTerm} />
+                </div>
             </div>
         </div>
     )

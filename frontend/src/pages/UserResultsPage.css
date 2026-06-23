@@ -12,9 +12,14 @@ body,
 }
 
 #particles-js {
-  position: absolute;
-  z-index: -1;
-  height: 100%;
+  position: fixed;
+  inset: 0;
+
+  width: 100vw;
+  height: 100vh;
+
+  z-index: 1;
+  pointer-events: none;
 }
 
 .backButton {
@@ -38,12 +43,9 @@ body,
 .transaction {
   display: flex;
   flex-direction: column;
-
   width: 100%;
-
   min-height: clamp(700px, 90vh, 1000px);
   height: auto;
-
   padding-left: clamp(16px, 5vw, 60px);
   padding-right: clamp(16px, 5vw, 60px);
 }
@@ -112,15 +114,12 @@ body,
   display: flex;
   flex-direction: column;
   align-items: center;
-
   border: 3px solid #412D15;
   border-radius: 5px;
   background-color: #F0EEE4;
-
   width: 30%;
   min-width: 0;
   margin-left: auto;
-
   padding-bottom: clamp(16px, 3vw, 30px);
 }
 
@@ -128,13 +127,10 @@ body,
   display: flex;
   flex-direction: column;
   align-items: center;
-
   border: 1px solid #412D15;
   background-color: #F0EEE4;
-
   width: 50%;
   min-width: 0;
-
   padding-bottom: clamp(16px, 3vw, 30px);
 }
 
@@ -168,9 +164,6 @@ p {
   text-align: center;
 }
 
-/* =========================
-   SMALL LAPTOP / TABLET
-   ========================= */
 @media (max-width: 1024px) {
   .results,
   .transaction {
@@ -205,9 +198,6 @@ p {
   }
 }
 
-/* =========================
-   MOBILE
-   ========================= */
 @media (max-width: 768px) {
   .results,
   .transaction {
@@ -269,9 +259,6 @@ p {
   }
 }
 
-/* =========================
-   SMALL MOBILE
-   ========================= */
 @media (max-width: 480px) {
   .backButton {
     margin-left: 20px;
