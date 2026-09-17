@@ -7,8 +7,10 @@
 .fraudDonutTitle {
   font-family: 'SF Pro Display', sans-serif;
   font-size: clamp(12px, 3vw, 25px);
-  color: #412D15;
+  color: #181818;
   margin-bottom: clamp(8px, 1vw, 16px);
+  text-align: center;
+  
 }
 
 .fraudDonut {
@@ -35,7 +37,7 @@
     repeating-conic-gradient(
       from -90deg,
       #c9c9c9 0deg 25deg,
-      #f0eee4 25deg 30deg
+      #FFFFFF 25deg 30deg
     );
 }
 
@@ -43,7 +45,7 @@
   content: "";
   position: absolute;
   inset: var(--thickness);
-  background-color: #f0eee4;
+  background-color: #FFFFFF;
   border-radius: 50%;
 }
 
@@ -52,7 +54,7 @@
   z-index: 1;
 
   font-family: 'SF Pro Display', sans-serif;
-  font-size: clamp(16px, 4vw, 30px);
+  font-size: clamp(0.9rem, 2vw, 1.7rem);
   font-weight: bold;
   color: black;
 }

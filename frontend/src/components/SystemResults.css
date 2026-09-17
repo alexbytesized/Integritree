@@ -1,0 +1,82 @@
+* {
+  font-family: 'SF Pro Display', sans-serif;
+}
+
+.model-result-card {
+    flex: 1;
+    min-width: 0;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    width: auto;
+    height: auto;
+
+    padding: clamp(30px, 4vw, 50px) clamp(15px, 2vw, 30px);
+
+    border-radius: 30px;
+    background-color: #FFFFFF;
+
+    margin: 0;
+}
+
+.model-stat{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    gap: 10px;
+
+    margin: 30px;
+}
+
+.model-stat span{
+    font-size: clamp(1rem, 1.5vw, 2rem);
+}
+
+.legitimate-value{
+    color: #009A0D;
+    font-size: clamp(1.25rem, 2vw, 2rem);
+}
+
+.fraudulent-value{
+    color: #FF0000;
+    font-size: clamp(1.25rem, 2vw, 2rem);
+} 
+
+@media (max-width: 900px) {
+
+    .model-result-card {
+        width: 100%;
+        max-width: 340px;
+
+        margin: clamp(25px, 5vw, 50px);
+    }
+}
+
+@media (max-width: 600px) {
+
+    .model-result-card {
+        width: 100%;
+        max-width: none;
+
+        margin: 0;
+        padding: 20px;
+    }
+
+    .model-stat {
+        margin: 25px 0;
+        gap: 8px;
+    }
+
+    .model-stat span {
+        font-size: clamp(0.9rem, 4vw, 1.1rem);
+        text-align: center;
+    }
+
+    .legitimate-value,
+    .fraudulent-value {
+        font-size: clamp(1.3rem, 6vw, 1.7rem);
+    }
+}

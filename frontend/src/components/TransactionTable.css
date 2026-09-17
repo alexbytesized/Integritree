@@ -1,24 +1,29 @@
 .tableContainer {
-  width: 100%;
+  width: 90%;
   margin-top: clamp(12px, 2vw, 20px);
+}
+
+.tableWrapper {
+  width: 100%;
   overflow-x: auto;
+
+  border: 1px solid #412d15;
+  border-radius: 28px;
 }
 
 .transactionTable {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-family: "SF Pro Display", sans-serif;
-  font-size: clamp(10px, 1vw, 14px);
-  color: #412d15;
-  background-color: #f0eee4;
-  border-color:#412d15;
-  border-width: 2px;
-  border-style: solid;
+  font-size: clamp(1rem, 1vw, 1.25rem);
+  background-color: #FFFFFF;
+  border-radius: 30px;
 }
 
 .transactionTable th,
 .transactionTable td {
-  border: 1px solid #9a8c78;
+  border-bottom: 1px solid #412D15;
   padding: clamp(7px, 1vw, 12px);
   text-align: center;
   white-space: nowrap;
@@ -26,7 +31,7 @@
 
 .transactionTable th {
   font-weight: 700;
-  background-color: #f0eee4;
+  background-color: #FFFFFF;
 }
 
 .transactionTable tbody tr {
@@ -38,11 +43,11 @@
 }
 
 .blueText {
-  color: #0078d7;
+  color: #9100D5;
 }
 
 .purpleText {
-  color: #b000ff;
+  color: #D74F00;
 }
 
 .statusDot {
@@ -70,9 +75,7 @@
   margin: 0 3px;
   font-weight: 600;
   font-size: clamp(9px, 0.9vw, 13px);
-  border-color:#412d15;
-  border-width: 2px;
-  border-style: solid;
+  border: 1px solid #412D15;
 }
 
 .blueBadge {
@@ -91,9 +94,11 @@
   border-radius: 4px;
   font-weight: 600;
   font-size: clamp(9px, 0.9vw, 13px);
-  border-color:#412d15;
-  border-width: 2px;
-  border-style: solid;
+  border: 1px solid #412D15;
+}
+
+.emptyRow td {
+  border-bottom-color: transparent;
 }
 
 
@@ -107,12 +112,16 @@
 }
 
 .paginationButton, .paginationText {
-  border: 1px solid #412d15;
-  background-color: #f0eee4;
-  color: #412d15;
+  border: 1px solid #D8D8D8;
+  background-color: #FFFFFF;
+  color: #0073CB;
   padding: clamp(5px, 1vw, 8px) clamp(10px, 1.5vw, 16px);
   border-radius: 4px;
   font-size: clamp(11px, 1vw, 14px);
+}
+
+.paginationText {
+  color: #181818;
 }
 
 .paginationButton {
@@ -138,4 +147,127 @@
 .paginationButton:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* TABLET */
+@media (max-width: 900px) {
+  .tableContainer {
+    width: 100%;
+  }
+
+  .tableWrapper {
+    border-radius: 22px;
+  }
+
+  .transactionTable {
+    min-width: 850px;
+    font-size: clamp(0.85rem, 1.8vw, 1rem);
+  }
+
+  .transactionTable th,
+  .transactionTable td {
+    padding: 10px 8px;
+  }
+
+  .riskBadge,
+  .featureBadge {
+    font-size: 0.75rem;
+    padding: 3px 6px;
+  }
+
+  .pagination {
+    gap: 12px;
+  }
+
+  .paginationButton,
+  .paginationText {
+    font-size: 0.8rem;
+    padding: 6px 12px;
+  }
+}
+
+
+/* MOBILE */
+@media (max-width: 600px) {
+  .tableContainer {
+    width: 100%;
+    margin-top: 12px;
+  }
+
+  .tableWrapper {
+    width: 100%;
+
+    overflow-x: auto;
+
+    border-radius: 18px;
+  }
+
+  .transactionTable {
+    min-width: 760px;
+
+    font-size: 0.75rem;
+    border-radius: 18px;
+  }
+
+  .transactionTable th,
+  .transactionTable td {
+    padding: 8px 6px;
+  }
+
+  .statusDot {
+    width: 6px;
+    height: 6px;
+    margin-right: 5px;
+  }
+
+  .riskBadge {
+    min-width: 30px;
+    padding: 2px 5px;
+    margin: 0 2px;
+
+    font-size: 0.65rem;
+  }
+
+  .featureBadge {
+    padding: 2px 5px;
+
+    font-size: 0.65rem;
+  }
+
+  .pagination {
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .paginationButton,
+  .paginationText {
+    padding: 5px 9px;
+
+    font-size: 0.7rem;
+  }
+}
+
+
+/* SMALL MOBILE */
+@media (max-width: 500px) {
+  .transactionTable {
+    min-width: 700px;
+    font-size: 0.7rem;
+  }
+
+  .transactionTable th,
+  .transactionTable td {
+    padding: 7px 5px;
+  }
+
+  .riskBadge,
+  .featureBadge {
+    font-size: 0.6rem;
+  }
+
+  .paginationButton,
+  .paginationText {
+    font-size: 0.65rem;
+    padding: 4px 8px;
+  }
 }
