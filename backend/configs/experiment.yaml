@@ -1,0 +1,14 @@
+# Scaffold only. This file is not an executable experiment configuration yet.
+# Phase 1 will define and validate the configuration schema.
+# Confirmed study split: training 80%, validation 10%, testing 10%, stratified.
+# Do not invent defaults for unresolved methodological decisions.
+#
+# Planned sections:
+# - experiment identity and dataset provenance
+# - target, feature schema, and split settings
+# - preprocessing and missing-value handling
+# - Random Forest parameters and fair tuning procedure
+# - SMOTE parameters and categorical-feature treatment
+# - prediction score and decision threshold
+# - evaluation and SHAP settings
+# - reproducibility seeds and output locations

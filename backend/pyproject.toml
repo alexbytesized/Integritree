@@ -1,0 +1,4 @@
+# Scaffold only. This is not an installable package configuration yet.
+# Phase 1 will define the build system, project metadata, supported Python
+# version, dependencies, dependency locking, and test/tool configuration.
+# No dependency versions or packaging backend have been selected here.
