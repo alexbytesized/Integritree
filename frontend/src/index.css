@@ -1,14 +1,14 @@
 @font-face {
   font-family: 'Coolvetica';
   src: url('./assets/fonts/Coolvetica Rg.otf') format('opentype');
-  font-weight: normal;
+  font-weight: 400 700;
   font-style: normal;
 }
 
 @font-face {
   font-family: 'Coolvetica';
   src: url('./assets/fonts/Coolvetica Rg It.otf') format('opentype');
-  font-weight: normal;
+  font-weight: 400 700;
   font-style: italic;
 }
 
