@@ -1,22 +1,9 @@
-* {
-  box-sizing: border-box;
-}
-
-html,
-body,
-#root {
-  width: 100%;
-  min-height: 100%;
-  margin: 0;
-  overflow-x: hidden;
-}
-
 .user-results-container {
   position: relative;
   width: 100%;
 }
 
-#particles-js {
+.user-results-container #particles-js {
   position: absolute;
   z-index: -1;
   height: 100%;

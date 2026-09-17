@@ -22,15 +22,22 @@ const Navbar = () => {
   return (
     <div className="navbar-container">
       <nav className="navbar">
-        <Link to="/" className="navbar-logo">INTEGRITREE</Link>
+        {/* Logo */}
+        <Link to="/" className="navbar-logo">
+          INTEGRITREE
+        </Link>
+
+        {/* Nav Links */}
         <div className="navbar-links">
           <a href="#features" onClick={(e) => handleNavClick(e, 'features-anchor')} className="nav-link">Features</a>
           <a href="#how-it-works" onClick={(e) => handleNavClick(e, 'how-it-works-anchor')} className="nav-link">How It Works</a>
-          <a href="#meet-the-team" onClick={(e) => handleNavClick(e, 'meet-the-team-anchor')} className="nav-link">Meet The Team</a>
+          <a href="#meet-the-team" onClick={(e) => handleNavClick(e, 'meet-the-team-anchor')} className="nav-link">Meet the Team</a>
         </div>
+
+        {/* CTA Button */}
         <div className="navbar-actions">
           <Link to="/upload" className="btn-begin">
-            <span className="btn-begin-icon">▶</span> BEGIN
+            <span className="btn-begin-icon">▶</span> Begin
           </Link>
         </div>
       </nav>

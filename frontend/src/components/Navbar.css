@@ -1,9 +1,12 @@
 .navbar-container {
   position: fixed;
   top: 0;
+  left: 0;
   width: 100%;
-  background-color: #FFFFFF;
-  z-index: 10;
+  background-color: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: 100;
 }
 
 .navbar {
@@ -12,17 +15,21 @@
   align-items: center;
   max-width: 1280px;
   margin: 0 auto;
-  padding: 20px 40px;
+  padding: 16px 40px;
   box-sizing: border-box;
 }
 
+/* Logo */
 .navbar-logo {
-  font-family: 'Future Earth', sans-serif;
-  font-size: 20px;
+  font-family: 'Coolvetica', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
   text-decoration: none;
-  color: #181818;
+  color: #111111;
 }
 
+/* Nav Links */
 .navbar-links {
   display: flex;
   align-items: center;
@@ -30,16 +37,19 @@
 }
 
 .nav-link {
-  font-family: 'Future Earth', sans-serif;
+  font-family: 'SF Pro Display', sans-serif;
   font-size: 14px;
+  font-weight: 400;
   text-decoration: none;
-  color: #181818;
+  color: #333333;
+  transition: color 0.2s ease;
 }
 
 .nav-link:hover {
-  color: #412D15;
+  color: #0071E3;
 }
 
+/* Begin Button */
 .navbar-actions {
   display: flex;
   align-items: center;
@@ -49,39 +59,40 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 24px;
-  font-family: 'Future Earth', sans-serif;
+  padding: 9px 20px;
+  font-family: 'SF Pro Display', sans-serif;
   font-size: 13px;
-  letter-spacing: 2.5px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
   text-decoration: none;
-  background-color: #412D15;
-  color: #FFFFFF;
+  background-color: #111111;
+  color: #ffffff;
   border: 1px solid transparent;
-  border-radius: 30px;
+  border-radius: 999px;
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
 .btn-begin:hover {
-  background-color: #FFFFFF;
-  color: #412D15;
-  border-color: #412D15;
+  background-color: #ffffff;
+  color: #111111;
+  border-color: #111111;
 }
 
 .btn-begin-icon {
-  font-size: 9px;
+  font-size: 8px;
 }
 
-/* Responsive adjustments */
+/* Responsive */
 @media (max-width: 768px) {
   .navbar {
-    padding: 15px 20px;
+    padding: 14px 20px;
   }
-  
+
   .navbar-links {
-    gap: 20px;
+    gap: 24px;
   }
-  
+
   .nav-link {
     font-size: 13px;
   }
