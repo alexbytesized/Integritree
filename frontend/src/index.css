@@ -1,8 +1,15 @@
 @font-face {
-  font-family: 'Future Earth';
-  src: url('./assets/fonts/future-earth.ttf') format('truetype');
+  font-family: 'Coolvetica';
+  src: url('./assets/fonts/Coolvetica Rg.otf') format('opentype');
   font-weight: normal;
   font-style: normal;
+}
+
+@font-face {
+  font-family: 'Coolvetica';
+  src: url('./assets/fonts/Coolvetica Rg It.otf') format('opentype');
+  font-weight: normal;
+  font-style: italic;
 }
 
 @font-face {
@@ -12,7 +19,16 @@
   font-style: normal;
 }
 
-body, html {
+html {
+  overflow-x: hidden;
+  overflow-y: hidden;
+  height: 100%;
+}
+
+body {
   margin: 0;
   padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  height: 100%;
 }

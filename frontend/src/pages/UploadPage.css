@@ -10,7 +10,7 @@
   overflow: hidden;
 }
 
-#particles-js {
+.upload-page-container #particles-js {
   position: absolute;
   z-index: -1;
   height: 100%;
