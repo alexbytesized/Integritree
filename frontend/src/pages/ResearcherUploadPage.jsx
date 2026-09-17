@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useDropzone } from 'react-dropzone'
-import { ArrowLeft, Camera, ImageIcon, X, FileImage } from 'lucide-react'
+import { ArrowLeft, Database, Upload, X, FileText } from 'lucide-react'
 import './UploadPage.css'
 
-const UploadPage = () => {
+const ResearcherUploadPage = () => {
   const [file, setFile] = useState(null)
   const [error, setError] = useState('')
   const navigate = useNavigate()
@@ -19,15 +19,15 @@ const UploadPage = () => {
     setError('')
 
     if (fileRejections && fileRejections.length > 0) {
-      setError('Only PNG/JPG format files are allowed.')
+      setError('Only CSV format files are allowed.')
       return
     }
 
     if (acceptedFiles && acceptedFiles.length > 0) {
       const selectedFile = acceptedFiles[0]
 
-      if (selectedFile.size > 100 * 1024 * 1024) {
-        setError('File size exceeds the 100MB limit.')
+      if (selectedFile.size > 500 * 1024 * 1024) {
+        setError('File size exceeds the 500MB limit.')
         return
       }
 
@@ -38,8 +38,8 @@ const UploadPage = () => {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      'image/png': ['.png'],
-      'image/jpeg': ['.jpg', '.jpeg'],
+      'text/csv': ['.csv'],
+      'application/vnd.ms-excel': ['.csv'],
     },
     multiple: false,
   })
@@ -51,7 +51,7 @@ const UploadPage = () => {
 
   const handleAnalyze = () => {
     if (file) {
-      navigate('/results')
+      navigate('/researcher')
     }
   }
 
@@ -80,8 +80,8 @@ const UploadPage = () => {
         </h1>
         <p className="upload-subtitle">E-Wallet Fraud Detection - Upload File</p>
         <p className="upload-researcher-link">
-          For Researchers?{' '}
-          <Link to="/researcher-upload" className="upload-researcher-anchor">
+          For Users?{' '}
+          <Link to="/upload" className="upload-researcher-anchor">
             Click here
           </Link>
         </p>
@@ -93,12 +93,12 @@ const UploadPage = () => {
         {/* Card Header */}
         <div className="upload-card-header">
           <div className="upload-header-icon">
-            <Camera size={22} strokeWidth={1.5} />
+            <Database size={22} strokeWidth={1.5} />
           </div>
           <div className="upload-header-text">
-            <h2 className="upload-card-title">Upload Screenshot</h2>
+            <h2 className="upload-card-title">Upload File</h2>
             <p className="upload-card-subtitle">
-              Select and Upload the screenshot of your transaction record
+              Select and Upload the CSV File containing E-Wallet Transaction Records
             </p>
           </div>
         </div>
@@ -108,7 +108,7 @@ const UploadPage = () => {
           {file ? (
             <div className="file-details-container">
               <div className="file-info-row">
-                <FileImage size={24} color="#1a73e8" />
+                <FileText size={24} color="#1a73e8" />
                 <div style={{ textAlign: 'left', flex: 1 }}>
                   <div className="file-name">{file.name}</div>
                   <div className="file-size">{formatBytes(file.size)}</div>
@@ -128,9 +128,9 @@ const UploadPage = () => {
               className={`dropzone-area ${isDragActive ? 'drag-active' : ''}`}
             >
               <input {...getInputProps()} />
-              <ImageIcon size={36} className="dropzone-icon" />
+              <Upload size={36} className="dropzone-icon" />
               <h3 className="dropzone-title">Choose a file or drag and drop it here</h3>
-              <p className="dropzone-desc">PNG/JPG format only, up to 100MB</p>
+              <p className="dropzone-desc">CSV format only, up to 500MB</p>
               <div className="btn-browse">Browse File</div>
             </div>
           )}
@@ -142,4 +142,4 @@ const UploadPage = () => {
   )
 }
 
-export default UploadPage
+export default ResearcherUploadPage
