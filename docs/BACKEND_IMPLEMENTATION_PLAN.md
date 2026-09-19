@@ -4,11 +4,16 @@ Last updated: 2026-09-18
 
 ## Current status and scope
 
-The backend directory scaffold is complete. **Phase 1 code implementation has
-not started.** Python files contain descriptive docstrings; configuration files
-contain comments. They do not provide working commands, tests, or an API.
+The backend scaffold, **Phase 1 foundation, and Phase 2 preparation are complete**.
+The Python 3.12 package provides configuration/contracts, a health endpoint,
+batched source auditing, exact deduplication, shared stratified splits, feature
+engineering, and saved training-fitted preprocessing. The full supplied PaySim
+file has been prepared and verified. Model training, prediction, evaluation,
+and receipt workflows remain unimplemented.
+See [setup instructions](../backend/README.md), [methodology decisions](METHODOLOGY.md),
+and [API contracts](API.md).
 
-The initial backend supports two uses of the same saved RF and RF-SMOTE models:
+The planned application will support two uses of the same saved RF and RF-SMOTE models:
 
 - Research: labeled PaySim test records, predictions, explanations, metrics,
   statistical comparisons, and exports.
@@ -24,8 +29,8 @@ does not approve an algorithm change or a Chapter 3 rewrite.
 | Phase | Focus | Main outcome | Status |
 | --- | --- | --- | --- |
 | 0 | Directory scaffold | Clearly labeled module/configuration placeholders | Complete |
-| 1 | Foundation and contracts | Reproducible development setup and validated configuration/data contracts | Not started |
-| 2 | Dataset and preprocessing | Audited, reproducible splits and training-fitted transformations | Not started |
+| 1 | Foundation and contracts | Reproducible development setup and validated configuration/data contracts | Complete |
+| 2 | Dataset and preprocessing | Audited, reproducible splits and training-fitted transformations | Complete |
 | 3 | Training and saved inference | Both trained models and reloadable experiment bundles | Not started |
 | 4 | Research evaluation and SHAP | Verified evaluation reports and model explanations | Not started |
 | 5 | Application services and API | Research and individual structured-record workflows | Not started |
@@ -265,12 +270,50 @@ Completion checks:
 - Document remaining limitations, particularly the lack of validation on real
   GCash transaction outcomes.
 
-## Next coding session: Phase 1 only
+## Phase 1 verification
 
-Start with environment inspection, package/test setup, configuration validation,
-shared contracts, and a health endpoint. Define settings before implementing
-dataset processing. No model training, OCR, or final statistical conclusions are
-part of Phase 1.
+- Created an isolated Python 3.12.5 environment, installed hash-locked dependencies,
+  and installed/imported the package in editable mode.
+- All 70 foundation tests passed using synthetic inputs, including label/balance
+  exclusion, paired model identities, configuration rejection, and command failures.
+- A live local server started from the repository root returned HTTP 200 and the
+  expected health JSON; the temporary server was stopped after verification.
+- Dependency consistency check passed. The test client emits two upstream
+  deprecation warnings (Starlette/httpx and the AnyIO portal alias); no test failed.
+- The local dataset identity is recorded; Phase 1 did not prepare or train on it.
+
+## Phase 2 verification
+
+- All 106 tests passed, including 36 new preparation tests. Cases cover exact
+  duplicates across batches, invalid/missing input, hand-worked features, tiny
+  stratified datasets, no refitting on held-out values, saved-state replay,
+  reproducible split membership, integrity checks, and failed-run rejection.
+- Dependency locking/installation and `pip check` passed. The same two upstream
+  test-client deprecation warnings recorded in Phase 1 remain.
+- The full source run `paysim_phase2_20260918` retained 6,362,620 records:
+  no exact duplicates, no missing fields, and no validation failures.
+- Training: 5,090,096 rows / 6,570 fraud. Validation: 636,262 / 822 fraud.
+  Testing: 636,262 / 821 fraud. Original class imbalance was preserved subject
+  to integer rounding; no SMOTE was applied.
+- A separate batched verification checked every feature row for finite values,
+  binary indicators, unique source identity, and alignment with split/label
+  membership. All source/bundle fingerprints matched. Saved preprocessing
+  exactly reproduced 100 sampled records per split. Scratch files were cleaned.
+- Local bundle: `backend/data/prepared/paysim_phase2_20260918/`.
+  Verification report: `backend/reports/paysim_phase2_20260918/verification.json`.
+  Both are generated/ignored outputs; installation and recreation commands are
+  documented in the backend README. The raw CSV is unchanged.
+
+## Next coding session: Phase 3
+
+Ordinary SMOTE, 1:1 balancing, starting RF settings, mean-tree probability
+scoring, and an initial 0.50 cutoff with fraud on ties are now approved. Resolve
+the fair shared-RF tuning procedure, neighbor count, model/SMOTE seeds, and
+threshold search/reporting protocol. Matching RF settings, validation F1 as the
+threshold objective, and AP as the precision-recall summary are now selected. Those remaining decisions are
+recorded as open in METHODOLOGY.md; unapproved configuration values remain unset. Implement training and saved inference only after these
+choices are recorded. Phase 2 has not trained either model or produced thesis
+performance metrics.
 
 At each phase boundary, report implemented behavior, checks actually run,
 remaining decisions, and changed files. Placeholder files and collected test

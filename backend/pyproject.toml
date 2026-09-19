@@ -1,4 +1,40 @@
-# Scaffold only. This is not an installable package configuration yet.
-# Phase 1 will define the build system, project metadata, supported Python
-# version, dependencies, dependency locking, and test/tool configuration.
-# No dependency versions or packaging backend have been selected here.
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "integritree-backend"
+version = "0.1.0"
+description = "Research and experimental inference backend for Integritree"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.115,<1",
+    "pydantic>=2.10,<3",
+    "pydantic-settings>=2.7,<3",
+    "PyYAML>=6.0,<7",
+    "uvicorn>=0.34,<1",
+    "numpy>=2.2,<3",
+    "pandas>=2.2,<3",
+    "pyarrow>=19,<24",
+    "scikit-learn>=1.6,<2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3,<10",
+    "httpx>=0.28,<1",
+    "pip-tools>=7.5,<8",
+    "setuptools==80.9.0",
+]
+
+[project.scripts]
+integritree-config = "integritree.config:main"
+integritree-prepare = "integritree.ml.preparation:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"

@@ -1,5 +1,6 @@
-"""Scaffold only: train and save both models.
+"""Model training: command guard only; implement the workflow in Phase 3."""
 
-Implement in Phase 3. This file currently performs no operations.
-See docs/BACKEND_IMPLEMENTATION_PLAN.md at the repository root.
-"""
+from integritree.commands import pending_command
+
+if __name__ == "__main__":
+    raise SystemExit(pending_command("Model training", 3, "train"))
