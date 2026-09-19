@@ -1,1 +1,3 @@
-"""Integritree backend package scaffold; functionality is not implemented yet."""
+"""Shared backend foundation for Integritree."""
+
+__version__ = "0.1.0"

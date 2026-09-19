@@ -1,5 +1,6 @@
-"""Scaffold only: predict compatible records using saved models.
+"""Batch prediction: command guard only; implement the workflow in Phase 5."""
 
-Implement in Phase 5. This file currently performs no operations.
-See docs/BACKEND_IMPLEMENTATION_PLAN.md at the repository root.
-"""
+from integritree.commands import pending_command
+
+if __name__ == "__main__":
+    raise SystemExit(pending_command("Batch prediction", 5, None))

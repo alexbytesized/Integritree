@@ -1,5 +1,6 @@
-"""Scaffold only: prepare and split the research dataset.
+"""Audit PaySim and save shared splits and training-fitted preprocessing."""
 
-Implement in Phase 2. This file currently performs no operations.
-See docs/BACKEND_IMPLEMENTATION_PLAN.md at the repository root.
-"""
+from integritree.ml.preparation import main
+
+if __name__ == "__main__":
+    raise SystemExit(main())

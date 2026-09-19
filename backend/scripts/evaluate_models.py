@@ -1,5 +1,6 @@
-"""Scaffold only: evaluate the finalized models and export research results.
+"""Research evaluation: command guard only; implement the workflow in Phase 4."""
 
-Implement in Phase 4. This file currently performs no operations.
-See docs/BACKEND_IMPLEMENTATION_PLAN.md at the repository root.
-"""
+from integritree.commands import pending_command
+
+if __name__ == "__main__":
+    raise SystemExit(pending_command("Research evaluation", 4, "evaluate"))
