@@ -1,17 +1,23 @@
 # Integritree backend implementation plan
 
-Last updated: 2026-09-18
+Last updated: 2026-09-22 (completed mock-up review and backend alignment audit)
 
 ## Current status and scope
 
-The backend scaffold, **Phase 1 foundation, and Phase 2 preparation are complete**.
-The Python 3.12 package provides configuration/contracts, a health endpoint,
-batched source auditing, exact deduplication, shared stratified splits, feature
-engineering, and saved training-fitted preprocessing. The full supplied PaySim
-file has been prepared and verified. Model training, prediction, evaluation,
-and receipt workflows remain unimplemented.
+The backend scaffold and Phases 1-3 are implemented. Full PaySim preparation and
+baseline RF/RF-SMOTE training are complete and verified. Both saved models are in
+backend/artifacts/paysim_phase3_baseline_20260920/. The initial RAM preflight stop
+was resolved on retry. No validation tuning or official test evaluation has run.
+Evaluation, tuning, SHAP, prediction routes, and receipt workflows remain future work.
 See [setup instructions](../backend/README.md), [methodology decisions](METHODOLOGY.md),
 and [API contracts](API.md).
+
+The mock-up corrections are established in [the decision record](MOCKUP_EVALUATION_DECISIONS.md).
+The latest SHAP scope is top positive contributor, deterministic narrative, and
+waterfall-only expanded details. A numerical table is a suggestion, not a phase
+deliverable. [The code alignment audit](BACKEND_ALIGNMENT_AUDIT.md) records evidence,
+the small signed-comparison configuration fix, and remaining implementation gaps.
+The audit passed 125 tests; it did not rerun full training or produce thesis metrics.
 
 The planned application will support two uses of the same saved RF and RF-SMOTE models:
 
@@ -31,11 +37,38 @@ does not approve an algorithm change or a Chapter 3 rewrite.
 | 0 | Directory scaffold | Clearly labeled module/configuration placeholders | Complete |
 | 1 | Foundation and contracts | Reproducible development setup and validated configuration/data contracts | Complete |
 | 2 | Dataset and preprocessing | Audited, reproducible splits and training-fitted transformations | Complete |
-| 3 | Training and saved inference | Both trained models and reloadable experiment bundles | Not started |
+| 3 | Training and saved inference | Baseline trainer and reloadable paired model bundles | Complete; full PaySim baseline verified |
 | 4 | Research evaluation and SHAP | Verified evaluation reports and model explanations | Not started |
 | 5 | Application services and API | Research and individual structured-record workflows | Not started |
 | 6 | GCash receipt demonstration | Image extraction, confirmation, mapping, and prediction | Not started |
 | 7 | Integration and reproducibility | Backend handoff validated against the frontend workflows | Not started |
+
+The existing foundation is reusable; Phases 1-3 are complete for their stated
+PaySim/baseline scope. Their current contracts are not the complete application
+contract. Extend them in the dependent phases rather than retrofitting receipt
+assumptions into PaySim preparation. Current HTTP is health-only.
+
+### Decisions that every future phase must preserve
+
+- Internal fraud scores remain 0..1. Display score is 100*p; use unrounded values
+  for communication bands: [0,20) Minimal, [20,40) Low, [40,60) Moderate, [60,80)
+  High, [80,100] Critical. Classification uses the saved shared threshold, not
+  band boundaries. UI labels are Predicted Fraud / Predicted Legitimate.
+- Both models must stay joined to the same record. Ground truth is separate and
+  optional outside evaluation. No individual-detail correctness badge is required.
+- Original Inputs and Derived Inputs are required in record details. Distinguish
+  readable engineered values from the scaled matrix actually consumed by the model.
+- Model/run and evaluation context belong in internal provenance and the approved
+  ZIP export, not new on-screen model-run or evaluation-detail panels.
+- Retain color-only visible model association in table score/contributor cells;
+  backend values must still carry explicit model keys. Visible badges/subheaders
+  and optional tooltips remain suggestions. No risk-score sorting.
+- Numerical SHAP table, standalone raw-contribution download, global SHAP plots,
+  PDF/XLSX export, and agreement/disagreement filters are optional suggestions.
+- Receipt support is GCash person-to-person only. All five types may appear in
+  the dropdown, but only TRANSFER is enabled. Server validation enforces this.
+- All screenshot numbers are placeholders; no expected performance or counts may
+  be inferred from them. Use the corrected researcher page with McNemar already present.
 
 Implement each phase and satisfy its completion checks before moving to its
 dependent phases. The plan defines the sequence; unresolved research choices
@@ -68,7 +101,8 @@ Work:
 Decisions to resolve before dependent model work:
 
 - Exact dataset/version, final predictors, and timing conventions.
-- Score definition, classification threshold, tie handling, and PR-AUC method.
+- Score definition, threshold and ties before training;
+  PR-AUC numerical convention before Phase 4 evaluation.
 - Scaling, SMOTE parameters, categorical-feature treatment, and fair RF tuning.
 - SHAP output to explain, background selection, and explanation coverage.
 
@@ -119,7 +153,8 @@ Work:
 - Implement `ml/training.py` and `scripts/train_models.py` for RF and RF-SMOTE.
   Both start from the same original training records. Only the second branch
   applies the approved SMOTE procedure.
-- Use the shared validation set and a documented tuning budget/procedure. Do not
+- Phase 3 implements the fixed baseline. The approved validation search follows
+  Phase 4 metric implementation; see METHODOLOGY.md. Do not
   introduce class weighting or other differences that confound the comparison.
   If cross-validation is selected, fit preprocessing and SMOTE within each fold.
 - Preserve the untouched test set during tuning. Record the final configuration
@@ -141,27 +176,85 @@ Completion checks:
 - Configuration/data combinations with too few fraud neighbors fail clearly.
 - Validate the workflow on small synthetic fixtures before the full experiment.
 
+Phase 3 verification at implementation: 123 tests passed, including matched RF settings, training-only
+SMOTE, fractional indicators, reload parity, and individual/batch agreement.
+Full PaySim baseline training is complete. Both models passed reload checks;
+source/prepared hashes, training-row preprocessing replay, and individual/batch
+prediction consistency passed full-run verification. See the methodology record.
+
 ## Phase 4 - Research evaluation and SHAP
 
-**Requires:** finalized Phase 3 bundles and recorded evaluation/SHAP decisions.
+**Requires:** working Phase 3 bundles and recorded evaluation/SHAP decisions.
+Develop metrics on synthetic/validation data before tuning. Freeze settings and
+the common cutoff before running official test evaluation.
 
 Work:
 
+- Add explicit evaluation-policy fields for undefined metrics, signed-comparison
+  edge cases, McNemar handling, and method identifiers. Active YAML now selects
+  signed_over_mean; the schema retains absolute_over_mean solely for historical
+  compatibility. Read old snapshots unchanged. Create a separate evaluation
+  configuration/report referencing the immutable trained bundle; do not overwrite
+  its training configuration to enable evaluation or SHAP.
+- Decide AP versus trapezoidal PR-AUC before reporting it. Keep the manuscript's
+  continuity-corrected McNemar visible; settle a documented small-discordance rule
+  before calculation. Zero discordances: p=1 by convention, statistic unavailable,
+  status No discordant pairs. Do not silently substitute exact testing.
+
+- Implement approved shared RF candidate/common-cutoff selection on validation F1,
+  saving a selection record before official test evaluation.
+  Candidates are (100,10), (100,20), (200,10), (200,20) for trees/depth. At 0.50,
+  maximize mean validation F1 across both variants; ties favor shallower then fewer
+  trees. For that shared configuration, search common cutoffs 0.05..0.95 by 0.05;
+  ties favor nearest 0.50 then higher cutoff. Keep preprocessing and seeds fixed.
+  Factor baseline-only validation out of the general artifact loader: it currently
+  rejects non-0.50 thresholds and non-fixed_baseline runs. Introduce an explicit
+  selected-run/selection-artifact contract and validate it without weakening
+  legacy-bundle integrity. Preserve the original baseline, and test both loaders.
 - Implement `ml/evaluation.py` and `scripts/evaluate_models.py` on the same held-out
   test records for both models. Full-PaySim training-record predictions must not
   be presented as the official test results.
 - Compute precision, recall, F1, MCC, PR-AUC, and confusion matrices. Accuracy is
   supplementary. Use scores for PR-AUC and the agreed classes for hard metrics.
+  Fraud is positive. Confusion matrices identify Actual and Predicted axes. MCC
+  remains a -1..1 coefficient. Undefined metrics are null with a reason, not NaN,
+  infinity, or an unexplained zero. Declare absent-class and undefined-F1 handling
+  in the evaluation policy, including the validation-selection policy.
 - Implement descriptive differences and the paired McNemar contingency table,
   statistic, p-value, and conclusion at alpha = 0.05. Describe differences in
   classification errors, not significance of each metric or automatic improvement.
 - Resolve/report undefined metrics and zero-denominator percentage comparisons.
   Specify McNemar behavior for no or few discordant pairs, preserving the agreed
   statistical procedure rather than silently substituting a different test.
+  Signed difference = 100*(S-B)/((S+B)/2), S=RF-SMOTE, B=benchmark RF. Use it for
+  nonnegative values with positive mean. Both zero: null/zero_denominator. Either
+  MCC negative: S-B with coefficient units and a different method label. Undefined
+  inputs remain unavailable. Compute before rounding; positive means S is higher.
+  Export the exact comparison method, units, and status. A descriptive difference
+  never inherits statistical significance from the McNemar p-value.
 - Implement `ml/explainability.py` for both models. Explain the same fraud output
   used by scoring and label the SHAP baseline, feature values, and contributions.
+  Plan probability-space fraud-class explanations; finalize background strategy,
+  size, seed, perturbation method, tolerance, and SHAP version before execution.
+  A fixed sample of 200 original training rows is only a proposal, not a frozen
+  setting. Do not use synthetic or held-out rows as background by convenience.
+- Compute the top risk-increasing contributor as the largest contribution above
+  the recorded positive tolerance, even for legitimate predictions. Break ties in
+  saved feature order. Distinguish no positive contributor from pending/failed SHAP.
+- Generate deterministic explanations from the same per-model contributions,
+  using readable source values and both increasing/decreasing influences. Never
+  cite excluded balance fields, invented behavior/history, or ground truth as an
+  explanation. A zero type indicator means absence, not presence, of that type.
+- Generate a model-specific waterfall asset with baseline, final output, readable
+  feature values, signed contributions, units, and any grouped remaining effects.
+  Supply a text description for accessibility. The expanded UI needs only this
+  graph; keep numerical contributions internally for additivity and reproducibility.
 - Define on-demand individual explanations and any reproducible sampling used
   for global summaries. Do not imply a sampled summary explains every record.
+  Start with bounded page/detail explanation requests and cache by analysis/input
+  revision, record, model run, and explainer version. Finalize measured limits;
+  show status/coverage rather than pretending every uploaded record is explained.
+  Global plots and full-dataset SHAP exports are optional future work.
 - Export paired transaction predictions and scores, metrics, statistical results,
   and figures into `reports/<run_id>/` with matching artifact provenance.
 
@@ -175,6 +268,12 @@ Completion checks:
   output within tolerance, and that feature names match the saved feature order.
 - Exported records retain identifiers and enough precision to reproduce metrics.
 - RF-SMOTE is allowed to be better, worse, or statistically indistinguishable.
+- Verify legacy and signed evaluation policies cannot be mislabeled, negative-MCC
+  units and zero denominators, deterministic tie handling, and label/score alignment.
+- Check legitimate/no-positive/negative-only explanations, per-model differences,
+  chart/narrative agreement, and no reuse after input/model/explainer changes.
+- Verify new selected-run loading preserves threshold ties and legacy inference;
+  do not evaluate the official test set while developing or choosing settings.
 
 ## Phase 5 - Application services and API
 
@@ -188,6 +287,9 @@ Work:
   models without refitting preprocessing or retraining.
 - Implement prediction and research routes with the Phase 1 request/response
   contracts. Keep routes thin; do not duplicate model logic in API handlers.
+  Extend the reserved contracts first: analysis/job identity, original/derived
+  inputs, nullable ground truth, presentation bands, SHAP status/top contributor/
+  narrative/chart, and downloads are not in the Phase 1 envelopes today.
 - Distinguish labeled research inputs from unlabeled prediction inputs. Missing
   labels mean no evaluation metrics, correctness labels, or invented ground truth.
 - Preserve the distinction between official held-out experiment results and
@@ -195,10 +297,44 @@ Work:
   compatibility nor independence from training data.
 - Load trusted local model bundles, expose the model/run identifier, and return
   both models' results and disagreements explicitly.
+  Keep run identity for provenance/cache/export. It does not mandate a visible
+  model-run panel, correctness badge, or new disagreement filter.
+- Add a downloadable CSV template/schema guide matching the ingestion contract.
+  Phase 2's eleven-column, source-hash-bound research preparation must not become
+  a general upload handler. Validate uploaded compatible predictor fields separately,
+  preserve supplied original columns, and require independent isFraud for evaluation.
+  Define the exact accepted upload schema before publishing the template. Never
+  require excluded balance columns solely to construct the eleven predictors.
+- Add server-side transaction-ID search and Model = Both/RF-SMOTE/Benchmark RF,
+  Prediction outcome = All/TP/FP/TN/FN. Require one model and labels for an outcome;
+  the UI disables/resets outcome to All for Both. Reject inconsistent API queries.
+  Outcome filtering may compute correctness internally without displaying a badge.
+  Search/filter precedes pagination over all records; keep stable source ordering,
+  total/filtered counts, and return-navigation state. No score sort is required.
+  Table filters do not silently redefine the official evaluation population.
+- Return Original Inputs (as supplied/confirmed, with permitted traceability fields)
+  and Derived Inputs (eleven engineered features, saved scaled values, feature order,
+  transformations). Do not manufacture raw PaySim fields for receipts. Dataset
+  Transaction ID means the original record identity, not a payment reference.
+- Implement Download results as ZIP containing results.csv, evaluation.json,
+  report.html, and metadata.json. The HTML report is readable offline, contains
+  evaluation context/provenance and limitations, and escapes supplied text. CSV
+  preserves identities/precision; protect spreadsheet readers from formula-like
+  text. Include comparison methods/statuses and SHAP coverage. Raw SHAP CSV is
+  optional and never implies full coverage. Missing data is not exported as zero.
+  Distinguish all-results and filtered scopes; no giant HTML table or Excel truncation.
 - Choose and implement a bounded local batch execution/progress approach based
   on measured workloads; large PaySim operations must not freeze the interface.
+  Include validation previews and actionable errors; states for queued/processing,
+  explaining, completed, partial failure, failed, and expired as applicable. Report
+  measured progress or named indeterminate stages. Limit payload/page/export sizes,
+  permit retry/replacement, and finalize lifecycle/cleanup. A database is optional;
+  the temporary SQLite deduplication index in Phase 2 is not an application database.
+  Associate access with the analysis, not a guessable transaction ID alone.
 - Document invalid-input errors, missing-artifact behavior, file limits, and the
   frontend response contracts in `docs/API.md`.
+  Update CORS methods/headers when actual upload/prediction routes exist; current
+  GET-only settings are correct for health but not sufficient for those workflows.
 
 Completion checks:
 
@@ -208,6 +344,11 @@ Completion checks:
 - Invalid schemas, missing models, incompatible features, and failed jobs return
   clear errors rather than mock or partial-success results.
 - Batch progress, failure, and download behavior can be exercised locally.
+- Test search/filter across page boundaries, invalid outcome/model combinations,
+  source identity preservation, no-label responses, partial-SHAP exports, and
+  exported/report values matching the declared evaluation population.
+- Boundary-check 0,20,40,60,80,100 communication scores and rounding near boundaries;
+  ensure band selection never changes the saved threshold classification.
 
 ## Phase 6 - GCash receipt demonstration
 
@@ -221,9 +362,29 @@ Work:
   supported fields such as amount, transaction date/time, and transfer type.
 - Return editable extracted fields and missing/uncertain-field information.
   Prediction occurs only after user confirmation and required-field validation.
+  Confirm receipt reference as string, amount/principal, date, unambiguous time,
+  TRANSFER type, sender type and recipient type. Retain available masked names
+  only for traceability; never reconstruct redacted identities or infer C/M from
+  a personal name. Personal accounts are required for this supported workflow;
+  unknown/merchant/contradictory roles block it. Separate internal analysis ID from
+  receipt reference. Finalize missing-reference behavior; full names are optional.
+- Advertise the five transaction categories but enforce TRANSFER-only receipt
+  support on the server. Do not silently relabel a payment/cash-out as a transfer.
+  All five categories remain supported by the research model/CSV workflow.
 - Implement `receipts/mapping.py` using a documented mapping to the trained
   feature meanings. Resolve timing, amount units, category, and entity indicators
   explicitly; do not pretend PaySim steps are a verified GCash calendar.
+- Add a distinct receipt/derived-input boundary, then share the saved scaling
+  stage with raw PaySim preprocessing. Derive all eleven unscaled features and
+  apply saved scaling once, preserving order. Do not make a fake step or C/M ID
+  merely to pass PredictorInput. Do not accept arbitrary client-supplied scaled
+  matrices as validated receipt inputs. Preserve raw-input behavior and state format.
+  Missing original columns are acceptable only after this validated path exists.
+- Freeze/version the demonstration mapping before enabling it: date/time convention,
+  numeric PHP amount assumption, type/entity mapping, required fields and provenance.
+  Neither derived features nor a disclaimer validates cross-domain equivalence.
+  Store extracted and confirmed values with correction status and adapter version;
+  a changed confirmation invalidates previous predictions/explanations.
 - Where required model inputs cannot be supplied or mapped defensibly, return an
   explanation of the missing/unsupported input rather than fabricated values.
 - Implement receipt routes and connect confirmed records to the existing
@@ -232,6 +393,8 @@ Work:
   from logs and committed fixtures.
 - Label results as experimental predictions of transaction behavior. Receipt
   forgery detection remains outside scope.
+  Supply supported-scope and mapping information for Research Scope and Limitations
+  and brief contextual receipt notices. Actual retention behavior must match the page.
 
 Completion checks:
 
@@ -242,6 +405,10 @@ Completion checks:
   confirmed inputs match.
 - Both model outputs are shown; no ground-truth metrics are fabricated.
 - Test cleanup according to the agreed retention policy.
+- Verify leading-zero references, masked/absent names, unsupported dropdown values
+  submitted directly, ambiguous time, unknown roles, separate fees, and corrected data.
+- Prove raw and derived paths produce identical scaled matrices/scores for equivalent
+  synthetic PaySim inputs; this software parity is not real-GCash validity evidence.
 
 ## Phase 7 - Integration and reproducibility
 
@@ -253,6 +420,13 @@ Work:
   replace mock data should be coordinated as an explicit integration task.
 - Verify research report browsing/downloads and the full receipt-confirmation
   workflow. The unlabeled view must not display mock ground truth or metrics.
+  Include waterfall-only details; missing/failing SHAP; both-model disagreement;
+  no-positive contributors; original/derived input details; ground truth when known;
+  disabled unsupported receipt types; table filters/pagination; and ZIP downloads.
+- Align help modals in UI_HELP_CONTENT.md with backend method identifiers and
+  formulas. Keep risk bands, predicted labels, signed differences and MCC units
+  consistent across pages and exports. Verify accessible chart descriptions,
+  keyboard dialogs, mobile/scroll behavior, and contextual limitations links.
 - Run one documented, finalized experiment and preserve its artifacts, settings,
   provenance, reports, and interpretation. Use reproducibility checks to verify
   the recorded run, not to tune repeatedly against the test set.
@@ -304,16 +478,23 @@ Completion checks:
   Both are generated/ignored outputs; installation and recreation commands are
   documented in the backend README. The raw CSV is unchanged.
 
-## Next coding session: Phase 3
+## Next coding session: Phase 4
 
-Ordinary SMOTE, 1:1 balancing, starting RF settings, mean-tree probability
-scoring, and an initial 0.50 cutoff with fraud on ties are now approved. Resolve
-the fair shared-RF tuning procedure, neighbor count, model/SMOTE seeds, and
-threshold search/reporting protocol. Matching RF settings, validation F1 as the
-threshold objective, and AP as the precision-recall summary are now selected. Those remaining decisions are
-recorded as open in METHODOLOGY.md; unapproved configuration values remain unset. Implement training and saved inference only after these
-choices are recorded. Phase 2 has not trained either model or produced thesis
-performance metrics.
+1. Finalize PR-AUC integration and small-discordance McNemar handling; translate
+   approved undefined/comparison policies into explicit evaluation contracts.
+2. Implement metrics, signed comparison and paired McNemar on synthetic fixtures.
+   Separate evaluation configuration from immutable baseline artifact configuration.
+3. Implement the approved bounded validation-selection workflow and compatible
+   selected-run loading; freeze common settings/cutoff before official testing.
+4. Finalize explainer settings/runtime coverage and implement top contributor,
+   deterministic narrative, and waterfall-only detail output with additivity checks.
+5. Publish evaluation/explanation report contracts for Phase 5. Keep receipt mapping,
+   OCR, upload lifecycle/limits, and retention decisions with their dependent phases.
+
+No full retraining is required solely for the reviewed UI labels, risk bands,
+comparison formula, or waterfall presentation. The approved later validation search
+is separate planned model work. Changing actual feature semantics would require a
+new scientific decision and compatible new artifacts.
 
 At each phase boundary, report implemented behavior, checks actually run,
 remaining decisions, and changed files. Placeholder files and collected test

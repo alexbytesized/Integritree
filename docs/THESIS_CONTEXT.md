@@ -1,6 +1,6 @@
 # Integritree — Thesis Context and Confirmed Requirements
 
-Last reviewed: 2026-09-19
+Last reviewed: 2026-09-22
 
 ## 1. Purpose of this document
 
@@ -143,8 +143,8 @@ implementation clarifications are in [METHODOLOGY.md](METHODOLOGY.md).
 Phase 2 preparation is implemented and executed. The verified local bundle is
 `backend/data/prepared/paysim_phase2_20260918/`. Training has 5,090,096 rows
 (6,570 fraud), validation 636,262 (822 fraud), and testing 636,262 (821 fraud).
-Preprocessing was fitted on original training records only. No SMOTE or RF
-training has been performed. Full details are in the methodology decision record.
+Preprocessing was fitted on original training records only. Full PaySim baseline
+RF/RF-SMOTE training is now complete and verified; see the Phase 3 decision record.
 
 ## 6. Evaluation and statistical interpretation
 
@@ -249,9 +249,11 @@ them. No blanket approval to rewrite Chapter 3 was given.
 4. Written equations:
    Correct F1 to 2TP / (2TP + FP + FN).
    Replace the apparent `TR` typo with `TP` in the MCC numerator.
-   Absolute percentage difference reports magnitude, not direction.
+   The manuscript's absolute percentage difference reports magnitude, not direction.
+   The researchers subsequently approved signed symmetric percentage difference;
+   revise Equation 11 and its interpretation using METHODOLOGY.md.
 
-A separate unresolved issue:
+An acknowledged limitation of the approved method:
 Ordinary SMOTE may produce fractional values in categorical indicators.
 SMOTENC was discussed as a possible alternative. On 2026-09-19, the researchers
 confirmed they cannot change to SMOTENC and will retain ordinary SMOTE. Its
@@ -261,20 +263,19 @@ fractional categorical-feature limitation must be documented and audited.
 
 Research:
 
-- SMOTE neighbor count and model/SMOTE seeds. Ordinary SMOTE and 1:1 balancing
-  are approved; split seed 42 remains approved.
-- Fixed versus tuned shared RF settings and a fair selection procedure.
-  Matching RF settings are explicitly approved. Starting settings approved:
-  100 trees, depth 20, split minimum 2, leaf minimum 1, sqrt feature selection,
-  bootstrap enabled, no class weighting.
-- Threshold search/tie-breaking and shared versus separate selected thresholds.
-  Common baseline 0.50 with ties classified as fraud is approved, as is highest
-  validation-set F1 for threshold selection. Final settings must precede test evaluation.
-- PR-AUC calculation is now selected as Average Precision (AP). Label the
-  precision-recall summary explicitly; AP is distinct from trapezoidal PR-AUC.
-- Final frontend score display decisions. Mean-tree fraud probability from
-  predict_proba is now approved as the internal 0..1 model risk score.
+- PR-AUC numerical convention (AP versus trapezoidal); Equation 10 does not decide it.
+- McNemar implementation and small-discordance handling. Signed comparison,
+  undefined-value display and zero-discordance presentation are approved.
+- Final RF configuration and cutoff selected by the approved future validation
+  search; its procedure is settled, its winning settings are not known.
 - SHAP background, output space, and computation coverage.
+- Explainer/runtime details remain open; the score display is now 0..100 with
+  approved communication bands, while internal scores remain 0..1.
+
+The Phase 3 baseline is ordinary SMOTE at 1:1, k_neighbors=5, model/SMOTE seeds=42,
+matching RF settings, and common 0.50 cutoff. The bounded shared-configuration
+and common-cutoff search is documented in METHODOLOGY.md and follows Phase 4
+metric implementation. No per-model thresholds are planned.
 
 Receipt demonstration:
 
@@ -287,8 +288,9 @@ Receipt demonstration:
 
 Software:
 
-- Dependency changes required for future SMOTE/SHAP/OCR work. Phases 1-2 use
-  Python 3.12, FastAPI, NumPy, pandas, PyArrow, and scikit-learn with a versioned lock.
+- Dependency changes required for future SHAP/OCR work. Phases 1-3 use
+  Python 3.12, FastAPI, NumPy, pandas, PyArrow, scikit-learn, imbalanced-learn,
+  and joblib with a versioned lock.
 - Final API contracts and long-running batch handling.
 - Whether persistence beyond local files is needed.
 
@@ -309,11 +311,14 @@ implementation easier.
 - Phase 2 is implemented: batched source validation, disk-backed exact duplicate
   checking, deterministic features, shared stratified splits, and saved
   training-fitted preprocessing. The full supplied dataset has been prepared.
-- All 106 tests pass. Separate full-output checks verified every row for alignment
-  and valid feature values, all file hashes, and preprocessing replay samples.
-- `scripts/prepare_data.py` is functional. Training, evaluation, and batch
-  prediction commands remain guarded placeholders.
-- No training, prediction, evaluation, or OCR functionality is implemented.
+- The 2026-09-22 audit passed 125 software tests. Completed Phase 2 full-output checks verified every
+  row for alignment/valid features, file hashes, and preprocessing replay.
+- Preparation and baseline training commands are implemented. Shared Python
+  inference supports one or many structured records through saved models.
+- Phase 3 and full PaySim baseline training are complete and verified. Both models
+  are saved under backend/artifacts/paysim_phase3_baseline_20260920/. The successful
+  retry followed an initial RAM preflight stop; the approved data/settings were unchanged.
+- Evaluation, SHAP, batch-export CLI, prediction APIs, and OCR remain future work.
   The frontend has not been connected to the backend.
 - The raw PaySim file is available locally and remains unchanged.
 - See [the backend implementation plan](BACKEND_IMPLEMENTATION_PLAN.md) and
@@ -331,13 +336,13 @@ This is a dated observation. Reinspect before making changes.
 - Do not assume RF-SMOTE must outperform RF.
 - Do not confuse experimental receipt prediction with validated
   real-world fraud detection.
-- The researchers authorized the backend scaffold, phased plan, and Phases 1-2
-  implementation. Both phases are complete; Phases 3 onward remain pending.
+- The researchers authorized the scaffold, phased plan, and Phases 1-3 code.
+  Phase 3 code and full PaySim baseline training are complete.
   The six Phase 2 preparation recommendations were explicitly approved.
   Other open methodology choices are not approved by implementing contracts.
 - Internal result contracts represent risk scores on a 0..1 scale; the score
-  formula is now approved as mean-tree fraud probability. Any frontend scale
-  choices and threshold optimization protocol still need to be specified.
+  formula is mean-tree fraud probability. Frontend scale is 0..100 with five
+  communication bands; the separate shared threshold search protocol is approved.
 
 ## 12. Technical references for the discussed corrections
 
@@ -352,21 +357,55 @@ This is a dated observation. Reinspect before making changes.
 - SMOTE and categorical data:
   https://imbalanced-learn.org/stable/over_sampling.html
 
-## 13. Current Phase 3 decision status
+## 13. Current Phase 3 decision and execution status
 
-Read the 2026-09-19 Phase 3 discussion in [METHODOLOGY.md](METHODOLOGY.md).
-Approved choices have been written into the current experiment configuration;
-the Phase 2 bundle retains its original configuration snapshot unchanged.
+Read the Phase 3 section of [METHODOLOGY.md](METHODOLOGY.md). It distinguishes the
+implemented fixed baseline, approved but unexecuted validation search, and
+unresolved evaluation choices. The Phase 2 bundle retains its original
+configuration snapshot unchanged.
 
-For ordinary SMOTE, keep generated fractional feature values as floating-point
-training inputs. Do not round or truncate them into categorical indicators.
-Original records keep valid indicators; synthetic labels remain fraud (1).
-Audit synthetic feature validity and report the limitation. No resampling has run.
+Phase 3 and full PaySim baseline training are complete. Run
+paysim_phase3_baseline_20260920 contains both saved models and their provenance.
+The initial memory preflight stop was resolved after unused applications were
+closed. The successful retry used matching 100-tree/depth-20 models, all original
+training rows, and the approved 1:1 SMOTE configuration.
 
-RF settings may be revised during development through new recorded training runs.
-The user confirmed matching RF settings and selected highest validation-set F1
-for threshold tuning from a common 0.50 baseline. Shared versus per-model final
-thresholds, the search rules, and reporting protocol still need to be agreed.
-AP is now selected as the precision-recall summary. Model/SMOTE seed 42 has
-been explained but has not been explicitly approved. Phase 3 implementation has not
-been authorized by this discussion alone.
+The training audit confirms 5,076,956 synthetic fraud rows and 10,167,052 total
+RF-SMOTE rows; no fractional categorical indicators arose in this particular run.
+Artifact reloads, feature replay, paired inference consistency, and source/prepared
+file integrity passed verification. See
+backend/reports/paysim_phase3_baseline_20260920/verification.json.
+Validation tuning, official test evaluation, and SHAP have not run. Do not describe
+baseline artifacts or software verification as finalized performance findings.
+
+Use [THESIS_DOCUMENT_CHANGES.md](THESIS_DOCUMENT_CHANGES.md) when aligning the
+manuscript. Do not claim planned evaluation, tuning, SHAP, or GCash OCR is complete.
+
+## 14. Completed mock-up review and backend alignment (2026-09-22)
+
+Use [MOCKUP_EVALUATION_DECISIONS.md](MOCKUP_EVALUATION_DECISIONS.md) for the agreed
+screen corrections and [UI_HELP_CONTENT.md](UI_HELP_CONTENT.md) for standardized
+help and Research Scope and Limitations content. Use the corrected researcher
+screen with McNemar, and ignore all screenshot sample numbers.
+
+- SHAP: top risk-increasing contributor, deterministic explanation, waterfall-only
+  expanded details. Numerical table remains a suggestion, outside implementation.
+- Original Inputs / Derived Inputs and known ground truth are shown in details;
+  no extra correctness badge or model-run panel. No on-screen evaluation metadata
+  panel; relevant provenance and evaluation context go in the approved ZIP download.
+- Retain color-only visible model association, horizontal table scrolling and no
+  score sorting. Model and Prediction outcome filters follow the decision record.
+- Predicted Fraud / Predicted Legitimate; score bands [0,20), [20,40), [40,60),
+  [60,80), [80,100] are Minimal through Critical, independent of class threshold.
+- Signed symmetric percentage difference is approved. Active YAML now selects
+  signed_over_mean; historical absolute configurations remain readable/unchanged.
+  Metric calculation is pending Phase 4, with explicit edge-case policies.
+- GCash person-to-person receipt workflow only; TRANSFER selectable, other types
+  visible but disabled, server-enforced. Exact names remain optional traceability
+  information and never predictors. Receipt timing/amount mapping is experimental.
+
+[The backend audit](BACKEND_ALIGNMENT_AUDIT.md) found the completed preparation and
+baseline method aligned and documented future extensions: selected-run artifacts,
+evaluation/SHAP, application results/query/export contracts, and a receipt adapter
+using shared saved scaling. The plan now starts next with Phase 4. No new model
+training or official performance result was produced by this review.

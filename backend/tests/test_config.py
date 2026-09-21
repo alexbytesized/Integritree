@@ -4,11 +4,11 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from integritree.config import ExperimentConfig, UnresolvedConfigurationError, load_experiment, main
+from integritree.config import EvaluationConfig, ExperimentConfig, UnresolvedConfigurationError, load_experiment, main
 from integritree.settings import BACKEND_ROOT
 
 
-def test_committed_config_ready_for_preparation_but_not_training():
+def test_committed_config_ready_for_baseline_training_but_not_evaluation():
     config = load_experiment(BACKEND_ROOT / "configs/experiment.yaml")
     assert config.dataset.row_count == 6362620
     assert config.target == "isFraud"
@@ -28,16 +28,27 @@ def test_committed_config_ready_for_preparation_but_not_training():
     assert config.preprocessing.duplicates == "drop_exact"
     config.require_ready("prepare")
     assert config.unresolved_fields("prepare") == []
-    with pytest.raises(UnresolvedConfigurationError, match="smote.k_neighbors"):
-        config.require_ready("train")
+    config.require_ready("train")
+    with pytest.raises(UnresolvedConfigurationError, match="evaluation.pr_auc_method"):
+        config.require_ready("evaluate")
     assert config.smote.method == "smote_encoded"
     assert config.smote.sampling_ratio == 1.0
     assert config.scoring.probability_method == "mean_tree_probability"
     assert config.scoring.threshold == 0.5
     assert config.scoring.tie_policy == "fraud"
-    assert "random_forest.tuning_procedure" in config.unresolved_fields()
-    assert config.evaluation.pr_auc_method == "average_precision"
-    assert "seeds.model" in config.unresolved_fields()
+    assert config.random_forest.tuning_procedure == "fixed_baseline"
+    assert config.evaluation.pr_auc_method is None
+    assert config.evaluation.percentage_difference == "signed_over_mean"
+    assert config.seeds.model == config.seeds.smote == 42
+    assert config.smote.k_neighbors == 5
+
+
+def test_comparison_method_preserves_legacy_snapshots_and_rejects_unknown_methods():
+    legacy = EvaluationConfig.model_validate({"percentage_difference": "absolute_over_mean"})
+    assert EvaluationConfig.model_validate_json(legacy.model_dump_json()) == legacy
+    assert EvaluationConfig().percentage_difference == "absolute_over_mean"
+    with pytest.raises(ValidationError, match="percentage_difference"):
+        EvaluationConfig.model_validate({"percentage_difference": "relative_to_baseline"})
 
 
 @pytest.mark.parametrize("updates,field", [

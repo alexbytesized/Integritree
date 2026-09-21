@@ -1,6 +1,5 @@
-"""Model training: command guard only; implement the workflow in Phase 3."""
-
-from integritree.commands import pending_command
+"""Train both baseline models using the shared backend implementation."""
+from integritree.ml.training import main
 
 if __name__ == "__main__":
-    raise SystemExit(pending_command("Model training", 3, "train"))
+    raise SystemExit(main())

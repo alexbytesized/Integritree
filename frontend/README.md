@@ -1,5 +1,11 @@
 # React + Vite
 
+Integritree implementation handoff: use the [agreed mock-up corrections](../docs/MOCKUP_EVALUATION_DECISIONS.md)
+and [help/limitations copy](../docs/UI_HELP_CONTENT.md). The expanded SHAP view is
+waterfall-only; a numerical table is suggestion-only. Backend endpoints beyond
+health remain planned; see [API status and future requirements](../docs/API.md).
+This documentation update does not replace the current frontend mock data.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

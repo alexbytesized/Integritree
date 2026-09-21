@@ -18,6 +18,8 @@ dependencies = [
     "pandas>=2.2,<3",
     "pyarrow>=19,<24",
     "scikit-learn>=1.6,<2",
+    "imbalanced-learn>=0.14.2,<0.15",
+    "joblib>=1.4,<2",
 ]
 
 [project.optional-dependencies]
@@ -31,6 +33,7 @@ dev = [
 [project.scripts]
 integritree-config = "integritree.config:main"
 integritree-prepare = "integritree.ml.preparation:main"
+integritree-train = "integritree.ml.training:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
