@@ -16,8 +16,8 @@ split:
   stratified: true
 seeds:
   split: 42
-  model: null
-  smote: null
+  model: 42
+  smote: 42
 preprocessing:
   # Final model order; original source columns remain in audit records only.
   features:
@@ -44,30 +44,33 @@ preprocessing:
   # All 11 original columns, before splitting; keep the first source occurrence.
   duplicates: drop_exact
 random_forest:
-  # Approved starting settings; final tuning procedure remains unresolved.
-  # Bootstrap enabled and no class weighting are recorded in METHODOLOGY.md.
+  # Fixed baseline now; approved bounded validation search follows Phase 4.
   n_estimators: 100
   max_depth: 20
   min_samples_split: 2
   min_samples_leaf: 1
   max_features: sqrt
-  tuning_procedure: null
+  tuning_procedure: fixed_baseline
+  bootstrap: true
+  class_weight: none
 smote:
   # Ordinary SMOTE on floating-point encoded features; preserve synthetic fractions.
   method: smote_encoded
   sampling_ratio: 1.0
-  k_neighbors: null
+  k_neighbors: 5
 scoring:
   probability_method: mean_tree_probability
   # Approved starting threshold, not a finalized validation-tuned cutoff.
   threshold: 0.5
   tie_policy: fraud
 evaluation:
-  # Report explicitly as Average Precision (AP), not trapezoidal PR-AUC.
-  pr_auc_method: average_precision
+  # Equation 10 does not choose AP versus trapezoidal integration. Set in Phase 4.
+  pr_auc_method: null
   mcnemar_method: null
   discordance_edge_policy: null
-  percentage_difference: absolute_over_mean
+  # Approved signed symmetric comparison; calculation is implemented in Phase 4.
+  # Older saved-run configurations remain unchanged and readable.
+  percentage_difference: signed_over_mean
   alpha: 0.05
 shap:
   output_space: null

@@ -1,8 +1,17 @@
 # Integritree backend
 
-Phases 1 and 2 are complete and provide packaging, settings, validated configuration, shared
-contracts, a health endpoint, and batched PaySim preparation. Model training,
-prediction, evaluation, and OCR remain later-phase work.
+Phases 1-3 code is implemented: configuration, a health endpoint, PaySim
+preparation, matched RF/RF-SMOTE baseline training, saved artifacts, and shared
+individual/batch inference. Full PaySim preparation and baseline training are
+complete and verified. Both models are saved in artifacts/paysim_phase3_baseline_20260920/.
+Evaluation, tuning, SHAP, prediction APIs, and OCR remain later-phase work.
+
+The 2026-09-22 [alignment audit](../docs/BACKEND_ALIGNMENT_AUDIT.md) checked this
+foundation against the completed mock-up review: 125 tests passed. Active evaluation
+configuration now selects signed_over_mean; legacy saved configurations remain
+readable and unchanged. This setting does not implement metric calculation.
+The next phase is evaluation/selection/SHAP; expanded SHAP details require only a
+waterfall graph. The numerical table is a suggestion, not an implementation target.
 
 Read [the thesis context](../docs/THESIS_CONTEXT.md),
 [the implementation plan](../docs/BACKEND_IMPLEMENTATION_PLAN.md),
@@ -40,8 +49,8 @@ install it, and rerun the tests:
 ```
 
 The lock was generated on Windows with Python 3.12; installation on other
-platforms has not been verified. Phase 2 adds NumPy, pandas, PyArrow, and scikit-learn. SMOTE/SHAP and OCR
-libraries will be added in their respective phases.
+platforms has not been verified. Phase 2 adds NumPy, pandas, PyArrow, and scikit-learn. Phase 3 adds imbalanced-learn 0.14.2 and explicit joblib support.
+SHAP and OCR libraries will be added in their respective phases.
 
 ## Test and run
 
@@ -78,6 +87,11 @@ the installed package. Setting the root inside `.env` does not relocate that fil
 `configs/experiment.yaml` records the dataset identity and confirmed methodology.
 Unresolved research choices are explicitly `null`.
 
+The approved signed comparison is explicit in this active file. Evaluation and
+explainer policies will be saved separately against immutable model-run provenance;
+do not edit an old bundle's configuration to enable a later phase. Phase 3 bundle
+loading enforces baseline settings; Phase 4 must add validation-selected run support.
+
 ```powershell
 & .\.venv\Scripts\python.exe -m integritree.config
 & .\.venv\Scripts\python.exe -m integritree.config --require-stage prepare
@@ -85,13 +99,14 @@ Unresolved research choices are explicitly `null`.
 
 The first command validates the draft and lists unresolved fields (exit 0).
 The second now passes (exit 0): the researchers approved the Phase 2 preparation
-settings. Training and later stages still fail readiness checks until their
-remaining choices are settled. Available stages are `prepare`, `train`,
+settings. Baseline training readiness also passes. Evaluation and explanation
+still require their remaining choices. Available stages are `prepare`, `train`,
 `evaluate`, and `explain`; requirements include earlier stages.
 `--config` accepts an absolute path or one relative to the backend root.
 
-Validation does not approve a methodology or execute research. `scripts/prepare_data.py` now executes Phase 2 as documented below. The other
-three scripts remain guarded placeholders (exit 2). No command produces mock
+Validation does not approve a methodology or execute research. Preparation and
+baseline training commands execute their documented workflows. Evaluation and
+batch-export scripts remain guarded placeholders (exit 2). No command produces mock
 research results or modifies the raw dataset.
 
 ## Prepare the approved PaySim dataset
@@ -127,18 +142,18 @@ the held-out 20%, both with seed 42. Ratios follow integer rounding and class-co
 constraints. Both classes must occur in every split. Neither duplicate removal
 nor stratification operates on the engineered feature vectors.
 
-| Bundle file | Contents |
-| --- | --- |
-| `metadata.json` | Completion status, dataset/run identity, split counts, package versions, code/file hashes. |
-| `configuration.json` | Exact validated experiment settings used for preparation. |
-| `audit.json` | Source hash, scanned/retained counts, missingness, numeric ranges, class/type counts, duplicate count, failures. |
-| `source.parquet` | Retained typed source columns plus original `source_row_number`; includes categorical data for later SMOTE decisions. |
-| `duplicates.parquet` | Removed original row numbers and the first matching row number. |
-| `split_manifest.parquet` | Original row number, split name, and separate `actual_label`. |
-| `preprocessing.json` | Training amount median, scaler coefficients/extrema, feature order, and training count. |
-| `train_features.parquet` | Training model features plus row identity; no labels/balances/raw source features. |
-| `validation_features.parquet` | Validation features with the same schema and transformations. |
-| `test_features.parquet` | Test features with the same schema and transformations. |
+| Bundle file                   | Contents                                                                                                              |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `metadata.json`               | Completion status, dataset/run identity, split counts, package versions, code/file hashes.                            |
+| `configuration.json`          | Exact validated experiment settings used for preparation.                                                             |
+| `audit.json`                  | Source hash, scanned/retained counts, missingness, numeric ranges, class/type counts, duplicate count, failures.      |
+| `source.parquet`              | Retained typed source columns plus original `source_row_number`; includes categorical data for later SMOTE decisions. |
+| `duplicates.parquet`          | Removed original row numbers and the first matching row number.                                                       |
+| `split_manifest.parquet`      | Original row number, split name, and separate `actual_label`.                                                         |
+| `preprocessing.json`          | Training amount median, scaler coefficients/extrema, feature order, and training count.                               |
+| `train_features.parquet`      | Training model features plus row identity; no labels/balances/raw source features.                                    |
+| `validation_features.parquet` | Validation features with the same schema and transformations.                                                         |
+| `test_features.parquet`       | Test features with the same schema and transformations.                                                               |
 
 `source_row_number` is an identifier, never a predictor. Combine it with the
 bundle's dataset SHA-256 to recover the full transaction ID. Use
@@ -174,23 +189,23 @@ The raw CSV is unchanged. Generated artifacts are ignored by Git.
 
 ## Directory responsibilities
 
-| Location | Responsibility |
-| --- | --- |
-| `configs/` | Experiment configuration and seeds. |
-| `scripts/` | Working preparation command; other commands remain guarded placeholders. |
-| `src/integritree/settings.py` | Local paths and environment settings. |
-| `src/integritree/config.py` | Experiment schema, validation, and stage requirements. |
-| `src/integritree/contracts.py` | Shared transaction/result/provenance contracts. |
-| `src/integritree/api/` | HTTP interfaces; currently health only. |
-| `src/integritree/services/` | Future workflow coordination. |
-| `src/integritree/ml/` | Working shared data/features/preprocessing/preparation; later ML modules remain placeholders. |
-| `src/integritree/receipts/` | Future GCash extraction and confirmed-input mapping. |
-| `tests/` | Synthetic foundation and preparation tests; later-phase placeholder files remain. |
-| `data/raw/` | Original local PaySim CSV; preserve the source. |
-| `data/prepared/<run_id>/` | Local preparation bundles, audits, and split membership. |
-| `artifacts/<run_id>/` | Future models, preprocessing, and provenance bundles. |
-| `reports/<run_id>/` | Future predictions, metrics, statistics, and figures. |
-| `runtime/` | Future temporary uploads and exports. |
+| Location                       | Responsibility                                                                           |
+| ------------------------------ | ---------------------------------------------------------------------------------------- |
+| `configs/`                     | Experiment configuration and seeds.                                                      |
+| `scripts/`                     | Preparation and baseline training commands; evaluation/batch-export placeholders.        |
+| `src/integritree/settings.py`  | Local paths and environment settings.                                                    |
+| `src/integritree/config.py`    | Experiment schema, validation, and stage requirements.                                   |
+| `src/integritree/contracts.py` | Shared transaction/result/provenance contracts.                                          |
+| `src/integritree/api/`         | HTTP interfaces; currently health only.                                                  |
+| `src/integritree/services/`    | Future workflow coordination.                                                            |
+| `src/integritree/ml/`          | Data, preprocessing, training, artifacts, and paired inference; evaluation/SHAP pending. |
+| `src/integritree/receipts/`    | Future GCash extraction and confirmed-input mapping.                                     |
+| `tests/`                       | Synthetic foundation, preparation, training, artifact, and inference tests.              |
+| `data/raw/`                    | Original local PaySim CSV; preserve the source.                                          |
+| `data/prepared/<run_id>/`      | Local preparation bundles, audits, and split membership.                                 |
+| `artifacts/<run_id>/`          | Models, preprocessing, configuration, audit, and provenance bundles.                     |
+| `reports/<run_id>/`            | Future predictions, metrics, statistics, and figures.                                    |
+| `runtime/`                     | Future temporary uploads and exports.                                                    |
 
 Scripts and application services will share the `ml/` implementation.
 Application inference must reuse saved models and fitted transformations.
@@ -205,3 +220,93 @@ small synthetic fixtures. Do not commit personal receipts.
 - [Pydantic settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/)
 - [Dependency locking with pip-tools](https://pip-tools.readthedocs.io/en/latest/)
 - [FastAPI testing](https://fastapi.tiangolo.com/tutorial/testing/)
+
+## Phase 3: baseline training and saved inference
+
+Run from the backend directory:
+
+```powershell
+& .\.venv\Scripts\python.exe -m integritree.config --require-stage train
+& .\.venv\Scripts\python.exe scripts/train_models.py --prepared data/prepared/paysim_phase2_20260918 --run-id paysim_phase3_baseline_20260920 --jobs 1
+```
+
+The installed entry point integritree-train accepts the same arguments.
+Paths are relative to the backend root unless absolute. Omit --run-id for a
+generated unique name. Existing run directories are never overwritten.
+
+Current config selects the approved 100-tree/depth-20 matched baseline, ordinary
+SMOTE at 1:1 with k=5, model/SMOTE seeds 42, and common >=0.50 fraud cutoff.
+Bootstrap is enabled and class weighting disabled. Only original training records
+are loaded. No validation tuning or test evaluation is performed.
+
+The full run completed successfully on 2026-09-20 after unused applications were
+closed. The retry passed the memory check with 4.94 GiB available; the initial
+attempt had stopped at 0.32 GiB. Both models used the approved settings/data.
+Recorded training duration: 9,594.625 seconds (about 2 h 40 min).
+For future runs, the estimated working arrays need 4.65 GiB plus tree/runtime
+headroom; this is not a guaranteed peak-memory bound. The automatic physical-memory
+check is Windows-specific. Training materializes the original matrix and SMOTE
+output without silently reducing data or changing settings.
+
+The run ID shown above now exists. For a new run, omit --run-id or choose a new
+name; existing bundles are never overwritten.
+
+A successful run writes these files under artifacts/<run_id>/:
+
+| File                       | Meaning                                                                       |
+| -------------------------- | ----------------------------------------------------------------------------- |
+| rf.joblib, rf_smote.joblib | Both fitted baseline classifiers.                                             |
+| preprocessing.json         | Original training-fitted transformations; no refit.                           |
+| configuration.json         | Exact settings for this run.                                                  |
+| prepared_metadata.json     | Preparation provenance and split/file fingerprints.                           |
+| training_audit.json        | Original/synthetic counts and fractional-indicator audit.                     |
+| reload_verification.json   | Score agreement before/after serialization on up to 128 training rows.        |
+| metadata.json              | Status, schema, dataset/split IDs, versions, hashes, resources, elapsed time. |
+
+These are baseline artifacts, not final thesis evaluation results. Incomplete
+or failed bundles are rejected. Abrupt process termination may leave a run marked
+running, which loaders also reject. Only load trusted local bundles: joblib uses
+pickle and hashes do not authenticate a maliciously replaced bundle.
+
+Python inference example, after a successful training run:
+
+```python
+from pathlib import Path
+import pandas as pd
+from integritree.ml.artifacts import load_bundle
+from integritree.ml.inference import predict_records
+
+bundle = load_bundle(Path("artifacts/paysim_phase3_baseline_20260920"))
+# Synthetic structured input; not a validated GCash receipt mapping.
+inputs = pd.DataFrame([{
+    "step": 1, "type": "TRANSFER", "amount": 100.0,
+    "nameOrig": "C_EXAMPLE_SENDER", "nameDest": "C_EXAMPLE_RECIPIENT",
+}])
+results = predict_records(bundle, inputs, ["demo-1"])
+```
+
+Use exactly the five raw predictor attributes. Labels, balances, flags and IDs
+are not model inputs. Results preserve input order with transaction_id, run_id,
+and each model's risk_score and predicted_label. Frontend prediction routes and
+batch-export commands are not implemented yet.
+
+The approved four-candidate RF search and common-cutoff search follow Phase 4
+metrics; see [METHODOLOGY.md](../docs/METHODOLOGY.md). PR-AUC is intentionally
+unset pending its numerical convention and does not block baseline training.
+Freeze selection before official test evaluation.
+
+Verification: **123 tests passed** during Phase 3 implementation, with two existing
+third-party deprecation warnings and no broken dependencies. Full PaySim training
+and subsequent artifact/inference verification now passed too; no code changes
+were needed for the retry. The full-run report is
+reports/paysim_phase3_baseline_20260920/verification.json.
+
+The audit confirms 5,076,956 synthetic fraud records and 10,167,052 total RF-SMOTE
+training rows (5,083,526 per class). No fractional categorical indicators arose in
+this run; the code still preserves them if generated. Both reload checks had zero
+score difference on 128 training rows. Source/prepared file hashes were unchanged,
+raw/prepared prediction replay agreed on 128 training rows, and individual/batch
+predictions agreed on 16 rows. These checks are not performance evaluation.
+Validation tuning, official test evaluation, and SHAP remain unexecuted.
+
+Use [THESIS_DOCUMENT_CHANGES.md](../docs/THESIS_DOCUMENT_CHANGES.md) for manuscript updates.

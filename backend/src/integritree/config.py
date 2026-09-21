@@ -55,6 +55,8 @@ class RandomForestConfig(Contract):
     min_samples_leaf: PositiveInteger | None = None
     max_features: Literal["sqrt", "log2", "all"] | None = None
     tuning_procedure: NonemptyText | None = None
+    bootstrap: Literal[True] = True
+    class_weight: Literal["none"] = "none"
 
 
 class SmoteConfig(Contract):
@@ -73,7 +75,9 @@ class EvaluationConfig(Contract):
     pr_auc_method: Literal["average_precision", "trapezoidal"] | None = None
     mcnemar_method: Literal["continuity_corrected", "exact"] | None = None
     discordance_edge_policy: NonemptyText | None = None
-    percentage_difference: Literal["absolute_over_mean"] = "absolute_over_mean"
+    # Preserve the legacy default when reading older configuration snapshots.
+    # New experiments explicitly select the approved signed method in YAML.
+    percentage_difference: Literal["absolute_over_mean", "signed_over_mean"] = "absolute_over_mean"
     alpha: Literal[0.05] = 0.05
 
 
@@ -106,7 +110,7 @@ class ExperimentConfig(Contract):
         groups = {
             "prepare": ["preprocessing", "seeds.split"],
             "train": ["random_forest", "smote", "seeds.model", "seeds.smote",
-                      "scoring", "evaluation.pr_auc_method"],
+                      "scoring"],
             "evaluate": ["evaluation"],
             "explain": ["shap"],
         }

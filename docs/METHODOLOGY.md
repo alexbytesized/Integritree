@@ -1,6 +1,6 @@
 # Methodology decision record
 
-Last updated: 2026-09-19
+Last updated: 2026-09-22
 
 This is an implementation decision record, not a revised Chapter 3.
 Read [THESIS_CONTEXT.md](THESIS_CONTEXT.md) for the manuscript requirements and
@@ -83,9 +83,10 @@ its identity intentionally. Individual-request IDs will be assigned by the later
 application workflow.
 
 Result contracts carry both models, the run ID, predicted labels, and risk scores.
-The internal score field is bounded to 0..1; this does not settle how the score is
-computed, whether it is calibrated, or its frontend display scale. SHAP contracts
-name the output space but do not yet compute explanations or verify additivity.
+The internal score field is bounded to 0..1. Subsequent decisions fix mean-tree
+fraud probability and a 0..100 display scale with communication bands; this does
+not establish real-world calibration. SHAP contracts name the output space but
+do not yet compute explanations or verify additivity.
 
 ## Approved Phase 2 preparation decisions
 
@@ -157,8 +158,8 @@ only when they do not learn from the full dataset.
 | Phase | Decisions required |
 | --- | --- |
 | 2: preparation | Complete: approved policies implemented, tested, and verified on the supplied source. |
-| 3: training | Ordinary SMOTE, 1:1 balance, starting RF settings and probability scoring approved below. Matching RF settings, validation F1 for threshold selection, and AP are also selected. Neighbor count, model/SMOTE seeds, shared RF tuning and threshold search/reporting rules remain open. |
-| 4: evaluation and SHAP | PR-AUC integration; McNemar variant and zero/few-discordance behavior; undefined metric/percentage handling; SHAP output, background and coverage. |
+| 3: training | Complete for the fixed baseline. Seeds, neighbors and the bounded later validation procedure are settled below; no official test evaluation or validation search has run. |
+| 4: evaluation and SHAP | Select PR-AUC integration and small-discordance McNemar handling. Implement approved signed-comparison/undefined/zero-discordance presentation. Finalize SHAP output/background/coverage and selected-run artifact support. |
 | 5: application | Final prediction/research routes, batch handling, artifact compatibility, persistence. |
 | 6: receipts | Supported GCash layouts, OCR, receipt-to-feature mapping, confirmation/fallback, and retention. |
 
@@ -169,11 +170,9 @@ decisions require additional controls. For example, the duplicate policy must al
 prevent duplicate records from crossing splits if records are retained.
 
 The feature, scaling, time, cleaning, and split choices above are approved.
-Ordinary SMOTE and 1:1 balancing are now approved; the remaining training
-choices listed below and later-phase decisions remain unresolved.
-The preparation command is implemented and tested; model training remains
-unimplemented. No SMOTE has been applied. See the implementation plan for
-full-dataset execution and verification status.
+Preparation and baseline training, including ordinary SMOTE at 1:1, are implemented
+and verified. The Phase 3 section below records the settled training configuration
+and approved later validation procedure. Evaluation and SHAP remain future work.
 
 ## Phase 2 implementation details
 
@@ -223,51 +222,147 @@ all saved file hashes matched, and saved preprocessing exactly reproduced 100
 records per split. The full 106-test suite passed. Reproducibility and protection
 against held-out data influencing preprocessing were also tested synthetically.
 
-These are preparation findings, not model-performance results. RF, SMOTE, SHAP,
-and evaluation have not run. The manuscript itself remains unedited.
+These were preparation findings, not model-performance results. At the end of
+Phase 2, RF/SMOTE training had not run; its later completion is recorded below.
+SHAP and evaluation remain pending. The manuscript itself remains unedited.
 
-## Phase 3 discussion: decisions confirmed on 2026-09-19
+## Phase 3 implementation and approved tuning protocol
 
-The researchers cannot replace ordinary SMOTE with SMOTENC. They approved 1:1
-minority-to-majority training balance and the proposed starting RF settings:
-100 trees, maximum depth 20, minimum split size 2, minimum leaf size 1, square-root
-feature selection, bootstrap enabled, and no class weighting. These are starting
-settings, not a finalized tuning protocol or claims of optimality.
+Phase 3 and full PaySim baseline training are complete and verified (2026-09-20).
+Run: paysim_phase3_baseline_20260920. Both models were trained with all approved
+records/settings and saved under backend/artifacts/paysim_phase3_baseline_20260920/.
+The first attempt stopped before training because memory was insufficient.
+After the researchers closed unused applications, the retry passed with 4.94 GiB
+available. Recorded training duration was 9,594.625 seconds (about 2 h 40 min).
+The raw CSV and all prepared files retain their original fingerprints.
+Validation tuning, official test evaluation, and SHAP have not run.
 
-They approved mean-tree fraud probability scoring, an initial 0.50 threshold,
-and fraud classification on an exact threshold tie, while asking to allow
-threshold exploration. The researchers subsequently chose highest validation-set F1 as the threshold
-selection objective and confirmed 0.50 as the common baseline. The candidate
-search/tie-breaking rules and whether selected thresholds are shared or
-model-specific remain unresolved.
+### Implemented baseline
 
-Float-handling implementation policy for the retained ordinary SMOTE method:
-convert the full encoded training feature matrix to floating point before
-resampling, retain fractional synthetic indicator/time-feature values, and never
-cast those synthetic features back to integer indicator dtypes or round them to
-categories. Real prepared records retain their original 0/1 indicator values;
-labels remain integer 0/1, with generated minority labels equal to 1. Synthetic
-rows are training feature vectors, not authentic transaction records or receipts.
-Record synthetic counts and audit fractional/semantically inconsistent values;
-this audit does not silently repair, filter, or round synthetic samples.
+- Ordinary SMOTE, 1:1 minority:majority ratio, k_neighbors=5, SMOTE seed=42.
+  The previously proposed neighbor count and seeds are carried forward under the
+  instruction to implement Phase 3; they are explicit configuration values.
+- Both RF models: 100 trees, maximum depth 20, minimum split size 2, minimum leaf
+  size 1, sqrt feature selection, bootstrap=True, class_weight=None, criterion=gini,
+  and model seed=42. Tree worker count is an execution option, shared by both.
+- Convert the encoded training matrix to float64 before SMOTE. Preserve synthetic
+  fractional indicators and time features; do not round, truncate, assign a category
+  by argmax, or filter artificial combinations. RF internally uses its supported
+  floating-point precision; no categorical rounding is introduced. Synthetic
+  targets remain fraud (1).
+- Audit original/synthetic counts, balanced counts, fractional indicators, and
+  rows with multiple positive type indicators. Mixed synthetic type indicators
+  have no single valid real transaction type. Numeric validity does not guarantee
+  realistic transactions or improved performance.
+- Shared score: class-1 predict_proba, the mean of tree fraud probabilities.
+  Shared threshold: 0.50, including exact ties as fraud. These scores have not
+  been demonstrated to be calibrated real-world fraud probabilities.
+- Training loads only the original training split. No validation/test feature
+  records are loaded by the training command, and neither split is resampled.
+- Save both models, preprocessing, configuration, preparation provenance,
+  feature order, software versions, implementation hashes, audit, and reload
+  verification in a new run bundle. Never overwrite existing runs.
+  Reject incomplete/failed bundles, corruption, schema/version mismatches.
+  Only trusted local joblib files may be loaded.
+- Single-record and batch inference use the same saved transformations/scoring.
+  Labels and identity columns never enter the classifiers.
+- Phase 3 verification at implementation: 123 tests passed, with two existing third-party deprecation warnings.
+  Checks include repeatability, preserved original rows, fractional SMOTE types,
+  training-only split loading, unchanged held-out fixtures, class-column lookup,
+  exact ties, reload parity, paired identities, and individual/batch parity.
 
-The researchers explicitly confirmed matching RF settings so oversampling is
-the only intended training difference, and validation-only selection before final
-test evaluation. Fixed versus systematically tuned shared RF settings remains
-open. The recommended primary common-cutoff comparison plus separately reported
-model-specific tuned thresholds has been explained but not yet approved. Parameter changes require a new trained run; threshold
-changes can reuse prediction scores but require a recorded decision policy.
+Confirmed full-run counts: 5,090,096 original training rows, 5,076,956 synthetic
+fraud rows, and 10,167,052 RF-SMOTE training rows with 5,083,526 in each class.
+The audit found zero fractional indicator values and zero rows with multiple
+positive type indicators in this particular run. This does not remove the general
+limitation of ordinary SMOTE on categorical features or change the preserve-fractions
+policy; continuous engineered features can still take interpolated values.
 
-Still awaiting decisions: fixed versus tuned shared RF settings, threshold
-selection/reporting protocol, SMOTE k_neighbors (5 proposed), and model/SMOTE
-seeds (42 proposed). AP has subsequently been selected as the precision-recall
-summary; report it explicitly as Average Precision, distinct from trapezoidal
-PR-AUC. It is computed from scores, not one thresholded confusion matrix.
-No Phase 3 training or oversampling has been executed.
+Full-run verification passed: both saved models have 100 trees/max_depth=20 and
+matching parameters; both serialization checks had maximum absolute score
+difference 0.0 on 128 training rows. Saved preprocessing and raw-versus-prepared
+prediction replay agreed on 128 training rows; individual-versus-batch predictions
+agreed on 16 rows. All prepared-file and raw-source hash checks passed.
+These are integrity/consistency checks, not performance evaluation. The report is
+backend/reports/paysim_phase3_baseline_20260920/verification.json.
 
-Clarification for the researchers: one-hot encoding maps transaction type into
-five 0/1 indicators. Changing their storage from integer 0/1 to floating-point
-0.0/1.0 changes no values or meanings. Fractional intermediate values may be
-created later by SMOTE interpolation; they are not introduced by that numeric
-conversion. The researchers requested this explanation, and no oversampling or
-training has yet been performed.
+### Approved later validation search; not executed by Phase 3
+
+The user accepted this protocol after the explanatory discussion:
+
+1. Train both variants for each (trees, depth) candidate:
+   (100,10), (100,20), (200,10), (200,20). Keep other RF settings matched.
+2. At common cutoff 0.50, choose the shared candidate with highest mean validation
+   F1 across RF and RF-SMOTE. Exact ties prefer shallower trees, then fewer trees.
+3. With that shared RF configuration, test common cutoffs 0.05, 0.10, ..., 0.95.
+   Select highest mean validation F1 across both; exact ties prefer nearest
+   to 0.50, then the higher cutoff. Do not choose separate model cutoffs.
+4. Implement Phase 4 metrics first, then run this bounded validation search,
+   freeze shared settings/cutoff, and only then perform final test evaluation.
+   Do not repeatedly expand the search based on observed validation results.
+
+A limited search does not guarantee no overfitting or global optimality.
+The shared cutoff need not individually maximize each model's F1.
+The fixed-baseline trainer does not execute selection, tuning, or final testing.
+Implement a recorded selection artifact in Phase 4.
+
+### Still unresolved for Phase 4 and later
+
+- Equation 10 gives an integral PR-AUC definition without selecting AP versus
+  trapezoidal integration. The earlier AP choice is reopened; pr_auc_method is
+  null. PR-AUC is not required by baseline training and belongs with other
+  Phase 4 metrics, using scores rather than a single confusion matrix.
+- McNemar calculation and small-discordance handling. See the later presentation
+  decisions below for approved zero-discordance and undefined-value display.
+- SHAP output space, background, size, and coverage.
+- Receipt mapping, OCR, retention, and application workflow decisions.
+
+See [THESIS_DOCUMENT_CHANGES.md](THESIS_DOCUMENT_CHANGES.md) for the manuscript
+alignment checklist. No manuscript edits have been made.
+
+### UI-review decisions approved 2026-09-22; pending implementation
+
+- Use signed symmetric percentage difference: 100*(S-B)/((S+B)/2), with
+  S=RF-SMOTE and B=benchmark RF. This replaces the earlier absolute convention
+  for future evaluation presentation. Positive means RF-SMOTE is higher; negative
+  means benchmark RF is higher. It is not a significance test or baseline-relative
+  percentage change.
+- Apply that percentage to nonnegative scores with a positive mean. Both zero
+  gives N/A (zero denominator). If either MCC is negative, compare S-B in coefficient
+  units. Undefined metrics/comparisons show N/A with a reason, not an invented zero.
+- With no McNemar discordant pairs, display p=1 by convention, statistic N/A,
+  and No discordant pairs. The small-discordance method still needs finalization.
+- PR-AUC integration remains unselected. General approval of help content does
+  not choose between AP and trapezoidal integration.
+- Active configuration now selects signed_over_mean; the schema accepts it and
+  legacy absolute_over_mean (retaining the legacy default for older snapshots).
+  Phase 4 calculation remains pending. Preserve immutable saved-run configurations
+  and record the evaluation policy separately, exporting the actual method used.
+
+### Completed mock-up review and backend audit
+
+On 2026-09-22 the expanded SHAP view was narrowed to a waterfall graph only.
+The numerical table remains a suggestion. Top positive contributor (including for
+legitimate predictions) and deterministic per-model prose remain approved. Preserve
+the numerical attribution object internally for chart generation and additivity;
+the UI choice does not change the underlying explanation method. Background,
+runtime coverage and exact explainer configuration still need finalization.
+
+Approved score communication bands use unrounded 100*p: Minimal [0,20), Low [20,40),
+Moderate [40,60), High [60,80), Critical [80,100]. They are independent of the saved
+classification threshold. The ordinary user's receipt workflow remains experimental
+GCash person-to-person TRANSFER only, under explicit timing/amount assumptions.
+No real names, reference IDs, or excluded balances become model features.
+
+The code audit found Phases 1-3 reusable for this scope. The current raw-record
+preprocessor is not a derived-input receipt adapter; add one with unchanged saved
+scaling in Phase 6. The current artifact loader enforces baseline settings; add
+explicit validation-selected run support in Phase 4. These are future extensions,
+not reasons to overwrite the completed baseline or redo preparation.
+
+Audit verification: 125 tests passed, including signed/legacy configuration and
+synthetic saved-inference compatibility. No official test evaluation, retraining,
+or manuscript editing occurred. See [the audit](BACKEND_ALIGNMENT_AUDIT.md).
+
+See [the mock-up decision record](MOCKUP_EVALUATION_DECISIONS.md) and
+[approved help content](UI_HELP_CONTENT.md) for frontend/export requirements.

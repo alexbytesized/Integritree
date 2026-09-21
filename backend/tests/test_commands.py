@@ -13,7 +13,8 @@ SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 @pytest.mark.parametrize("script", ["prepare_data", "train_models", "evaluate_models"])
 def test_research_commands_reject_unresolved_draft(script, settings):
     result = subprocess.run(
-        [sys.executable, str(SCRIPTS / f"{script}.py")],
+        [sys.executable, str(SCRIPTS / f"{script}.py")]
+        + (["--prepared", "data/prepared/synthetic"] if script == "train_models" else []),
         env={**os.environ, "INTEGRITREE_BACKEND_ROOT": str(settings.backend_root)},
         capture_output=True, text=True, check=False,
     )
