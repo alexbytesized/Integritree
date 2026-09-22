@@ -4,7 +4,7 @@
   display: flex;
   align-items: center;
   min-width: 0;
-  height: 72px;
+  height: 56px;
   border: 1px solid #34383c;
   border-radius: 10px;
   background: #fff;
@@ -28,9 +28,8 @@
   text-overflow: ellipsis;
 }
 .filterBar select:disabled { color: #777d82; cursor: not-allowed; }
-.filterHint { display: block; padding: 5px 2px 0; color: #686e73; font-size: 12px; line-height: 1.2; }
 @media (max-width: 760px) {
-  .filterBar { height: 54px; }
+  .filterBar { height: 48px; }
   .filterBar select { padding-left: 42px; padding-right: 36px; font-size: 15px; }
   .filterIcon { left: 12px; width: 19px; height: 19px; }
   .filterChevron { right: 10px; width: 17px; height: 17px; }

@@ -55,7 +55,6 @@
   margin-bottom: 34px;
 }
 
-.results-overview-title.with-action { justify-content: space-between; gap: 20px; }
 .section-heading { display: flex; align-items: center; }
 .results-overview-title h1 {
   margin: 0;
@@ -71,7 +70,6 @@
   transform: translateY(-14px);
 }
 
-.download-button,
 .viewButton {
   color: #666b70;
   border: 1px solid #8e9499;
@@ -81,15 +79,27 @@
   cursor: not-allowed;
 }
 
-.download-button { padding: 10px 17px; font-size: 15px; }
+.results-actions { display: flex; justify-content: flex-end; margin-top: 48px; }
+.download-button {
+  min-height: 54px;
+  padding: 12px 28px;
+  border: 1px solid var(--results-blue);
+  border-radius: 10px;
+  background: var(--results-blue);
+  color: #fff;
+  font: inherit;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: not-allowed;
+}
 
 .file-name-container {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 14px;
   width: 100%;
-  min-height: 120px;
-  padding: 36px 44px;
+  height: 92px;
+  padding: 0 44px 28px;
   border-radius: 28px 28px 0 0;
   color: #fff;
   background: var(--results-blue);
@@ -147,13 +157,13 @@
 .percentage-statistics-title-container,
 .mcnemar-statistics-title-container {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   gap: 12px;
   width: min(63%, 840px);
-  min-height: 78px;
+  height: 78px;
   margin: 0 auto;
-  padding: 22px 24px 38px;
+  padding: 0 24px 28px;
   border-radius: 28px 28px 0 0;
   color: #fff;
   background: var(--results-blue);
@@ -204,24 +214,22 @@
 
 .mcnemar-content {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
-  gap: 62px;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
+  gap: 42px;
   align-items: start;
 }
 
-.mcnemar-label { display: flex; align-items: center; gap: 7px; margin-bottom: 18px; }
-.mcnemar-label h4,
-.mcnemar-result h4 { margin: 0; font-size: 18px; }
-.mcnemar-result h4 { margin: 22px 0 12px; }
-.mcnemar-result .mcnemar-label { margin-bottom: 0; }
-.mcnemar-result .mcnemar-label h4 { margin: 0; }
+.mcnemar-label { margin: 0 0 16px; font-size: 18px; }
+.mcnemar-result .mcnemar-label { margin-bottom: 10px; }
+.mcnemar-result h4:not(.mcnemar-label) { margin: 12px 0 10px; font-size: 18px; }
 
 .mcnemar-table-wrapper { min-width: 0; overflow-x: auto; }
 .mcnemar-table {
   display: grid;
-  grid-template-columns: minmax(130px, .95fr) repeat(2, minmax(180px, 1fr));
+  grid-template-columns: 160px repeat(2, minmax(0, 1fr));
   gap: 12px;
   min-width: 530px;
+  padding-top: 12px;
 }
 
 .empty-cell { background: transparent; }
@@ -263,7 +271,7 @@
 }
 .pvalue-box strong { font-size: 20px; color: #23272a; }
 .pvalue-box span { font-size: 14px; color: #767b80; }
-.interpretation { min-height: 100px; padding: 17px 19px; }
+.interpretation { min-height: 80px; padding: 14px 19px; }
 .interpretation p { margin: 0; font-size: 16px; line-height: 1.4; }
 
 .info-button {
@@ -324,7 +332,7 @@
   .researcher-results-page .results-overview-section { margin-top: 36px; }
   .results-overview-title { margin-bottom: 24px; }
   .results-overview-title img { width: 34px; transform: translateY(-10px); }
-  .file-name-container { min-height: 100px; padding: 27px 25px; font-size: 18px; }
+  .file-name-container { height: 82px; padding: 0 25px 22px; font-size: 18px; }
   .system-results-container { grid-template-columns: 1fr; margin-top: -22px; gap: 22px; padding: 22px; }
   .search-filter-container { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .searchBar { grid-column: 1 / -1; }
@@ -335,11 +343,10 @@
   .difference-card:last-child { grid-column: 1 / -1; width: calc(50% - 8px); justify-self: center; }
   .mcnemar-content { grid-template-columns: 1fr; }
   .mcnemar-table-wrapper { width: 100%; }
+  .mcnemar-table { padding-top: 0; }
 }
 
 @media (max-width: 540px) {
-  .results-overview-title.with-action { flex-wrap: wrap; }
-  .download-button { margin-left: auto; }
   .model-result-container { flex-direction: column; }
   .divider { width: 84%; height: 1px; }
   .model-statistics-container { grid-template-columns: 1fr; }
@@ -353,4 +360,5 @@
   .difference-card:nth-child(n) { grid-column: auto; width: 100%; }
   .mcnemar-table { min-width: 480px; grid-template-columns: 120px repeat(2, 170px); }
   .table-header, .row-header { font-size: 13px; }
+  .download-button { width: 100%; }
 }

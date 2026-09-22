@@ -2,14 +2,14 @@
   display: flex;
   align-items: center;
   min-width: 0;
-  height: 72px;
-  padding: 0 24px;
-  gap: 18px;
+  height: 56px;
+  padding: 0 20px;
+  gap: 14px;
   border: 1px solid #34383c;
   border-radius: 10px;
   background: #fff;
 }
-.searchIcon { flex: none; width: 25px; height: 25px; color: #34383c; }
+.searchIcon { flex: none; width: 22px; height: 22px; color: #34383c; }
 .searchBar input {
   min-width: 0;
   width: 100%;
@@ -23,7 +23,7 @@
 }
 .searchBar input::placeholder { color: #555b60; opacity: 1; }
 @media (max-width: 760px) {
-  .searchBar { height: 54px; padding: 0 16px; gap: 12px; }
+  .searchBar { height: 48px; padding: 0 16px; gap: 12px; }
   .searchBar input { font-size: 16px; }
   .searchIcon { width: 20px; height: 20px; }
 }

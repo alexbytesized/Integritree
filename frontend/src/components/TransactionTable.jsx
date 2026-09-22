@@ -1,3 +1,4 @@
+import { useState } from "react"
 import "./TransactionTable.css"
 
 const transactions = [
@@ -241,6 +242,42 @@ const Prediction = ({ value }) => (
   </span>
 )
 
+const PageJump = ({ currentPage, totalPages, onPageChange }) => {
+  const [pageInput, setPageInput] = useState(String(currentPage))
+
+  const goToPage = (event) => {
+    event.preventDefault()
+    const pageText = pageInput.trim()
+    const page = Number(pageText)
+    if (!/^\d+$/.test(pageText) || !Number.isInteger(page) || page < 1 || page > totalPages) {
+      setPageInput(String(currentPage))
+      return
+    }
+
+    setPageInput(String(page))
+    onPageChange(page)
+  }
+
+  return (
+    <form className="pageJump" onSubmit={goToPage} noValidate>
+      <label htmlFor="transaction-page-input">Page</label>
+      <input
+        id="transaction-page-input"
+        type="text"
+        inputMode="numeric"
+        enterKeyHint="go"
+        autoComplete="off"
+        value={pageInput}
+        style={{ width: `max(46px, calc(${pageInput.length}ch + 14px))` }}
+        aria-describedby="page-jump-help"
+        onChange={(event) => setPageInput(event.target.value)}
+      />
+      <span>of {totalPages}</span>
+      <span id="page-jump-help" className="visually-hidden">Press Enter to go to this page.</span>
+    </form>
+  )
+}
+
 const TransactionTable = ({ searchTerm, model, outcome, currentPage, onPageChange }) => {
   const rowsPerPage = 10
   const showSmote = model !== "benchmark"
@@ -309,11 +346,11 @@ const TransactionTable = ({ searchTerm, model, outcome, currentPage, onPageChang
       </div>
       <div className="pagination">
         <span className="paginationRecords" aria-live="polite">
-          Showing {rangeStart}&ndash;{rangeEnd} of {filteredTransactions.length} matching Transaction Records ({transactions.length} total)
+          Showing {rangeStart}&ndash;{rangeEnd} of {filteredTransactions.length} matching Transaction Records
         </span>
         <div className="paginationControls">
           <button type="button" className="paginationButton" aria-label="Previous page" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}>&#9664;</button>
-          <span className="paginationText">Page {currentPage} of {totalPages}</span>
+          <PageJump key={`${currentPage}-${model}-${outcome}-${searchTerm}`} currentPage={currentPage} totalPages={totalPages} onPageChange={onPageChange} />
           <button type="button" className="paginationButton" aria-label="Next page" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages}>&#9654;</button>
         </div>
       </div>

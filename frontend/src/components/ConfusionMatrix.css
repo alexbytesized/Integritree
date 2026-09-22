@@ -1,12 +1,12 @@
 .confusion-matrix-wrapper { width: 100%; }
 .confusion-matrix-title-container {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   width: min(63%, 840px);
-  min-height: 80px;
+  height: 80px;
   margin: 0 auto;
-  padding: 20px 20px 36px;
+  padding: 0 20px 28px;
   border-radius: 28px 28px 0 0;
   color: #fff;
   background: var(--results-blue);
@@ -24,8 +24,8 @@
 .confusion-matrix-scroll { overflow-x: auto; }
 .confusion-matrix {
   display: grid;
-  grid-template-columns: minmax(170px, .7fr) repeat(2, minmax(250px, 1fr));
-  gap: 12px 18px;
+  grid-template-columns: 190px repeat(2, minmax(0, 1fr));
+  gap: 18px 18px;
   min-width: 710px;
 }
 .confusion-table-header, .confusion-row-header {
@@ -41,7 +41,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 126px;
+  min-height: 112px;
   gap: 12px;
   padding: 16px;
   border: 1px solid var(--results-border);
@@ -52,12 +52,12 @@
 .confusion-value-number.incorrect { color: #a41515; }
 .confusion-value-label { font-size: 16px; font-weight: 600; }
 @media (max-width: 760px) {
-  .confusion-matrix-title-container { width: 84%; min-height: 70px; }
+  .confusion-matrix-title-container { width: 84%; height: 70px; }
   .confusion-matrix-title-container h2 { font-size: 19px; }
   .confusion-matrix-container { padding: 24px; }
   .confusion-matrix { grid-template-columns: 135px repeat(2, 190px); min-width: 550px; }
   .confusion-table-header, .confusion-row-header { font-size: 14px; }
-  .confusion-value { min-height: 96px; }
+  .confusion-value { min-height: 86px; }
   .confusion-value-number { font-size: 22px; }
   .confusion-value-label { font-size: 13px; }
 }

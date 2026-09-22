@@ -20,10 +20,10 @@ const modelOptions = [
 
 const outcomeOptions = [
   { value: "all", label: "All Outcomes" },
-  { value: "tp", label: "True positive — fraud detected" },
-  { value: "fp", label: "False positive — false alarm" },
-  { value: "tn", label: "True negative — legitimate recognized" },
-  { value: "fn", label: "False negative — fraud missed" },
+  { value: "tp", label: "True Positive" },
+  { value: "fp", label: "False Positive" },
+  { value: "tn", label: "True Negative" },
+  { value: "fn", label: "False Negative" },
 ]
 
 const smoteMetrics = { precision: 98.5, recall: 99.0, f1: 98.7, mcc: 0.987, auc: 99.1 }
@@ -80,9 +80,8 @@ const ResearcherResultsPage = () => {
       </header>
 
       <section className="results-overview-section">
-        <div className="results-overview-title with-action">
+        <div className="results-overview-title">
           <div className="section-heading"><h1>Results Overview</h1><img src={stars} alt="" /></div>
-          <button type="button" className="download-button" aria-disabled="true" title="Results download is not available yet">Download results<span className="visually-hidden">; not available yet</span></button>
         </div>
 
         <div className="file-name-container">
@@ -134,7 +133,7 @@ const ResearcherResultsPage = () => {
         <div className="search-filter-container">
           <SearchBar value={searchTerm} onChange={handleSearchChange} placeholder="Search Transaction ID" />
           <FilterBar label="Model" value={model} onChange={handleModelChange} options={modelOptions} />
-          <FilterBar label="Prediction outcome" value={outcome} onChange={handleOutcomeChange} options={outcomeOptions} disabled={model === "both"} hint="Select one model to filter by prediction outcome." />
+          <FilterBar label="Prediction outcome" value={outcome} onChange={handleOutcomeChange} options={outcomeOptions} disabled={model === "both"} />
         </div>
 
         <TransactionTable searchTerm={searchTerm} model={model} outcome={outcome} currentPage={currentPage} onPageChange={setCurrentPage} />
@@ -226,7 +225,7 @@ const ResearcherResultsPage = () => {
         <div className="mcnemar-statistics-container">
           <div className="mcnemar-content">
             <div className="mcnemar-table-wrapper">
-              <div className="mcnemar-label"><h4>Contingency Table:</h4><InfoButton topic="Contingency Table" onRequestInfo={handleRequestInfo} /></div>
+              <h4 className="mcnemar-label">Contingency Table:</h4>
               <div className="mcnemar-table">
                 <div className="empty-cell"></div>
                 <div className="table-header">RF-SMOTE Model Correct</div>
@@ -243,7 +242,7 @@ const ResearcherResultsPage = () => {
             </div>
 
             <div className="mcnemar-result">
-              <div className="mcnemar-label"><h4>P-Value:</h4><InfoButton topic="P-Value" onRequestInfo={handleRequestInfo} /></div>
+              <h4 className="mcnemar-label">P-Value:</h4>
               <div className="pvalue-box">
                 <strong>2.600e-100</strong>
                 <span>&lt; 0.05</span>
@@ -259,6 +258,10 @@ const ResearcherResultsPage = () => {
           </div>
         </div>
       </section>
+
+      <footer className="results-actions">
+        <button type="button" className="download-button" aria-disabled="true" title="Results download is not available yet">Download results<span className="visually-hidden">; not available yet</span></button>
+      </footer>
     </main>
   )
 }
