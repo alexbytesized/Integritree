@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react"
 import "./TransactionTable.css"
 
 const transactions = [
@@ -229,129 +228,93 @@ const transactions = [
   }
 ]
 
-const TransactionTable = ({ searchTerm }) => {
-  const [currentPage, setCurrentPage] = useState(1)
+const outcomeFor = (prediction, groundTruth) => {
+  if (!groundTruth) return null
+  if (prediction === "Fraudulent") return groundTruth === "Fraudulent" ? "tp" : "fp"
+  return groundTruth === "Legitimate" ? "tn" : "fn"
+}
 
+const Prediction = ({ value }) => (
+  <span className="prediction">
+    <span className={`statusDot ${value === "Fraudulent" ? "red" : "green"}`} aria-hidden="true" />
+    {value}
+  </span>
+)
+
+const TransactionTable = ({ searchTerm, model, outcome, currentPage, onPageChange }) => {
   const rowsPerPage = 10
-
+  const showSmote = model !== "benchmark"
+  const showBenchmark = model !== "rfSmote"
   const normalizedSearch = searchTerm.trim()
-
   const filteredTransactions = transactions.filter((transaction) => {
-    if (normalizedSearch === "") return true
-
-    return transaction.id.startsWith(normalizedSearch)
+    if (normalizedSearch && !transaction.id.includes(normalizedSearch)) return false
+    if (outcome !== "all" && model !== "both") {
+      const prediction = model === "rfSmote" ? transaction.rfSmote : transaction.benchmark
+      return outcomeFor(prediction, transaction.groundTruth) === outcome
+    }
+    return true
   })
-
-  const totalPages = Math.ceil(filteredTransactions.length / rowsPerPage) || 1
-
+  const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / rowsPerPage))
   const startIndex = (currentPage - 1) * rowsPerPage
-  const endIndex = startIndex + rowsPerPage
-
-  const currentRows = filteredTransactions.slice(startIndex, endIndex)
-  const emptyRows = rowsPerPage - currentRows.length
-
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [searchTerm])
-
-  const goToPreviousPage = () => {
-    setCurrentPage((prevPage) => Math.max(prevPage - 1, 1))
-  }
-
-  const goToNextPage = () => {
-    setCurrentPage((prevPage) => Math.min(prevPage + 1, totalPages))
-  }
+  const currentRows = filteredTransactions.slice(startIndex, startIndex + rowsPerPage)
+  const visibleColumns = 5 + Number(showSmote) + Number(showBenchmark)
+  const rangeStart = filteredTransactions.length ? startIndex + 1 : 0
+  const rangeEnd = Math.min(startIndex + rowsPerPage, filteredTransactions.length)
 
   return (
     <div className="tableContainer">
-      <div className="tableWrapper">
+      <div className="tableWrapper" role="region" aria-label="Transaction records; scroll horizontally for more columns" tabIndex="0">
         <table className="transactionTable">
+          <caption className="visually-hidden">Transaction records with each model's prediction, risk score, and top risk-increasing contributor</caption>
           <thead>
             <tr>
-              <th>Transaction ID</th>
-              <th className="blueText">Benchmark RF</th>
-              <th className="darkText">RF-SMOTE</th>
-              <th>Ground Truth</th>
-              <th>Risk Score</th>
-              <th>Top Feature</th>
+              <th scope="col" className="idColumn">Transaction ID</th>
+              {showSmote && <th scope="col" className="smoteText">RF-SMOTE</th>}
+              {showBenchmark && <th scope="col" className="benchmarkText">Benchmark RF</th>}
+              <th scope="col">Ground Truth</th>
+              <th scope="col">Risk Score</th>
+              <th scope="col">Top Risk-Increasing Contributor</th>
+              <th scope="col">Action</th>
             </tr>
           </thead>
-
           <tbody>
-            {currentRows.length > 0 ? (
-              <>
-                {currentRows.map((transaction) => (
-                  <tr key={transaction.id}>
-                    <td>{transaction.id}</td>
-
-                    <td>
-                      <span className={`statusDot ${transaction.benchmark === "Fraudulent" ? "red" : "green"}`} />
-                      {transaction.benchmark}
-                    </td>
-
-                    <td>
-                      <span className={`statusDot ${transaction.rfSmote === "Fraudulent" ? "red" : "green"}`} />
-                      {transaction.rfSmote}
-                    </td>
-
-                    <td>
-                      <span className={`statusDot ${transaction.groundTruth === "Fraudulent" ? "red" : "green"}`} />
-                      {transaction.groundTruth}
-                    </td>
-
-                    <td>
-                      <span className="riskBadge blueBadge">{transaction.risk1}</span>
-
-                      <span className="riskBadge darkBadge">{transaction.risk2}</span>
-                    </td>
-
-                    <td>
-                      <span className="featureBadge blueFeature">{transaction.topFeature}</span>
-                      <span className="featureBadge darkFeature">{transaction.topFeature}</span>
-                    </td>
-                  </tr>
-                ))}
-
-                {Array.from({ length: emptyRows }).map((_, index) => (
-                  <tr className="emptyRow" key={`empty-${index}`}>
-                    <td>&nbsp;</td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                  </tr>
-                ))}
-              </>
-            ) : (
-              <tr>
-                <td colSpan="6" className="noRecords">
-                  No matching transactions found.
+            {currentRows.map((transaction) => (
+              <tr key={transaction.id}>
+                <th scope="row" className="idColumn">{transaction.id}</th>
+                {showSmote && <td><Prediction value={transaction.rfSmote} /></td>}
+                {showBenchmark && <td><Prediction value={transaction.benchmark} /></td>}
+                <td><Prediction value={transaction.groundTruth} /></td>
+                <td>
+                  <div className="badgePair">
+                    {showSmote && <span className="riskBadge blueBadge" aria-label={`RF-SMOTE risk score ${transaction.risk2}`}>{transaction.risk2}</span>}
+                    {showBenchmark && <span className="riskBadge darkBadge" aria-label={`Benchmark RF risk score ${transaction.risk1}`}>{transaction.risk1}</span>}
+                  </div>
+                </td>
+                <td>
+                  <div className="badgePair">
+                    {showSmote && <span className="featureBadge blueFeature" aria-label={`RF-SMOTE top contributor ${transaction.topFeature}`}>{transaction.topFeature}</span>}
+                    {showBenchmark && <span className="featureBadge darkFeature" aria-label={`Benchmark RF top contributor ${transaction.topFeature}`}>{transaction.topFeature}</span>}
+                  </div>
+                </td>
+                <td>
+                  <button type="button" className="viewButton" aria-disabled="true" title="Transaction details are not available yet">View<span className="visually-hidden"> transaction {transaction.id}; details are not available yet</span></button>
                 </td>
               </tr>
+            ))}
+            {currentRows.length === 0 && (
+              <tr><td colSpan={visibleColumns} className="noRecords">No matching transactions found.</td></tr>
             )}
           </tbody>
         </table>
       </div>
-
       <div className="pagination">
-        <span className="paginationRecords">
-          Showing {startIndex + 1}–{Math.min(endIndex, filteredTransactions.length)} of {filteredTransactions.length}{" "}
-          Transaction Records
+        <span className="paginationRecords" aria-live="polite">
+          Showing {rangeStart}&ndash;{rangeEnd} of {filteredTransactions.length} matching Transaction Records ({transactions.length} total)
         </span>
-
         <div className="paginationControls">
-          <button className="paginationButton" onClick={goToPreviousPage} disabled={currentPage === 1}>
-            ◀
-          </button>
-
-          <span className="paginationText">
-            Page {currentPage} of {totalPages}
-          </span>
-
-          <button className="paginationButton" onClick={goToNextPage} disabled={currentPage === totalPages}>
-            ▶
-          </button>
+          <button type="button" className="paginationButton" aria-label="Previous page" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}>&#9664;</button>
+          <span className="paginationText">Page {currentPage} of {totalPages}</span>
+          <button type="button" className="paginationButton" aria-label="Next page" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages}>&#9654;</button>
         </div>
       </div>
     </div>

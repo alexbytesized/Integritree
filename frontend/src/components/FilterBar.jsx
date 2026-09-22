@@ -2,18 +2,20 @@ import "./FilterBar.css"
 import { IoFilterOutline } from "react-icons/io5"
 import { IoChevronDown } from "react-icons/io5"
 
-const FilterBar = ({ value, onChange }) => {
+const FilterBar = ({ label, value, onChange, options, disabled = false, hint }) => {
+  const hintId = label === "Prediction outcome" ? "prediction-outcome-hint" : undefined
+
   return (
-    <div className="filterBar">
-      <IoFilterOutline className="filterIcon" />
-
-      <select value={value} onChange={onChange}>
-        <option value="all">All Records</option>
-        <option value="legitimate">Legitimate</option>
-        <option value="fraudulent">Fraudulent</option>
-      </select>
-
-      <IoChevronDown className="filterChevron" />
+    <div className="filterField">
+      <label className={`filterBar${disabled ? " is-disabled" : ""}`}>
+        <span className="visually-hidden">{label}</span>
+        <IoFilterOutline className="filterIcon" aria-hidden="true" />
+        <select value={value} onChange={onChange} disabled={disabled} aria-label={label} aria-describedby={disabled ? hintId : undefined}>
+          {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+        </select>
+        <IoChevronDown className="filterChevron" aria-hidden="true" />
+      </label>
+      {disabled && <small className="filterHint" id={hintId}>{hint}</small>}
     </div>
   )
 }

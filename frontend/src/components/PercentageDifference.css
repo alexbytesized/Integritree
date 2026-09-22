@@ -3,87 +3,16 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-
-  min-height: 120px;
-  padding: clamp(0.5rem, 1vw, 0.9375rem);
-
-  border: 1px solid #D8D8D8;
-  border-radius: 30px;
-}
-
-.difference-card span {
-  font-size: clamp(0.9rem, 1.1vw, 1.5rem);
-  color: #00a000;
+  min-height: 105px;
+  padding: 16px 10px;
+  border: 1px solid var(--results-border);
+  border-radius: 22px;
   text-align: center;
 }
-
-.difference-card h2 {
-  margin: 16px 0 0;
-
-  font-size: clamp(1.1rem, 1.3vw, 2rem);
-}
-
-/* TABLET */
-@media (max-width: 900px) {
-  .difference-card {
-    min-height: 105px;
-
-    padding: 14px 18px;
-
-    border-radius: 24px;
-  }
-
-  .difference-card span {
-    font-size: clamp(0.9rem, 2vw, 1.25rem);
-  }
-
-  .difference-card h2 {
-    margin-top: 10px;
-
-    font-size: clamp(1rem, 2.2vw, 1.4rem);
-  }
-}
-
-
-/* MOBILE */
-@media (max-width: 800px) {
-  .difference-card {
-    min-height: 90px;
-
-    padding: 12px 14px;
-
-    border-radius: 20px;
-  }
-
-  .difference-card span {
-    font-size: clamp(0.8rem, 3vw, 1rem);
-  }
-
-  .difference-card h2 {
-    margin-top: 8px;
-
-    font-size: clamp(0.9rem, 3.5vw, 1.15rem);
-  }
-}
-
-
-/* SMALL MOBILE */
-@media (max-width: 500px) {
-  .difference-card {
-    min-height: 80px;
-
-    padding: 10px 12px;
-
-    border-radius: 18px;
-  }
-
-  .difference-card span {
-    font-size: 0.8rem;
-  }
-
-  .difference-card h2 {
-    margin-top: 6px;
-
-    font-size: 0.9rem;
-  }
+.difference-card span { color: #008e20; font-size: 18px; }
+.difference-card.is-negative span { color: #a41515; }
+.difference-label { color: #23272a; font-size: 18px; }
+@media (max-width: 760px) {
+  .difference-card { min-height: 90px; }
+  .difference-card span, .difference-label { font-size: 15px; }
 }

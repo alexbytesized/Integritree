@@ -1,12 +1,13 @@
 import "./PercentageDifference.css"
 
 const PercentageDifferenceCard = ({ percentage, label }) => {
+  const negative = percentage.startsWith("-")
   return (
-    <div className="difference-card">
+    <div className={`difference-card${negative ? " is-negative" : ""}`}>
       <span>
         <strong>{percentage}</strong> difference
       </span>
-      <h2>{label}</h2>
+      <strong className="difference-label">{label}</strong>
     </div>
   )
 }
