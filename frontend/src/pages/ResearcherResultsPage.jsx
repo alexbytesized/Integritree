@@ -4,17 +4,30 @@ import stars from "../assets/stars.png"
 import { useNavigate } from "react-router-dom"
 import SystemResults from "../components/SystemResults"
 import SearchBar from "../components/SearchBar"
+import FilterBar from "../components/FilterBar"
 import TransactionTable from "../components/TransactionTable"
 import { useState } from "react"
 import StatisticCard from "../components/StatisticCard"
 import PercentageDifferenceCard from "../components/PercentageDifference"
+import ConfusionMatrix from "../components/ConfusionMatrix"
+import React, { useEffect } from "react"
 
 const ResearcherResultsPage = () => {
+  useEffect(() => {
+    if (window.particlesJS) {
+      window.particlesJS.load("particles-js", "/particles.json", function () {
+        console.log("callback - particles.js config loaded")
+      })
+    }
+  }, [])
+
   const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState("")
+  const [filter, setFilter] = useState("all")
 
   return (
     <main className="researcher-results-page">
+      <div id="particles-js" className="particles-background" aria-hidden="true" />
       <header className="researcher-results-header">
         <button type="button" className="back-button" aria-label="Go back" onClick={() => navigate(-1)}>
           <img src={backbutton} alt="Back Button" />
@@ -40,6 +53,7 @@ const ResearcherResultsPage = () => {
               fraudulentRecords="59872"
               fraudRate={5.6}
               titleClass="rf-smote-title"
+              donutClass="rf-smote-donut"
             />
 
             <div className="divider"></div>
@@ -50,6 +64,7 @@ const ResearcherResultsPage = () => {
               fraudulentRecords="356539"
               fraudRate={0.94}
               titleClass="benchmark-title"
+              donutClass="benchmark-donut"
             />
           </div>
           <div className="ground-truth-container">
@@ -59,6 +74,7 @@ const ResearcherResultsPage = () => {
               fraudulentRecords="8213"
               fraudRate={0.13}
               titleClass="ground-truth-title"
+              donutClass="ground-truth-donut"
             />
           </div>
         </div>
@@ -70,8 +86,35 @@ const ResearcherResultsPage = () => {
           <img src={stars} alt="Stars Icon" />
         </div>
 
-        <SearchBar value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+        <div className="search-filter-container">
+          <SearchBar value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          <FilterBar value={filter} onChange={(e) => setFilter(e.target.value)} />
+        </div>
+
         <TransactionTable searchTerm={searchTerm} />
+      </section>
+
+      <section className="confusion-matrices-container">
+        <div className="results-overview-title">
+          <h1>Confusion Matrices</h1>
+          <img src={stars} alt="Stars Icon" />
+        </div>
+
+        <ConfusionMatrix
+          title="RF-SMOTE Model"
+          truePositive={400000}
+          falseNegative={400000}
+          falsePositive={400000}
+          trueNegative={400000}
+        />
+
+        <ConfusionMatrix
+          title="Benchmark RF Model"
+          truePositive={400000}
+          falseNegative={400000}
+          falsePositive={400000}
+          trueNegative={400000}
+        />
       </section>
 
       <section className="performance-statistics-section">
@@ -101,21 +144,39 @@ const ResearcherResultsPage = () => {
           />
         </div>
 
-        <div className="percentage-statistics-container">
-          <h1>Percentage Difference</h1>
+        <div className="percentage-main-container">
+          <div className="percentage-statistics-title-container">
+            <h1>PERCENTAGE DIFFERENCE</h1>
+          </div>
+          <div className="percentage-statistics-container">
+            <div className="percentage-statistics-guide-container">
+              <h3>Percentage Guide:</h3>
+              <p>&#8226; A positive value indicates a better performance in favor of RF-SMOTE model.</p>
+              <p>&#8226; A negative value indicates a better performance in favor of Benchmark RF model.</p>
+            </div>
 
-          <div className="percentage-difference-container">
-            <PercentageDifferenceCard percentage="11.49%" label="Precision" />
-            <PercentageDifferenceCard percentage="11.49%" label="Recall" />
-            <PercentageDifferenceCard percentage="11.49%" label="F1-score" />
-            <PercentageDifferenceCard percentage="11.49%" label="MCC" />
-            <PercentageDifferenceCard percentage="11.49%" label="PR-AUC" />
+            <div className="percentage-difference-container">
+              <PercentageDifferenceCard percentage="11.49%" label="Precision" />
+              <PercentageDifferenceCard percentage="11.49%" label="Recall" />
+              <PercentageDifferenceCard percentage="11.49%" label="F1-score" />
+              <PercentageDifferenceCard percentage="11.49%" label="MCC" />
+              <PercentageDifferenceCard percentage="11.49%" label="PR-AUC" />
+            </div>
           </div>
         </div>
+      </section>
 
+      <section className="statistical-significance-container">
+        <div className="results-overview-title">
+          <h1>Statistical Significance</h1>
+          <img src={stars} alt="Stars Icon" />
+        </div>
+
+        <div className="mcnemar-statistics-title-container">
+          <h1>MCNEMAR'S TEST</h1>
+        </div>
         <div className="mcnemar-statistics-container">
-          <h1>McNemar’s Test</h1>
-
+          <h2>Contingency Table:</h2>
           <div className="mcnemar-content">
             <div className="mcnemar-table-wrapper">
               <div className="mcnemar-table">
@@ -134,13 +195,14 @@ const ResearcherResultsPage = () => {
             </div>
 
             <div className="mcnemar-result">
+              <h2>P-value:</h2>
               <div className="pvalue-box">
-                <p>Resulting p-value:</p>
-                <strong>&lt; 0.0001</strong>
+                <strong>2.600e-100</strong>
+                <span>&lt; 0.05</span>
               </div>
 
-              <div className="evaluation">
-                <p>Evaluation:</p>
+              <h2>Interpretation:</h2>
+              <div className="interpretation">
                 <p>
                   The difference between the benchmark RF model and the RF-SMOTE model is statistically significant.
                 </p>

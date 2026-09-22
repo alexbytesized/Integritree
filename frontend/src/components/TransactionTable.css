@@ -1,14 +1,16 @@
 .tableContainer {
-  width: 90%;
+  width: 80%;
   margin-top: clamp(12px, 2vw, 20px);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .tableWrapper {
   width: 100%;
   overflow-x: auto;
 
-  border: 1px solid #412d15;
-  border-radius: 28px;
+  border: 1px solid rgba(117, 120, 123, 1);
+  border-radius: 10px;
 }
 
 .transactionTable {
@@ -23,7 +25,7 @@
 
 .transactionTable th,
 .transactionTable td {
-  border-bottom: 1px solid #412D15;
+  border-bottom: 1px solid rgba(117, 120, 123, 0.8);
   padding: clamp(7px, 1vw, 12px);
   text-align: center;
   white-space: nowrap;
@@ -31,7 +33,8 @@
 
 .transactionTable th {
   font-weight: 700;
-  background-color: #FFFFFF;
+  background-color: rgba(117, 120, 123, 0.1);
+  padding-left: 20px;
 }
 
 .transactionTable tbody tr {
@@ -39,15 +42,15 @@
 }
 
 .transactionTable tbody tr:hover {
-  background-color: #e4dfcf;
+  background-color: rgb(166, 206, 236)
 }
 
 .blueText {
-  color: #9100D5;
+  color: rgba(41, 169, 255, 1)
 }
 
-.purpleText {
-  color: #D74F00;
+.darkText {
+  color: rgba(41, 169, 255, 1)
 }
 
 .statusDot {
@@ -73,28 +76,40 @@
   padding: 3px 8px;
   border-radius: 4px;
   margin: 0 3px;
-  font-weight: 600;
+  font-weight: 400;
   font-size: clamp(9px, 0.9vw, 13px);
-  border: 1px solid #412D15;
+  border: 1.5px solid rgba(41, 169, 255, 1);
 }
 
 .blueBadge {
-  background-color: #0078d7;
+  background-color: rgba(41, 169, 255, 1);
 }
 
-.purpleBadge {
-  background-color: #b000ff;
+.darkBadge {
+  background-color: rgba(0, 75, 126, 1);
+  border-color: rgba(0, 75, 126, 1);
 }
 
 .featureBadge {
   display: inline-block;
+  min-width: 150px;
   background-color: #0078d7;
   color: white;
   padding: 3px 8px;
   border-radius: 4px;
-  font-weight: 600;
+  font-weight: 400;
   font-size: clamp(9px, 0.9vw, 13px);
-  border: 1px solid #412D15;
+  border: 1.5px solid rgba(41, 169, 255, 1);
+}
+
+.blueFeature {
+  background-color: rgba(41, 169, 255, 1);
+  margin-right: 10px;
+}
+
+.darkFeature {
+  background-color: rgba(0, 75, 126, 1);
+  border-color: rgba(0, 75, 126, 1);
 }
 
 .emptyRow td {
@@ -104,19 +119,38 @@
 
 .pagination {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
-  gap: clamp(10px, 2vw, 20px);
+
+  width: 100%;
+
   margin-top: clamp(12px, 2vw, 20px);
+
   font-family: "SF Pro Display", sans-serif;
 }
 
-.paginationButton, .paginationText {
+.paginationRecords {
+  font-size: clamp(0.7rem, 1vw, 1.1rem);
+  color: #181818;
+}
+
+.paginationControls {
+  display: flex;
+  align-items: center;
+
+  gap: clamp(8px, 1vw, 12px);
+}
+
+.paginationButton,
+.paginationText {
   border: 1px solid #D8D8D8;
   background-color: #FFFFFF;
-  color: #0073CB;
-  padding: clamp(5px, 1vw, 8px) clamp(10px, 1.5vw, 16px);
+
+  padding: clamp(5px, 1vw, 8px)
+           clamp(10px, 1.5vw, 16px);
+
   border-radius: 4px;
+
   font-size: clamp(11px, 1vw, 14px);
 }
 
@@ -125,17 +159,13 @@
 }
 
 .paginationButton {
+  color: #0073CB;
   cursor: pointer;
-  transition:
-    transform 0.2s ease,
-    background-color 0.2s ease,
-    color 0.2s ease,
-    box-shadow 0.2s ease;
 }
 
 .paginationButton:hover:not(:disabled) {
   transform: translateY(-3px) scale(1.08);
-  background-color: #412d15;
+  background-color: rgb(75, 131, 174);
   color: #f0eee4;
   box-shadow: 0 4px 10px rgba(65, 45, 21, 0.25);
 }
@@ -156,7 +186,7 @@
   }
 
   .tableWrapper {
-    border-radius: 22px;
+    border-radius: 8px;
   }
 
   .transactionTable {
@@ -199,7 +229,7 @@
 
     overflow-x: auto;
 
-    border-radius: 18px;
+    border-radius: 6px;
   }
 
   .transactionTable {
@@ -235,14 +265,17 @@
   }
 
   .pagination {
-    gap: 8px;
-    margin-top: 10px;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
   }
 
-  .paginationButton,
-  .paginationText {
-    padding: 5px 9px;
+  .paginationControls {
+    width: 100%;
+    justify-content: center;
+  }
 
+  .paginationRecords {
     font-size: 0.7rem;
   }
 }

@@ -5,14 +5,14 @@
   justify-content: center;
 
   min-height: 120px;
-  padding: clamp(12px, 1.5vw, 25px);
+  padding: clamp(0.5rem, 1vw, 0.9375rem);
 
   border: 1px solid #D8D8D8;
   border-radius: 30px;
 }
 
 .difference-card span {
-  font-size: clamp(1rem, 1.3vw, 1.7rem);
+  font-size: clamp(0.9rem, 1.1vw, 1.5rem);
   color: #00a000;
   text-align: center;
 }
@@ -20,7 +20,7 @@
 .difference-card h2 {
   margin: 16px 0 0;
 
-  font-size: clamp(1.1rem, 1.5vw, 1.9rem);
+  font-size: clamp(1.1rem, 1.3vw, 2rem);
 }
 
 /* TABLET */

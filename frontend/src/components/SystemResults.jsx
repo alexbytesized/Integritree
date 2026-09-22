@@ -1,24 +1,24 @@
 import "./SystemResults.css"
 import FraudDonut from "../components/FraudDonut"
 
-const SystemResults = ({ title, legitimateRecords, fraudulentRecords, fraudRate, titleClass }) => {
+const SystemResults = ({ title, legitimateRecords, fraudulentRecords, fraudRate, titleClass, donutClass }) => {
   return (
     <div className="model-result-card">
       <h3 className={titleClass}>{title}</h3>
 
       <div className="model-stat">
-        <strong className="legitimate-value">{legitimateRecords}</strong>
+        <strong className={titleClass}>{legitimateRecords}</strong>
         <span>Legitimate Records</span>
       </div>
 
       <div className="model-stat">
-        <strong className="fraudulent-value">{fraudulentRecords}</strong>
+        <strong className={titleClass}>{fraudulentRecords}</strong>
         <span>Fraudulent Records</span>
       </div>
 
       <div className="fraud-rate">
         <div className="fraud-chart">
-          <FraudDonut value={fraudRate} />
+          <FraudDonut value={fraudRate} colorClass={donutClass} />
         </div>
       </div>
     </div>

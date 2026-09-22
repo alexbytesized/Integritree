@@ -270,7 +270,7 @@ const TransactionTable = ({ searchTerm }) => {
             <tr>
               <th>Transaction ID</th>
               <th className="blueText">Benchmark RF</th>
-              <th className="purpleText">RF-SMOTE</th>
+              <th className="darkText">RF-SMOTE</th>
               <th>Ground Truth</th>
               <th>Risk Score</th>
               <th>Top Feature</th>
@@ -302,11 +302,12 @@ const TransactionTable = ({ searchTerm }) => {
                     <td>
                       <span className="riskBadge blueBadge">{transaction.risk1}</span>
 
-                      <span className="riskBadge purpleBadge">{transaction.risk2}</span>
+                      <span className="riskBadge darkBadge">{transaction.risk2}</span>
                     </td>
 
                     <td>
-                      <span className="featureBadge">{transaction.topFeature}</span>
+                      <span className="featureBadge blueFeature">{transaction.topFeature}</span>
+                      <span className="featureBadge darkFeature">{transaction.topFeature}</span>
                     </td>
                   </tr>
                 ))}
@@ -334,17 +335,24 @@ const TransactionTable = ({ searchTerm }) => {
       </div>
 
       <div className="pagination">
-        <button className="paginationButton" onClick={goToPreviousPage} disabled={currentPage === 1}>
-          ◀
-        </button>
-
-        <span className="paginationText">
-          Page {currentPage} of {totalPages}
+        <span className="paginationRecords">
+          Showing {startIndex + 1}–{Math.min(endIndex, filteredTransactions.length)} of {filteredTransactions.length}{" "}
+          Transaction Records
         </span>
 
-        <button className="paginationButton" onClick={goToNextPage} disabled={currentPage === totalPages}>
-          ▶
-        </button>
+        <div className="paginationControls">
+          <button className="paginationButton" onClick={goToPreviousPage} disabled={currentPage === 1}>
+            ◀
+          </button>
+
+          <span className="paginationText">
+            Page {currentPage} of {totalPages}
+          </span>
+
+          <button className="paginationButton" onClick={goToNextPage} disabled={currentPage === totalPages}>
+            ▶
+          </button>
+        </div>
       </div>
     </div>
   )
