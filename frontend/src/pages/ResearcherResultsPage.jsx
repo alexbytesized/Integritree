@@ -1,5 +1,5 @@
 import "./ResearcherResultsPage.css"
-import backbutton from "../assets/backbutton.png"
+import backbutton from "../assets/back-button_revised.png"
 import stars from "../assets/stars.png"
 import { useNavigate } from "react-router-dom"
 import SystemResults from "../components/SystemResults"
@@ -73,8 +73,9 @@ const ResearcherResultsPage = () => {
   }
 
   return (
-    <main className="researcher-results-page">
+    <>
       <div id="particles-js" className="particles-background" aria-hidden="true" />
+      <main className="researcher-results-page">
       <header className="researcher-results-header">
         <button type="button" className="back-button" aria-label="Go back" onClick={() => navigate(-1)}>
           <img src={backbutton} alt="Back Button" />
@@ -264,7 +265,8 @@ const ResearcherResultsPage = () => {
         <button type="button" className="download-button" aria-disabled="true" title="Results download is not available yet">Download results<span className="visually-hidden">; not available yet</span></button>
       </footer>
       {activeInfoTopic && <InfoModal topic={activeInfoTopic} onClose={closeInfo} />}
-    </main>
+      </main>
+    </>
   )
 }
 

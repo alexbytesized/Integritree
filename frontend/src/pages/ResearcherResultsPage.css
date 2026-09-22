@@ -25,12 +25,12 @@
   pointer-events: none;
 }
 
-.researcher-results-page > :not(.particles-background) {
+.researcher-results-page > * {
   position: relative;
   z-index: 1;
 }
 
-.researcher-results-header { margin-left: -28px; }
+.researcher-results-header { margin-left: -40px; }
 
 .back-button {
   display: inline-flex;
@@ -42,7 +42,7 @@
   cursor: pointer;
 }
 
-.back-button img { display: block; width: 46px; height: 46px; }
+.researcher-results-page .back-button img { display: block; width: 70px; height: 70px; }
 .back-button:hover { opacity: .7; }
 
 .researcher-results-page section { margin-top: 104px; }
@@ -313,9 +313,14 @@
   border: 0;
 }
 
+/* Match the desktop density shown at 80% browser zoom without changing smaller layouts. */
+@media (min-width: 1200px) {
+  .researcher-results-page { zoom: 0.8; }
+}
+
 @media (max-width: 1050px) {
   .researcher-results-page { width: min(calc(100% - 48px), 900px); }
-  .researcher-results-header { margin-left: 0; }
+  .researcher-results-header { margin-left: -12px; }
   .system-results-container { gap: 24px; padding: 28px; }
   .model-statistics-container { gap: 28px; }
   .search-filter-container { grid-template-columns: minmax(220px, 2fr) repeat(2, minmax(150px, 1fr)); }

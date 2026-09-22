@@ -110,6 +110,10 @@
 
 .info-modal-section .info-modal-where-label { margin-bottom: 0; }
 
+@media (min-width: 1200px) {
+  .info-modal-dialog { zoom: 0.8; }
+}
+
 @media (max-width: 760px) {
   .info-modal-dialog { --info-modal-header-height: 62px; }
   .info-modal-title-bar { width: 82%; border-radius: 22px 22px 0 0; }

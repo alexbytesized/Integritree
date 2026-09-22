@@ -13,6 +13,8 @@
     padding-top: clamp(24px, 5vw, 50px);
 }
 
+.upload-details-header .back-button { margin-left: -13px; }
+
 .back-button{
     display: inline-flex;
     align-items: center;
@@ -23,9 +25,9 @@
     cursor: pointer;
 }
 
-.back-button img{
+.upload-details-page .back-button img{
     display: block;
-    width: clamp(32px, 4vw, 46px);
+    width: clamp(50px, 6vw, 70px);
     height: auto;
 }
 

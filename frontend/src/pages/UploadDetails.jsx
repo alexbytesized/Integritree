@@ -1,5 +1,5 @@
 import "./UploadDetails.css"
-import backbutton from "../assets/backbutton.png"
+import backbutton from "../assets/back-button_revised.png"
 import stars from "../assets/stars.png"
 import imageplaceholder from "../assets/imageplaceholder.png"
 import { useNavigate } from "react-router-dom"
