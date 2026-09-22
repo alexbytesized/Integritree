@@ -263,14 +263,11 @@
 
 .pvalue-box {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 70px;
-  gap: 3px;
 }
 .pvalue-box strong { font-size: 20px; color: #23272a; }
-.pvalue-box span { font-size: 14px; color: #767b80; }
 .interpretation { min-height: 80px; padding: 14px 19px; }
 .interpretation p { margin: 0; font-size: 16px; line-height: 1.4; }
 

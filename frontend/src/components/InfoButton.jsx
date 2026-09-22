@@ -5,7 +5,7 @@ const InfoButton = ({ topic, onRequestInfo }) => (
     type="button"
     className="info-button"
     aria-label={`About ${topic}`}
-    title="Explanation coming soon"
+    title={`About ${topic}`}
     onClick={() => onRequestInfo?.(topic)}
   >
     <Info aria-hidden="true" />

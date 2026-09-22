@@ -6,11 +6,12 @@ import SystemResults from "../components/SystemResults"
 import SearchBar from "../components/SearchBar"
 import FilterBar from "../components/FilterBar"
 import TransactionTable from "../components/TransactionTable"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import StatisticCard from "../components/StatisticCard"
 import PercentageDifferenceCard from "../components/PercentageDifference"
 import ConfusionMatrix from "../components/ConfusionMatrix"
 import InfoButton from "../components/InfoButton"
+import InfoModal from "../components/InfoModal"
 
 const modelOptions = [
   { value: "both", label: "Both Models" },
@@ -51,7 +52,8 @@ const ResearcherResultsPage = () => {
   const [model, setModel] = useState("both")
   const [outcome, setOutcome] = useState("all")
   const [currentPage, setCurrentPage] = useState(1)
-  const handleRequestInfo = () => undefined
+  const [activeInfoTopic, setActiveInfoTopic] = useState(null)
+  const closeInfo = useCallback(() => setActiveInfoTopic(null), [])
 
   const handleModelChange = (event) => {
     const nextModel = event.target.value
@@ -176,7 +178,7 @@ const ResearcherResultsPage = () => {
             f1={`${smoteMetrics.f1.toFixed(1)}%`}
             mcc={smoteMetrics.mcc.toFixed(3)}
             auc={`${smoteMetrics.auc.toFixed(1)}%`}
-            onRequestInfo={handleRequestInfo}
+            onRequestInfo={setActiveInfoTopic}
           />
           <StatisticCard
             title="Benchmark RF"
@@ -185,13 +187,13 @@ const ResearcherResultsPage = () => {
             f1={`${benchmarkMetrics.f1.toFixed(1)}%`}
             mcc={benchmarkMetrics.mcc.toFixed(3)}
             auc={`${benchmarkMetrics.auc.toFixed(1)}%`}
-            onRequestInfo={handleRequestInfo}
+            onRequestInfo={setActiveInfoTopic}
           />
         </div>
 
         <div className="percentage-main-container">
           <div className="percentage-statistics-title-container">
-            <InfoButton topic="Percentage Difference" onRequestInfo={handleRequestInfo} />
+            <InfoButton topic="Percentage Difference" onRequestInfo={setActiveInfoTopic} />
             <h3>Percentage Difference</h3>
           </div>
           <div className="percentage-statistics-container">
@@ -219,7 +221,7 @@ const ResearcherResultsPage = () => {
         </div>
 
         <div className="mcnemar-statistics-title-container">
-          <InfoButton topic="McNemar's Test" onRequestInfo={handleRequestInfo} />
+          <InfoButton topic="McNemar's Test" onRequestInfo={setActiveInfoTopic} />
           <h3>McNemar’s Test</h3>
         </div>
         <div className="mcnemar-statistics-container">
@@ -245,7 +247,6 @@ const ResearcherResultsPage = () => {
               <h4 className="mcnemar-label">P-Value:</h4>
               <div className="pvalue-box">
                 <strong>2.600e-100</strong>
-                <span>&lt; 0.05</span>
               </div>
 
               <h4>Interpretation:</h4>
@@ -262,6 +263,7 @@ const ResearcherResultsPage = () => {
       <footer className="results-actions">
         <button type="button" className="download-button" aria-disabled="true" title="Results download is not available yet">Download results<span className="visually-hidden">; not available yet</span></button>
       </footer>
+      {activeInfoTopic && <InfoModal topic={activeInfoTopic} onClose={closeInfo} />}
     </main>
   )
 }
