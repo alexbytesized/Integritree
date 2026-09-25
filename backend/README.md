@@ -1,16 +1,19 @@
 # Integritree backend
 
-Phases 1-3 code is implemented: configuration, a health endpoint, PaySim
+Phases 1-4 code is implemented: configuration, a health endpoint, PaySim
 preparation, matched RF/RF-SMOTE baseline training, saved artifacts, and shared
 individual/batch inference. Full PaySim preparation and baseline training are
 complete and verified. Both models are saved in artifacts/paysim_phase3_baseline_20260920/.
-Evaluation, tuning, SHAP, prediction APIs, and OCR remain later-phase work.
+Phase 4 adds evaluation, validation selection, and SHAP. Full baseline validation
+has run on 636,262 records; five validation records have verified explanations for
+both saved models. Full candidate tuning, the 1,000-record global SHAP job, and
+final test evaluation have not run. Prediction APIs and OCR remain future work.
 
 The 2026-09-22 [alignment audit](../docs/BACKEND_ALIGNMENT_AUDIT.md) checked this
 foundation against the completed mock-up review: 125 tests passed. Active evaluation
 configuration now selects signed_over_mean; legacy saved configurations remain
-readable and unchanged. This setting does not implement metric calculation.
-The next phase is evaluation/selection/SHAP; expanded SHAP details require only a
+readable and unchanged. Phase 4 now implements the metric calculations.
+The next software phase is application services/API; expanded SHAP details require only a
 waterfall graph. The numerical table is a suggestion, not an implementation target.
 
 Read [the thesis context](../docs/THESIS_CONTEXT.md),
@@ -45,12 +48,13 @@ To update dependencies intentionally, edit `pyproject.toml`, regenerate the lock
 install it, and rerun the tests:
 
 ```powershell
-& .\.venv\Scripts\python.exe -m piptools compile --extra dev --generate-hashes --allow-unsafe --strip-extras --no-emit-index-url --output-file requirements-dev.lock pyproject.toml
+& .\.venv\Scripts\python.exe -m piptools compile --extra dev --generate-hashes --allow-unsafe --strip-extras --no-emit-index-url --constraint configs/model-dependency-constraints.txt --output-file requirements-dev.lock pyproject.toml
 ```
 
 The lock was generated on Windows with Python 3.12; installation on other
 platforms has not been verified. Phase 2 adds NumPy, pandas, PyArrow, and scikit-learn. Phase 3 adds imbalanced-learn 0.14.2 and explicit joblib support.
-SHAP and OCR libraries will be added in their respective phases.
+Phase 4 adds SHAP 0.52.0, Matplotlib, and explicit SciPy support. The constraints
+preserve saved-model dependency versions. OCR libraries remain future work.
 
 ## Test and run
 
@@ -88,9 +92,9 @@ the installed package. Setting the root inside `.env` does not relocate that fil
 Unresolved research choices are explicitly `null`.
 
 The approved signed comparison is explicit in this active file. Evaluation and
-explainer policies will be saved separately against immutable model-run provenance;
+explainer policies are saved separately against immutable model-run provenance;
 do not edit an old bundle's configuration to enable a later phase. Phase 3 bundle
-loading enforces baseline settings; Phase 4 must add validation-selected run support.
+loading preserves baseline checks; Phase 4 adds a separate validated selected-run contract.
 
 ```powershell
 & .\.venv\Scripts\python.exe -m integritree.config
@@ -99,14 +103,15 @@ loading enforces baseline settings; Phase 4 must add validation-selected run sup
 
 The first command validates the draft and lists unresolved fields (exit 0).
 The second now passes (exit 0): the researchers approved the Phase 2 preparation
-settings. Baseline training readiness also passes. Evaluation and explanation
-still require their remaining choices. Available stages are `prepare`, `train`,
+settings. Training, evaluation, and explanation readiness also pass with the
+approved active configuration. Available stages are `prepare`, `train`,
 `evaluate`, and `explain`; requirements include earlier stages.
 `--config` accepts an absolute path or one relative to the backend root.
 
 Validation does not approve a methodology or execute research. Preparation and
-baseline training commands execute their documented workflows. Evaluation and
-batch-export scripts remain guarded placeholders (exit 2). No command produces mock
+baseline training, evaluation, selection, and explanation commands execute their
+documented workflows. The general batch-export script remains a guarded
+placeholder (exit 2). No command produces mock
 research results or modifies the raw dataset.
 
 ## Prepare the approved PaySim dataset
@@ -290,9 +295,9 @@ are not model inputs. Results preserve input order with transaction_id, run_id,
 and each model's risk_score and predicted_label. Frontend prediction routes and
 batch-export commands are not implemented yet.
 
-The approved four-candidate RF search and common-cutoff search follow Phase 4
-metrics; see [METHODOLOGY.md](../docs/METHODOLOGY.md). PR-AUC is intentionally
-unset pending its numerical convention and does not block baseline training.
+The approved four-candidate RF search and common-cutoff search are implemented
+in Phase 4; see [METHODOLOGY.md](../docs/METHODOLOGY.md). PR-AUC uses Average
+Precision. Original saved configurations remain unchanged.
 Freeze selection before official test evaluation.
 
 Verification: **123 tests passed** during Phase 3 implementation, with two existing
@@ -307,6 +312,55 @@ this run; the code still preserves them if generated. Both reload checks had zer
 score difference on 128 training rows. Source/prepared file hashes were unchanged,
 raw/prepared prediction replay agreed on 128 training rows, and individual/batch
 predictions agreed on 16 rows. These checks are not performance evaluation.
-Validation tuning, official test evaluation, and SHAP remain unexecuted.
+At the Phase 3 handoff, validation tuning, test evaluation, and SHAP were
+unexecuted. Current Phase 4 execution is recorded below.
 
 Use [THESIS_DOCUMENT_CHANGES.md](../docs/THESIS_DOCUMENT_CHANGES.md) for manuscript updates.
+
+
+## Phase 4 research commands
+
+Run from `backend`. Commands create new output directories; run IDs cannot overwrite
+existing results. Full [method and verification notes](../docs/PHASE4_IMPLEMENTATION.md)
+explain coverage, edge cases, selected bundles, and SHAP compatibility.
+
+Baseline validation (already executed as `paysim_phase4_baseline_validation_20260923`):
+
+```powershell
+& ./.venv/Scripts/python.exe scripts/evaluate_models.py --models artifacts/paysim_phase3_baseline_20260920 --prepared data/prepared/paysim_phase2_20260918 --split validation
+```
+
+Run the approved four-candidate validation search when conducting final selection.
+This trains three additional model pairs and can take many hours on this machine;
+it is not required just to load or inspect the completed baseline validation report.
+The previous baseline training alone took about 2 hours 40 minutes.
+
+```powershell
+& ./.venv/Scripts/python.exe scripts/select_models.py --baseline artifacts/paysim_phase3_baseline_20260920 --prepared data/prepared/paysim_phase2_20260918 --run-id paysim_validation_selection --jobs 1
+```
+
+Resume an interrupted search with the same baseline/prepared arguments and
+`--resume artifacts/paysim_validation_selection`. Complete candidates and reports
+are reused after provenance checks. Do not change the frozen search plan mid-run.
+Only after that selection completes may its bundle be used for the official test:
+
+```powershell
+& ./.venv/Scripts/python.exe scripts/evaluate_models.py --models artifacts/paysim_validation_selection --prepared data/prepared/paysim_phase2_20260918 --split test
+```
+
+Generate explanations from an existing evaluation report. This preview uses five
+shared records; remove `--limit 5` and change `--scope preview` to `--scope sample`
+for the approved 1,000-record global sample. Use `--scope full` explicitly for all
+report records. Sampling is uniform, seeded, and not stratified by label.
+
+```powershell
+& ./.venv/Scripts/python.exe scripts/explain_models.py --models artifacts/paysim_phase3_baseline_20260920 --prepared data/prepared/paysim_phase2_20260918 --report reports/paysim_phase4_baseline_validation_20260923 --scope preview --limit 5
+```
+
+SHAP uses the shared original-training background in
+`artifacts/explanation_cache/background_<hash>/`; per-record SVG/JSON cache entries
+are under `artifacts/explanation_cache/records/`. Reports record actual coverage.
+On this machine, five preview records took roughly 0.1?0.2 seconds each for RF
+and 0.7?1.0 seconds each for RF-SMOTE attribution alone, excluding initialization,
+plotting, and I/O. These measurements are not a latency guarantee for API requests.
+No full-dataset SHAP job or final test evaluation has been run.

@@ -28,6 +28,9 @@ class ModelBundle:
 def load_bundle(path: Path) -> ModelBundle:
     """Hashes detect corruption, not a maliciously replaced manifest/pickle."""
     metadata = json.loads((path / "metadata.json").read_text(encoding="utf-8"))
+    if metadata.get("kind") == "validation_selection":
+        from integritree.ml.selection import load_selected
+        return load_selected(path)
     if metadata.get("status") != "complete" or metadata.get("schema_version") != 1:
         raise ValueError("Model bundle is incomplete or unsupported")
     if metadata.get("feature_order") != FEATURE_COLUMNS:

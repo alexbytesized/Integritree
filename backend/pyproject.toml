@@ -20,6 +20,9 @@ dependencies = [
     "scikit-learn>=1.6,<2",
     "imbalanced-learn>=0.14.2,<0.15",
     "joblib>=1.4,<2",
+    "scipy>=1.14,<2",
+  "shap==0.52.0",
+    "matplotlib>=3.10,<4",
 ]
 
 [project.optional-dependencies]
@@ -34,6 +37,9 @@ dev = [
 integritree-config = "integritree.config:main"
 integritree-prepare = "integritree.ml.preparation:main"
 integritree-train = "integritree.ml.training:main"
+integritree-evaluate = "integritree.ml.research:main"
+integritree-select = "integritree.ml.selection:main"
+integritree-explain = "integritree.ml.explainability:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -20,6 +20,8 @@ dist/
 !.env.example
 
 # Data and generated outputs; retain directory markers
+/runtime/matplotlib/
+/runtime/phase4-model-constraints.txt
 /data/raw/*
 !/data/raw/.gitkeep
 /data/prepared/*

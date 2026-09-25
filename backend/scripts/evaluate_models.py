@@ -1,6 +1,4 @@
-"""Research evaluation: command guard only; implement the workflow in Phase 4."""
-
-from integritree.commands import pending_command
-
+"""Evaluate paired models under an explicit policy."""
+from integritree.ml.research import main
 if __name__ == "__main__":
-    raise SystemExit(pending_command("Research evaluation", 4, "evaluate"))
+    raise SystemExit(main())

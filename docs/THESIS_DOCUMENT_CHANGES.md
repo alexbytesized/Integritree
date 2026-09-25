@@ -1,19 +1,21 @@
 # Thesis manuscript alignment checklist
 
-Last reviewed: 2026-09-20
+Last reviewed: 2026-09-23
 
 This is a checklist for researcher/adviser review, not an edited manuscript.
 Source: `C:/Users/Carpicorn/Downloads/Thesis/COSC-305_CS-Thesis-Writing-1/Post-Proposal-Defense_Revision/Thesis-Proposal-Revised.docx`.
 The original Chapter 3 wording and equations were inspected. Section names and
 equation numbers below identify locations; page numbers may change during editing.
 
-**Implementation status:** Phases 1-3, full PaySim preparation, and baseline
+**Implementation status:** Phases 1-4, full PaySim preparation, and baseline
 RF/RF-SMOTE training are complete and verified. Run
 paysim_phase3_baseline_20260920 contains both trained models and provenance.
 The initial RAM preflight stop was resolved after unused applications were closed;
 the successful retry preserved the approved settings and all training records.
-Validation tuning, official test evaluation, SHAP, prediction API integration, and
-OCR remain future work. Trained baseline models are not final performance results.
+Evaluation, selection, and SHAP code are implemented. Full baseline validation and
+a five-record SHAP preview have run; full candidate tuning, global SHAP, official
+test evaluation, prediction APIs, and OCR have not. Baseline validation results
+are not final thesis performance results. See PHASE4_IMPLEMENTATION.md.
 
 Use the checkboxes when the researchers actually update and review the manuscript.
 All items remain unchecked because no manuscript edits were made.
@@ -43,8 +45,9 @@ All items remain unchecked because no manuscript edits were made.
 
 ## B. Record approved future tuning without claiming it has run
 
-The researchers approved the following protocol for implementation after Phase 4's
-metric code is available. It is not executed by the current fixed-baseline command.
+The researchers approved the following protocol, now implemented in Phase 4.
+It is verified on synthetic fixtures but has not run on full PaySim. The original
+fixed-baseline command does not select or finalize settings.
 
 - [ ] **Add to Model Validation:** candidate RF settings are (trees, depth):
   (100,10), (100,20), (200,10), (200,20); other settings remain fixed and matched.
@@ -63,16 +66,16 @@ metric code is available. It is not executed by the current fixed-baseline comma
   cutoff, then perform official test evaluation. Do not retrain on combined
   training+validation data unless that separate methodology change is approved.
 
-## C. Correct or clarify evaluation text before Phase 4
+## C. Align evaluation text with Phase 4
 
-These corrections are discussed requirements, not a claim that metric/statistical
-code is already implemented.
+Metric/statistical code is implemented and has run on baseline validation data.
+The manuscript corrections remain unchecked until reviewed and applied.
 
 | Done | Action | Location | Change needed |
 | --- | --- | --- | --- |
 | [ ] | Correct | Equation 8, F1 | Use F1=2PR/(P+R)=2TP/(2TP+FP+FN). The current expanded expression has incorrect repeated terms/factors. Specify zero-denominator behavior with Phase 4. |
 | [ ] | Correct | Equation 9, MCC | Replace TR with TP in the numerator: TP*TN-FP*FN. Denominator is sqrt((TP+FP)(TP+FN)(TN+FP)(TN+FN)). Specify degenerate-case handling with Phase 4. |
-| [ ] | Clarify | Equation 10, PR-AUC | The integral gives a general area definition; it does not select Average Precision or trapezoidal integration. Agree on a numerical convention in Phase 4 and explicitly name it. Do not claim AP is already fixed or that the current equation uniquely mandates trapezoidal integration. |
+| [ ] | Clarify | Equation 10, PR-AUC | Average Precision (AP) was explicitly approved on 2026-09-23. Clarify that AP is the chosen numerical convention and label results accordingly. The existing integral alone did not uniquely select AP; Phase 4 implements AP; specify the non-trapezoidal convention. |
 | [ ] | Revise | Data Analysis introduction; Model Validation | A single confusion matrix supplies precision, recall, F1, MCC, and accuracy. PR-AUC needs ground truth and continuous fraud scores across thresholds. Save/use scores as well as predicted labels. |
 | [ ] | Clarify | Chapter 2 metric review | The probability that a positive example outranks a negative describes ROC-AUC, not PR-AUC. Distinguish the two wherever the term AUC is used. |
 | [ ] | Revise (approved 2026-09-22) | Percentage difference / Equation 11 | Replace absolute percentage difference with signed symmetric percentage difference: 100*(S-B)/((S+B)/2), where S=RF-SMOTE and B=benchmark RF. Positive favors RF-SMOTE; negative favors benchmark RF. For nonnegative scores both zero, report N/A; if either MCC is negative, report S-B in coefficient units instead. Undefined inputs produce N/A with a reason. This descriptive comparison does not establish statistical significance. Align method labels, help, configuration, and exports; do not rewrite saved historical configurations. |
@@ -94,9 +97,12 @@ code is already implemented.
 - [ ] **Clarify the two views:** researcher evaluation requires compatible,
   independently labeled held-out data; individual prediction has no accuracy,
   precision, recall, or other evaluation results without independent labels.
-- [ ] **Finalize before claiming SHAP implementation:** explained output space,
-  background selection/size, computation coverage, and additivity checks.
-  Align the explanation target with the implemented fraud score.
+- [ ] **Document implemented SHAP:** interventional fraud-probability TreeSHAP,
+  shared uniform sample of 200 original-training records without replacement,
+  seed 42, reconstruction tolerance 1e-6 and positive tolerance 1e-9. Record the
+  1,000-record global sampling policy and distinguish it from the executed five-row
+  preview. Explain the prediction-equivalent representation adapter in the technical
+  implementation section; it does not alter the model or explanation target.
 - [ ] **Align the approved SHAP presentation:** top risk-increasing contributor
   even for legitimate predictions, deterministic explanations, and waterfall-only
   expanded details. Numerical table is suggestion-only. Document any explanation
@@ -149,3 +155,27 @@ passages alone.
 - [Random Forest probabilities](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html)
 - [Average Precision and its difference from trapezoidal integration](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.average_precision_score.html)
 - [Preprocessing leakage](https://scikit-learn.org/stable/common_pitfalls.html)
+
+
+## E. Phase 4 additions for manuscript review
+
+- [ ] Define undefined precision/recall/F1/MCC explicitly. Return unavailable with
+  a reason for zero denominators; direct-count F1 is valid zero when its denominator
+  is positive. AP is unavailable with no positives and equals 1 with all positives.
+- [ ] Keep continuity-corrected McNemar primary, with the supplementary exact
+  two-sided binomial check for 1-24 discordances. Zero discordances use p=1 by
+  convention and an unavailable statistic. Report the primary and supplementary
+  methods distinctly rather than choosing whichever p-value is smaller.
+- [ ] Specify the fixed background sample and global explanation sample separately.
+  Both are uniform without replacement with seed 42. Neither is fraud-balanced.
+  Background is original training only; explanation targets are evaluation records.
+- [ ] Describe SHAP 0.52.0 and the equivalent internal tree representation needed
+  for float32 thresholds/large node counts. Cite the algorithm/library and record
+  reconstruction and exhaustive-coalition verification; do not describe this as
+  retraining, approximate explanations, or edited saved models.
+- [ ] State that the code supports frozen common-cutoff selected bundles, but the
+  real search is not complete. Do not report .50 as validation-optimal.
+- [ ] Label current PaySim metrics as **baseline validation**. Final Chapter 4 thesis
+  performance tables must come from the final held-out test after selection.
+- [ ] Distinguish the 143 software tests and five-record explanation check from
+  a fraud-detection performance study or evaluation on genuine GCash transactions.

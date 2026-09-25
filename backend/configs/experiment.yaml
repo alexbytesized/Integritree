@@ -64,16 +64,23 @@ scoring:
   threshold: 0.5
   tie_policy: fraud
 evaluation:
-  # Equation 10 does not choose AP versus trapezoidal integration. Set in Phase 4.
-  pr_auc_method: null
-  mcnemar_method: null
-  discordance_edge_policy: null
+  # Approved 2026-09-23: report explicitly as PR-AUC (Average Precision).
+  pr_auc_method: average_precision
+  mcnemar_method: continuity_corrected
+  discordance_edge_policy: exact_supplement_1_to_24_zero_p1
+  undefined_metric_policy: null_with_reason
+  absent_positive_pr_policy: null_with_reason
   # Approved signed symmetric comparison; calculation is implemented in Phase 4.
   # Older saved-run configurations remain unchanged and readable.
   percentage_difference: signed_over_mean
   alpha: 0.05
 shap:
-  output_space: null
-  background_strategy: null
-  background_size: null
-  explanation_coverage: null
+  output_space: probability
+  background_strategy: uniform_original_training_without_replacement
+  background_size: 200
+  explanation_coverage: on_demand_and_sampled_global_explicit_full_job
+  seed: 42
+  perturbation: interventional
+  global_sample_size: 1000
+  additivity_tolerance: 0.000001
+  positive_tolerance: 0.000000001

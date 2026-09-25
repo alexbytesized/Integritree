@@ -167,3 +167,32 @@ compatibility before serving them. Do not mutate a saved configuration to pass a
 Current GET-only CORS will need the actual methods/headers when upload and prediction
 routes are added. A database is optional; file/job access and retention still need
 an explicit design. Mock-up file-size labels are not implemented server limits.
+
+
+## Phase 4 Python interfaces (2026-09-23)
+
+HTTP remains health-only. Phase 4 does not add prediction, upload, research-query,
+or export routes. The following reusable Python interfaces are implemented for
+Phase 5 services to call:
+
+- `ml.research.evaluate_run(...)`: paired full-split predictions, metrics, AP,
+  comparisons, McNemar, figures, and provenance. Validation is the default;
+  `split="test"` requires a frozen validation-selected bundle.
+- `ml.selection.select_models(...)`: approved shared RF/common-cutoff validation
+  search, with saved selection references and resume support.
+- `ml.artifacts.load_bundle(path)`: loads either an original immutable baseline
+  or a complete selection reference after integrity checks.
+- `ml.explainability.ExplanationEngine(...).explain(features, transaction_ids,
+  analysis_id)`: both-model explanations from already-prepared features in saved
+  order. Each computed item includes base/output probability, contributions,
+  readable values, top-positive status, deterministic narrative, SVG path,
+  reconstruction error, and cache/provenance identity.
+- `ml.explainability.explain_report(...)`: paired preview/sample/full coverage from
+  an existing evaluation report, selected identities, and mean absolute SHAP summary.
+
+These are local execution interfaces, not yet thread-safe HTTP job contracts.
+Phase 5 must define bounded work queues, status/error responses, ownership,
+portable asset URLs/downloads, and pagination. Never expose a local filesystem
+path directly as the final client asset contract. No new unlabeled request should
+receive evaluation metrics or an invented actual label. See
+[Phase 4 contracts and evidence](PHASE4_IMPLEMENTATION.md).

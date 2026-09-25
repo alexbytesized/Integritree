@@ -1,11 +1,15 @@
 # Methodology decision record
 
-Last updated: 2026-09-22
+Last updated: 2026-09-23
 
 This is an implementation decision record, not a revised Chapter 3.
 Read [THESIS_CONTEXT.md](THESIS_CONTEXT.md) for the manuscript requirements and
 researchers' confirmations. Recognizing an option in a configuration schema does
 not approve using it in the experiment.
+
+This record includes dated historical statuses. The current Phase 4 approvals
+and execution evidence are at the end; [PHASE4_IMPLEMENTATION.md](PHASE4_IMPLEMENTATION.md)
+is the consolidated current contract.
 
 ## Confirmed constraints
 
@@ -304,23 +308,21 @@ The user accepted this protocol after the explanatory discussion:
 A limited search does not guarantee no overfitting or global optimality.
 The shared cutoff need not individually maximize each model's F1.
 The fixed-baseline trainer does not execute selection, tuning, or final testing.
-Implement a recorded selection artifact in Phase 4.
+Phase 4 now implements a recorded selection artifact.
 
-### Still unresolved for Phase 4 and later
+### Evaluation choices and remaining application decisions
 
-- Equation 10 gives an integral PR-AUC definition without selecting AP versus
-  trapezoidal integration. The earlier AP choice is reopened; pr_auc_method is
-  null. PR-AUC is not required by baseline training and belongs with other
-  Phase 4 metrics, using scores rather than a single confusion matrix.
-- McNemar calculation and small-discordance handling. See the later presentation
-  decisions below for approved zero-discordance and undefined-value display.
-- SHAP output space, background, size, and coverage.
-- Receipt mapping, OCR, retention, and application workflow decisions.
+- AP is approved, configured, and implemented; clarify manuscript Equation 10.
+- McNemar and SHAP are settled and implemented as recorded in the current
+  2026-09-23 Phase 4 section below.
+- Receipt mapping, OCR, retention, and application job/API decisions remain open.
+- The winning shared RF configuration/cutoff remain unknown until the approved
+  search is actually executed on the real validation split.
 
 See [THESIS_DOCUMENT_CHANGES.md](THESIS_DOCUMENT_CHANGES.md) for the manuscript
 alignment checklist. No manuscript edits have been made.
 
-### UI-review decisions approved 2026-09-22; pending implementation
+### Historical UI-review decisions approved 2026-09-22 (implementation status then)
 
 - Use signed symmetric percentage difference: 100*(S-B)/((S+B)/2), with
   S=RF-SMOTE and B=benchmark RF. This replaces the earlier absolute convention
@@ -366,3 +368,54 @@ or manuscript editing occurred. See [the audit](BACKEND_ALIGNMENT_AUDIT.md).
 
 See [the mock-up decision record](MOCKUP_EVALUATION_DECISIONS.md) and
 [approved help content](UI_HELP_CONTENT.md) for frontend/export requirements.
+
+### Phase 4 clarification responses on 2026-09-23
+
+Approved:
+- Use Average Precision (AP) for the reported PR-AUC convention.
+- Compute predictions/metrics on the full selected evaluation split.
+- Compute individual SHAP on demand for both models and either predicted class,
+  retaining explanations for reuse.
+- Use a reproducibly sampled 1,000-record set, shared across models, for global
+  summaries; explicitly report sampling/coverage. The exact sampling policy is
+  to be specified before execution, not inferred to use labels or alter prevalence.
+- Treat full-dataset SHAP generation as a separate explicit job. Use validation
+  during development; final test summaries only after settings are frozen.
+
+The subsequent responses approved points 2 and 3. Current implementation:
+
+- Continuity-corrected McNemar is primary; add exact two-sided binomial testing as
+  a supplementary result for 1-24 discordant pairs. Zero discordance uses p=1 by
+  convention, no statistic, and an explicit status. Alpha remains 0.05.
+- Interventional TreeSHAP explains the fraud probability using the same 200
+  original-training reference records for both models: uniform without replacement,
+  seed 42, without balancing. Small synthetic fixtures use all available rows.
+- The 1,000-record global explanation sample is uniform without replacement from
+  the evaluation population, seed 42, shared across models, and separate from the
+  training background. Report coverage and sample class counts.
+- SHAP 0.52.0 is pinned. Absolute reconstruction tolerance is 1e-6 and the positive
+  contributor tolerance is 1e-9. Explicit masker size prevents silent subsampling.
+- AP, signed symmetric comparisons, undefined-value reasons, confusion matrices,
+  and statistical testing are implemented. F1 uses counts directly; no-positive
+  AP is unavailable. The four-candidate/shared-threshold selector is implemented
+  and tested with synthetic data. Official test evaluation requires its frozen
+  selection bundle. Original training/preparation snapshots remain immutable.
+
+### Phase 4 implementation and execution evidence
+
+See [PHASE4_IMPLEMENTATION.md](PHASE4_IMPLEMENTATION.md) for the complete contract,
+including the prediction-equivalent SHAP representation adapter and its independent
+coalition-oracle test. It addresses threshold rounding and large-tree node limits
+without changing saved models, the reference distribution, or the explanation target.
+
+The full suite passed 143 tests (five upstream deprecation warnings). Dependency
+consistency passed and all model-critical package versions remain unchanged.
+Baseline validation scored both models on all 636,262 validation records at .50:
+`backend/reports/paysim_phase4_baseline_validation_20260923/`.
+Five uniformly sampled validation records were explained for both saved models,
+with reconstruction errors below 1e-6. Waterfalls were visually checked.
+
+The real PaySim candidate search, 1,000-record global SHAP summary, and official
+test evaluation have not run. The test set was not used for development or setting
+selection. Baseline validation results do not finalize the experiment. No manuscript
+was edited; use the updated THESIS_DOCUMENT_CHANGES.md checklist for that work.

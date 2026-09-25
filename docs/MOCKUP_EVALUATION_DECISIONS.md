@@ -730,3 +730,24 @@ edge-case presentation; standardized help modals; Research Scope and Limitations
 - 2026-09-21: Initial record from the researchers' numbered response. Recorded
   explicit agreements separately from proposed resolutions. Included corrected
   results-page coverage, ignored screenshot numbers, and drafted landing copy.
+
+
+## Phase 4 approval and implementation update (2026-09-23)
+
+This update supersedes earlier unresolved/proposed technical entries in this dated
+UI decision record. AP is approved and implemented. Continuity-corrected McNemar
+is primary with an exact two-sided binomial supplement for 1-24 discordant pairs.
+The shared 200-original-training-record reference, uniform sampling without
+replacement, seed 42, interventional probability-space TreeSHAP, on-demand caching,
+and a separate shared 1,000-record global sample are approved and implemented.
+Absolute reconstruction tolerance is 1e-6; positive-contributor tolerance is 1e-9.
+
+The backend uses Matplotlib to render the computed SHAP attributions into waterfall
+SVGs; the numerical object, narrative, and graph use the same contributions. This
+fulfills the waterfall-only expanded view without requiring a numerical UI table.
+Full baseline validation and a five-record saved-model SHAP preview have run. The
+full search, final test evaluation, and global SHAP job remain unexecuted. Frontend
+integration and HTTP prediction/export jobs remain Phase 5. Refer to
+[PHASE4_IMPLEMENTATION.md](PHASE4_IMPLEMENTATION.md) for current implementation
+boundaries and the representation adapter; do not treat placeholder screen values
+as those computed validation results.

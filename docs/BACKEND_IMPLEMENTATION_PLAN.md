@@ -1,14 +1,17 @@
 # Integritree backend implementation plan
 
-Last updated: 2026-09-22 (completed mock-up review and backend alignment audit)
+Last updated: 2026-09-23 (Phase 4 software and baseline validation)
 
 ## Current status and scope
 
-The backend scaffold and Phases 1-3 are implemented. Full PaySim preparation and
+The backend scaffold and Phases 1-4 are implemented. Full PaySim preparation and
 baseline RF/RF-SMOTE training are complete and verified. Both saved models are in
 backend/artifacts/paysim_phase3_baseline_20260920/. The initial RAM preflight stop
 was resolved on retry. No validation tuning or official test evaluation has run.
-Evaluation, tuning, SHAP, prediction routes, and receipt workflows remain future work.
+Evaluation, selection, and SHAP software are implemented. Full baseline validation
+and a five-record paired SHAP preview are verified. The real candidate search,
+1,000-record global SHAP job, prediction routes, and receipts remain to be executed
+or developed, as applicable. See [Phase 4 evidence](PHASE4_IMPLEMENTATION.md).
 See [setup instructions](../backend/README.md), [methodology decisions](METHODOLOGY.md),
 and [API contracts](API.md).
 
@@ -38,7 +41,7 @@ does not approve an algorithm change or a Chapter 3 rewrite.
 | 1 | Foundation and contracts | Reproducible development setup and validated configuration/data contracts | Complete |
 | 2 | Dataset and preprocessing | Audited, reproducible splits and training-fitted transformations | Complete |
 | 3 | Training and saved inference | Baseline trainer and reloadable paired model bundles | Complete; full PaySim baseline verified |
-| 4 | Research evaluation and SHAP | Verified evaluation reports and model explanations | Not started |
+| 4 | Research evaluation and SHAP | Verified evaluation reports and model explanations | Code complete; baseline validation and SHAP preview verified; full selection/test pending |
 | 5 | Application services and API | Research and individual structured-record workflows | Not started |
 | 6 | GCash receipt demonstration | Image extraction, confirmation, mapping, and prediction | Not started |
 | 7 | Integration and reproducibility | Backend handoff validated against the frontend workflows | Not started |
@@ -196,9 +199,10 @@ Work:
   compatibility. Read old snapshots unchanged. Create a separate evaluation
   configuration/report referencing the immutable trained bundle; do not overwrite
   its training configuration to enable evaluation or SHAP.
-- Decide AP versus trapezoidal PR-AUC before reporting it. Keep the manuscript's
-  continuity-corrected McNemar visible; settle a documented small-discordance rule
-  before calculation. Zero discordances: p=1 by convention, statistic unavailable,
+- Implement Average Precision, approved 2026-09-23, and label the PR-AUC
+  convention explicitly. Keep the manuscript's
+  continuity-corrected McNemar as primary; the approved exact two-sided binomial
+  supplement applies to 1-24 discordant pairs. Zero discordances: p=1 by convention, statistic unavailable,
   status No discordant pairs. Do not silently substitute exact testing.
 
 - Implement approved shared RF candidate/common-cutoff selection on validation F1,
@@ -234,10 +238,11 @@ Work:
   never inherits statistical significance from the McNemar p-value.
 - Implement `ml/explainability.py` for both models. Explain the same fraud output
   used by scoring and label the SHAP baseline, feature values, and contributions.
-  Plan probability-space fraud-class explanations; finalize background strategy,
-  size, seed, perturbation method, tolerance, and SHAP version before execution.
-  A fixed sample of 200 original training rows is only a proposal, not a frozen
-  setting. Do not use synthetic or held-out rows as background by convenience.
+  Approved and implemented: probability-space interventional TreeSHAP; 200 uniform
+  original-training records without replacement, seed 42, shared across models;
+  SHAP 0.52.0, absolute reconstruction tolerance 1e-6, positive tolerance 1e-9.
+  Do not use synthetic or held-out background records. The equivalent tree
+  representation adapter and its tests are documented in PHASE4_IMPLEMENTATION.md.
 - Compute the top risk-increasing contributor as the largest contribution above
   the recorded positive tolerance, even for legitimate predictions. Break ties in
   saved feature order. Distinguish no positive contributor from pending/failed SHAP.
@@ -274,6 +279,12 @@ Completion checks:
   chart/narrative agreement, and no reuse after input/model/explainer changes.
 - Verify new selected-run loading preserves threshold ties and legacy inference;
   do not evaluate the official test set while developing or choosing settings.
+
+Phase 4 verification: 143 tests passed; full paired validation covered 636,262
+records. Saved-model SHAP reconstruction passed for five validation records. The
+complete selection/test workflow passed on synthetic fixtures. Full PaySim tuning,
+final testing, and the 1,000-record SHAP summary have not run. Preserve that
+distinction when reporting completion.
 
 ## Phase 5 - Application services and API
 

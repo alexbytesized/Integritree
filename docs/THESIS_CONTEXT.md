@@ -1,6 +1,6 @@
 # Integritree — Thesis Context and Confirmed Requirements
 
-Last reviewed: 2026-09-22
+Last reviewed: 2026-09-23
 
 ## 1. Purpose of this document
 
@@ -263,13 +263,18 @@ fractional categorical-feature limitation must be documented and audited.
 
 Research:
 
-- PR-AUC numerical convention (AP versus trapezoidal); Equation 10 does not decide it.
-- McNemar implementation and small-discordance handling. Signed comparison,
-  undefined-value display and zero-discordance presentation are approved.
+- PR-AUC convention is settled: Average Precision (AP), approved 2026-09-23.
+  Implemented in Phase 4 configuration/calculation; clarify manuscript Equation 10.
+- McNemar is settled and implemented: continuity-corrected primary; exact two-sided
+  binomial supplement for 1-24 discordances; zero discordances give p=1 by convention
+  and no statistic. Signed comparison and undefined-value policies are implemented.
 - Final RF configuration and cutoff selected by the approved future validation
   search; its procedure is settled, its winning settings are not known.
-- SHAP background, output space, and computation coverage.
-- Explainer/runtime details remain open; the score display is now 0..100 with
+- SHAP is settled and implemented: interventional fraud-probability TreeSHAP,
+  shared uniform 200-record original-training background, seed 42. Coverage is
+  on demand, a shared uniform 1,000-record global sample (seed 42), or an explicit
+  full-report job. Reconstruction tolerance is 1e-6; positive tolerance is 1e-9.
+- Application job scheduling/lifecycle remain open; the score display is now 0..100 with
   approved communication bands, while internal scores remain 0..1.
 
 The Phase 3 baseline is ordinary SMOTE at 1:1, k_neighbors=5, model/SMOTE seeds=42,
@@ -288,9 +293,9 @@ Receipt demonstration:
 
 Software:
 
-- Dependency changes required for future SHAP/OCR work. Phases 1-3 use
+- Dependency changes required for future OCR work. Phases 1-4 use
   Python 3.12, FastAPI, NumPy, pandas, PyArrow, scikit-learn, imbalanced-learn,
-  and joblib with a versioned lock.
+  joblib, SciPy, Matplotlib, and SHAP 0.52.0 with a versioned lock.
 - Final API contracts and long-running batch handling.
 - Whether persistence beyond local files is needed.
 
@@ -318,7 +323,10 @@ implementation easier.
 - Phase 3 and full PaySim baseline training are complete and verified. Both models
   are saved under backend/artifacts/paysim_phase3_baseline_20260920/. The successful
   retry followed an initial RAM preflight stop; the approved data/settings were unchanged.
-- Evaluation, SHAP, batch-export CLI, prediction APIs, and OCR remain future work.
+- Phase 4 evaluation, selection, and SHAP are implemented (143 tests passed).
+  Full baseline validation and a paired SHAP preview have run; full search/final
+  testing/global SHAP have not. General batch-export CLI, prediction APIs, and OCR
+  remain future work.
   The frontend has not been connected to the backend.
 - The raw PaySim file is available locally and remains unchanged.
 - See [the backend implementation plan](BACKEND_IMPLEMENTATION_PLAN.md) and
@@ -375,11 +383,12 @@ RF-SMOTE rows; no fractional categorical indicators arose in this particular run
 Artifact reloads, feature replay, paired inference consistency, and source/prepared
 file integrity passed verification. See
 backend/reports/paysim_phase3_baseline_20260920/verification.json.
-Validation tuning, official test evaluation, and SHAP have not run. Do not describe
+At the Phase 3 handoff, validation tuning, official test evaluation, and SHAP had
+not run. See the current Phase 4 status below. Do not describe
 baseline artifacts or software verification as finalized performance findings.
 
 Use [THESIS_DOCUMENT_CHANGES.md](THESIS_DOCUMENT_CHANGES.md) when aligning the
-manuscript. Do not claim planned evaluation, tuning, SHAP, or GCash OCR is complete.
+manuscript. Distinguish implemented code from executed research jobs and GCash OCR.
 
 ## 14. Completed mock-up review and backend alignment (2026-09-22)
 
@@ -399,7 +408,7 @@ screen with McNemar, and ignore all screenshot sample numbers.
   [60,80), [80,100] are Minimal through Critical, independent of class threshold.
 - Signed symmetric percentage difference is approved. Active YAML now selects
   signed_over_mean; historical absolute configurations remain readable/unchanged.
-  Metric calculation is pending Phase 4, with explicit edge-case policies.
+  Metric calculation and edge-case policies are implemented in Phase 4.
 - GCash person-to-person receipt workflow only; TRANSFER selectable, other types
   visible but disabled, server-enforced. Exact names remain optional traceability
   information and never predictors. Receipt timing/amount mapping is experimental.
@@ -409,3 +418,23 @@ baseline method aligned and documented future extensions: selected-run artifacts
 evaluation/SHAP, application results/query/export contracts, and a receipt adapter
 using shared saved scaling. The plan now starts next with Phase 4. No new model
 training or official performance result was produced by this review.
+
+
+## 15. Current Phase 4 status (2026-09-23)
+
+The final responses approved continuity-corrected McNemar with the exact
+small-discordance supplement and the shared training-reference TreeSHAP proposal.
+The active YAML records all four approved decisions; immutable old bundles retain
+their historical configuration snapshots.
+
+Read [PHASE4_IMPLEMENTATION.md](PHASE4_IMPLEMENTATION.md) for implemented methods,
+selection guards, the prediction-equivalent SHAP compatibility adapter, and evidence.
+Full baseline validation covers 636,262 records. Five validation records have
+paired saved-model explanations that pass reconstruction checks. These are
+validation/development outputs, not final test findings. The real four-candidate
+search, 1,000-record global SHAP summary, and official test evaluation have not run.
+No test data were used to choose settings during this implementation.
+
+The software's selected-bundle loader and final-test guard are tested on synthetic
+fixtures. The next software phase is application services and API integration.
+The backend still exposes only health over HTTP. The manuscript is unchanged.

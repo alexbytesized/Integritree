@@ -154,16 +154,8 @@ Conceptually: PR-AUC = integral from recall 0 to 1 of Precision(recall) d(recall
 
 The numerical formula shown must match the method used. Include Method: {method_label}.
 
-If trapezoidal integration is selected, display:
-
-PR-AUC = sum_i (R_i - R_(i-1)) * (P_i + P_(i-1)) / 2
-
-Here the curve points are ordered in increasing recall, and P_i/R_i denote precision
-and recall at successive thresholds. Implementation must handle curve orientation
-correctly and preserve its points.
-
-If average precision is selected, label the metric PR-AUC (Average Precision) or
-Average Precision (AP), and display:
+Average Precision was approved on 2026-09-23 and is implemented. Label the metric
+PR-AUC (Average Precision) or Average Precision (AP). With increasing recall:
 
 AP = sum_i (R_i - R_(i-1)) * P_i
 
@@ -179,9 +171,9 @@ confusion matrix alone. AP and trapezoidal integration are different conventions
 do not display one formula for the other. Class prevalence affects interpretation
 and comparisons across datasets.
 
-Developer status: the configured PR-AUC method remains unresolved. This draft does
-not choose one. Suppress computed-result claims until the method and class/undefined
-policies are finalized; do not publish two alternatives as if both generated one value.
+Developer status: average_precision is configured and implemented. With no actual
+positives, report N/A with a reason; do not silently publish the library's zero.
+Full baseline validation is available; official final-test results remain pending.
 
 Source: [scikit-learn AP conventions](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.average_precision_score.html).
 
@@ -189,7 +181,7 @@ Source: [scikit-learn AP conventions](https://scikit-learn.org/stable/modules/ge
 
 Approved on 2026-09-22. The title, formula, and sign guide must agree. The active
 experiment setting is signed_over_mean, with legacy absolute_over_mean loading
-preserved. The calculation and manuscript alignment remain pending. Do not label
+preserved. Calculation is implemented; manuscript alignment remains pending. Do not label
 legacy absolute results signed.
 
 **Title:** Signed Percentage Difference

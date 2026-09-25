@@ -8,7 +8,7 @@ from integritree.config import EvaluationConfig, ExperimentConfig, UnresolvedCon
 from integritree.settings import BACKEND_ROOT
 
 
-def test_committed_config_ready_for_baseline_training_but_not_evaluation():
+def test_committed_config_ready_for_approved_phase_four_methods():
     config = load_experiment(BACKEND_ROOT / "configs/experiment.yaml")
     assert config.dataset.row_count == 6362620
     assert config.target == "isFraud"
@@ -29,15 +29,15 @@ def test_committed_config_ready_for_baseline_training_but_not_evaluation():
     config.require_ready("prepare")
     assert config.unresolved_fields("prepare") == []
     config.require_ready("train")
-    with pytest.raises(UnresolvedConfigurationError, match="evaluation.pr_auc_method"):
-        config.require_ready("evaluate")
+    config.require_ready("evaluate")
+    config.require_ready("explain")
     assert config.smote.method == "smote_encoded"
     assert config.smote.sampling_ratio == 1.0
     assert config.scoring.probability_method == "mean_tree_probability"
     assert config.scoring.threshold == 0.5
     assert config.scoring.tie_policy == "fraud"
     assert config.random_forest.tuning_procedure == "fixed_baseline"
-    assert config.evaluation.pr_auc_method is None
+    assert config.evaluation.pr_auc_method == "average_precision"
     assert config.evaluation.percentage_difference == "signed_over_mean"
     assert config.seeds.model == config.seeds.smote == 42
     assert config.smote.k_neighbors == 5

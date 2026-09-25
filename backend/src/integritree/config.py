@@ -79,6 +79,8 @@ class EvaluationConfig(Contract):
     # New experiments explicitly select the approved signed method in YAML.
     percentage_difference: Literal["absolute_over_mean", "signed_over_mean"] = "absolute_over_mean"
     alpha: Literal[0.05] = 0.05
+    undefined_metric_policy: Literal["null_with_reason"] | None = None
+    absent_positive_pr_policy: Literal["null_with_reason"] | None = None
 
 
 class ShapConfig(Contract):
@@ -86,6 +88,11 @@ class ShapConfig(Contract):
     background_strategy: NonemptyText | None = None
     background_size: PositiveInteger | None = None
     explanation_coverage: NonemptyText | None = None
+    seed: Seed | None = None
+    perturbation: Literal["interventional"] | None = None
+    global_sample_size: PositiveInteger | None = None
+    additivity_tolerance: Annotated[float, Field(gt=0, le=0.001)] | None = None
+    positive_tolerance: Annotated[float, Field(gt=0, le=0.000001)] | None = None
 
 
 class UnresolvedConfigurationError(ValueError):
