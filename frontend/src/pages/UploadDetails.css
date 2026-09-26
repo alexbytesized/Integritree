@@ -1,419 +1,255 @@
-* {
-  box-sizing: border-box;
+.user-details-page {
+  position: relative;
+
+  width: min(1340px, calc(100% - 64px));
+  min-height: 100vh;
+
+  margin: 0 auto;
+  padding: 48px 0 72px;
+
+  color: #23272a;
   font-family: 'SF Pro Display', sans-serif;
 }
 
-.upload-details-page{
-    min-height: 100dvh;
-
-    padding-left: clamp(24px, 7vw, 200px);
+.user-results-header {
+  width: min(1200px, 100%);
+  margin: 30px auto 0;
 }
 
-.upload-details-header{
-    padding-top: clamp(24px, 5vw, 50px);
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  position: relative;
+  right: 50px;
+
+  padding: 0;
+  border: 0;
+
+  background: transparent;
+
+  cursor: pointer;
 }
 
-.upload-details-header .back-button { margin-left: -13px; }
+.back-button img {
+  display: block;
 
-.back-button{
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-
-    background: transparent;
-    border: none;
-    cursor: pointer;
+  width: 60px;
+  height: auto;
 }
 
-.upload-details-page .back-button img{
-    display: block;
-    width: clamp(50px, 6vw, 70px);
-    height: auto;
+.user-results-overview {
+  width: min(1200px, 100%);
+  margin: 18px auto 0;
 }
 
-.back-button:hover {
-    opacity: 0.3;
-    cursor: pointer;
-    transition: opacity 0.5s ease;
+.user-overview-title {
+  display: flex;
+  align-items: center;
+
+  min-height: 48px;
+
+  margin-bottom: 34px;
 }
 
-.screenshot-container, .transaction-details-container{
-    margin-top: clamp(24px, 4vw, 30px);
-    margin-left: clamp(25px, 2vw, 35px);
-    margin-bottom: clamp(24px, 4vw, 50px);
+.section-heading {
+  display: flex;
+  align-items: center;
 }
 
-.screenshot-title, .transaction-title{
-    display: flex;
-    align-items: center;
+.user-overview-title h1 {
+  margin: 0;
+
+  font-size: clamp(1.5rem, 2.5vw, 2.25rem);
+  line-height: 1.2;
+  font-weight: 700;
 }
 
-#h1{
-    font-size: clamp(1.875rem, 3vw, 2.5rem);
+.user-overview-title img {
+  width: 46px;
+  height: auto;
+
+  margin-left: 6px;
+
+  transform: translateY(-14px);
 }
 
-.screenshot-title img{
-    display: block;
-    width: clamp(44px, 4vw, 60px);
-    height: auto;
+.upload-details-content {
+  width: 100%;
 
-    transform: translateY(-25px);
-}
-
-.transaction-file-name-container{
-    display: flex;
-    max-width: 90%;
-    height: clamp(120px, 12vw, 180px);
-    border-radius: 30px;
-    background-color: #0073CB;
-
-    align-items: center;
-    padding-left: 50px;
-    padding-right: 50px;
-    padding-bottom: 40px;
-    gap: 8px;
-
-    color: #FFFFFF;
-    font-size: clamp(0.9rem, 2vw, 1.6rem);
-}
-
-.screenshot-image-container{
-    gap: clamp(20px, 3vw, 48px);
-    max-width: 90%;
-    height: auto;
-    padding: clamp(24px, 3vw, 40px);
-    border-radius: 30px;
-    background-color: #FFFFFF;
-    border: 1px solid #D8D8D8;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
-
-    margin-top: -60px;
-    margin-bottom: 130px;
-}
-
-.screenshot-image-inner-container{
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    
-    width: 100%;
-
-    min-height: 700px;
-    height: auto;
-    
-    border-radius: 30px;
-    background-color: #FFFFFF;
-    border: 1px dashed #363636;
-}
-
-.screenshot-image-inner-container img{
-    width: 150px;
-    height: 150px;
-}
-
-.transaction-title {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-
-    max-width: 90%;
-    height: clamp(120px, 12vw, 180px);
-
-    padding-bottom: 40px;
-
-    border-radius: 30px;
-    background-color: #0073CB;
-
-    color: #FFFFFF;
-}
-
-.transaction-title h1 {
-    margin: 0;
-}
-
-.transaction-details-input-container{
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-
-    gap: clamp(20px, 3vw, 48px);
-    max-width: 90%;
-    height: auto;
-    padding: clamp(24px, 3vw, 40px);
-    border-radius: 30px;
-    background-color: #FFFFFF;
-    border: 1px solid #D8D8D8;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
-
-    margin-top: -60px;
-    margin-bottom: 130px;
-}
-
-.details-row {
-    display: grid;
-    grid-template-columns: 400px 1fr;
-
-    align-items: center;
-
-    gap: clamp(20px, 3vw, 40px);
-
-    width: 100%;
-}
-
-.details-row label {
-    color: #0073CB;
-
-    font-size: clamp(1.5rem, 1.6vw, 1.875rem);
-    font-weight: 700;
-    padding-left: 100px;
-}
-
-.details-row input {
-    width: 100%;
-    height: 45px;
-
-    padding: 0 20px;
-
-    border: 1px solid #D8D8D8;
-    border-radius: 30px;
-
-    outline: none;
-
-    background-color: #FFFFFF;
-
-    color: #1F1F1F;
-
-    font-size: clamp(1rem, 1.6vw, 1.35rem);
-}
-
-.details-row input:focus {
-    border-color: #0073CB;
-}
-
-.proceed-button-container {
-    display: flex;
-    justify-content: flex-end;
-
-    width: 100%;
-
-    margin-top: 55px;
-}
-
-.proceed-button {
-    width: clamp(180px, 22vw, 320px);
-    height: 58px;
-
-    border: none;
-    border-radius: 25px;
-
-    background-color: #0073CB;
-    color: #FFFFFF;
-
-    font-size: clamp(1rem, 1.5vw, 1.3rem);
-    font-weight: 700;
-
-    cursor: pointer;
-
-    box-shadow: 0 3px 3px rgba(0, 0, 0, 0.2);
-
-    margin-right: 170px;
-}
-
-.proceed-button:hover {
-    opacity: 0.3;
-    cursor: pointer;
-    transition: opacity 0.5s ease;
+  margin-top: 40px;
 }
 
 @media (max-width: 900px) {
-    .upload-details-page {
-        padding-left: clamp(20px, 5vw, 50px);
-        padding-right: clamp(20px, 5vw, 50px);
-    }
+  .user-details-page {
+    width: min(900px, calc(100% - 48px));
 
-    .screenshot-container,
-    .transaction-details-container {
-        margin-left: 0;
-    }
+    padding: 40px 0 64px;
+  }
 
-    .transaction-file-name-container,
-    .screenshot-image-container,
-    .transaction-title,
-    .transaction-details-input-container {
-        max-width: 100%;
-    }
+  .user-results-header {
+    margin-top: 24px;
+  }
 
-    .screenshot-image-inner-container {
-        min-height: 500px;
-    }
+  .back-button {
+    right: 24px;
+  }
 
-    .transaction-title {
-        height: 130px;
-    }
+  .back-button img {
+    width: 54px;
+  }
 
-    .transaction-details-input-container {
-        padding: 35px;
-        gap: 30px;
-    }
+  .user-results-overview {
+    margin-top: 16px;
+  }
 
-    .details-row {
-        grid-template-columns: 220px 1fr;
-        gap: 25px;
-    }
+  .user-overview-title {
+    min-height: 44px;
 
-    .details-row label {
-        padding-left: 20px;
-        font-size: clamp(1.1rem, 2.5vw, 1.4rem);
-    }
+    margin-bottom: 28px;
+  }
 
-    .details-row input {
-        font-size: 1rem;
-    }
+  .user-overview-title img {
+    width: 42px;
 
-    .proceed-button-container {
-        margin-top: 35px;
-    }
+    transform: translateY(-12px);
+  }
 
-    .proceed-button {
-        margin-right: 0;
-        width: clamp(180px, 35vw, 280px);
-    }
+  .upload-details-content {
+    margin-top: 32px;
+  }
 }
 
-@media (max-width: 600px) {
-    .upload-details-page {
-        padding-left: 20px;
-        padding-right: 20px;
-    }
+@media (max-width: 760px) {
+  .user-details-page {
+    width: calc(100% - 32px);
 
-    .upload-details-header {
-        padding-top: 24px;
-    }
+    padding: 28px 0 48px;
+  }
 
-    .screenshot-container,
-    .transaction-details-container {
-        margin-left: 0;
-        margin-top: 24px;
-    }
+  .user-results-header {
+    margin-top: 18px;
+  }
 
-    .screenshot-title h1 {
-        font-size: clamp(1.75rem, 8vw, 2.25rem);
-    }
+  .back-button {
+    right: 8px;
+  }
 
-    .screenshot-title img {
-        width: clamp(35px, 10vw, 44px);
-        transform: translateY(-18px);
-    }
+  .back-button img {
+    width: 48px;
+  }
 
-    .transaction-file-name-container {
-        width: 100%;
-        max-width: 100%;
-        height: 120px;
+  .user-results-overview {
+    margin-top: 14px;
+  }
 
-        padding-left: 20px;
-        padding-right: 20px;
-        padding-bottom: 30px;
+  .user-overview-title {
+    min-height: 40px;
 
-        border-radius: 24px;
+    margin-bottom: 24px;
+  }
 
-        justify-content: center;
-        flex-wrap: wrap;
+  .user-overview-title h1 {
+    font-size: clamp(1.375rem, 4vw, 1.875rem);
+  }
 
-        font-size: clamp(0.8rem, 3.5vw, 1rem);
-    }
+  .user-overview-title img {
+    width: 38px;
 
-    .screenshot-image-container {
-        width: 100%;
-        max-width: 100%;
+    margin-left: 4px;
 
-        padding: 20px;
+    transform: translateY(-10px);
+  }
 
-        margin-top: -40px;
-        margin-bottom: 80px;
+  .upload-details-content {
+    margin-top: 28px;
+  }
+}
+@media (max-width: 540px) {
+  .user-details-page {
+    width: calc(100% - 24px);
 
-        border-radius: 24px;
-    }
+    padding: 20px 0 40px;
+  }
 
-    .screenshot-image-inner-container {
-        min-height: 350px;
-        border-radius: 20px;
-    }
+  .user-results-header {
+    width: 100%;
 
-    .screenshot-image-inner-container img {
-        width: 100px;
-        height: 100px;
-    }
+    margin-top: 12px;
+  }
 
-    .transaction-title {
-        width: 100%;
-        max-width: 100%;
+  .back-button {
+    right: 0;
+  }
 
-        height: 100px;
+  .back-button img {
+    width: 42px;
+  }
 
-        padding-bottom: 25px;
+  .user-results-overview {
+    width: 100%;
 
-        border-radius: 24px;
-    }
+    margin-top: 18px;
+  }
 
-    .transaction-title h1 {
-        font-size: clamp(1.1rem, 5vw, 1.4rem);
-    }
+  .user-overview-title {
+    min-height: 36px;
 
-    .transaction-details-input-container {
-        width: 100%;
-        max-width: 100%;
+    margin-bottom: 20px;
+  }
 
-        padding: 35px 20px 25px;
+  .user-overview-title h1 {
+    font-size: clamp(1.25rem, 6vw, 1.5rem);
+  }
 
-        gap: 22px;
+  .user-overview-title img {
+    width: 34px;
 
-        margin-top: -40px;
-        margin-bottom: 50px;
+    margin-left: 4px;
 
-        border-radius: 24px;
-    }
+    transform: translateY(-8px);
+  }
 
-    .details-row {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-
-        width: 100%;
-        gap: 8px;
-    }
-
-    .details-row label {
-        padding-left: 0;
-
-        font-size: 1rem;
-    }
-
-    .details-row input {
-        width: 100%;
-        height: 42px;
-
-        font-size: 0.95rem;
-    }
-
-    .proceed-button-container {
-        width: 100%;
-
-        margin-top: 25px;
-
-        justify-content: center;
-    }
-
-    .proceed-button {
-        width: 100%;
-        height: 52px;
-
-        margin-right: 0;
-
-        font-size: 1rem;
-    }
+  .upload-details-content {
+    margin-top: 24px;
+  }
 }
 
+@media (max-width: 380px) {
+  .user-details-page {
+    width: calc(100% - 20px);
 
+    padding: 16px 0 32px;
+  }
 
+  .user-results-header {
+    margin-top: 8px;
+  }
+
+  .back-button img {
+    width: 38px;
+  }
+
+  .user-results-overview {
+    margin-top: 14px;
+  }
+
+  .user-overview-title {
+    margin-bottom: 18px;
+  }
+
+  .user-overview-title h1 {
+    font-size: 1.25rem;
+  }
+
+  .user-overview-title img {
+    width: 30px;
+
+    transform: translateY(-7px);
+  }
+
+  .upload-details-content {
+    margin-top: 20px;
+  }
+}
