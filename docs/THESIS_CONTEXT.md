@@ -1,6 +1,17 @@
 # Integritree — Thesis Context and Confirmed Requirements
 
-Last reviewed: 2026-09-23
+Last reviewed: 2026-09-27
+
+## Current validation amendment
+
+The researchers approved a new [three-stage sequential validation protocol](THREE_STAGE_VALIDATION.md):
+five SMOTE ratios selected by RF-SMOTE AP; 12 matched forest configurations,
+including minimum leaf sizes 1/10/50, selected by mean AP; and a common threshold
+selected by exact mean F1 across all distinct scores plus 0/.50/1. Each stage
+freezes before the next. This supersedes older selection instructions for new
+experiments, not their immutable artifacts or historical conclusions.
+The revision occurred after reviewing previous validation results. All selection
+uses the existing validation partition; test use requires separate authorization.
 
 ## 1. Purpose of this document
 
@@ -420,7 +431,7 @@ using shared saved scaling. The plan now starts next with Phase 4. No new model
 training or official performance result was produced by this review.
 
 
-## 15. Current Phase 4 status (2026-09-23)
+## 15. Current Phase 4 status (updated 2026-09-25)
 
 The final responses approved continuity-corrected McNemar with the exact
 small-discordance supplement and the shared training-reference TreeSHAP proposal.
@@ -432,8 +443,9 @@ selection guards, the prediction-equivalent SHAP compatibility adapter, and evid
 Full baseline validation covers 636,262 records. Five validation records have
 paired saved-model explanations that pass reconstruction checks. These are
 validation/development outputs, not final test findings. The real four-candidate
-search, 1,000-record global SHAP summary, and official test evaluation have not run.
-No test data were used to choose settings during this implementation.
+1:1 search and the descriptive 1:3 validation sensitivity study have now run. The
+1,000-record global SHAP summary and official test evaluation have not run. No test
+data were used to choose settings or compare the SMOTE ratios.
 
 The software's selected-bundle loader and final-test guard are tested on synthetic
 fixtures. The next software phase is application services and API integration.

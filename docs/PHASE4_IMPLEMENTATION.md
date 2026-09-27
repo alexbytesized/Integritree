@@ -1,5 +1,12 @@
 # Phase 4: evaluation, validation selection, and explanations
 
+The 2026-09-27 [three-stage revision](THREE_STAGE_VALIDATION.md) is the current
+selection workflow for new experiments. `scripts/select_three_stage.py` uses
+`configs/validation_three_stage.yaml`, adds minimum leaf size to the 12-setting
+forest grid, and retains separate schema-2 selection manifests. Historical
+selection and SHAP interfaces described below remain unchanged. No test or SHAP
+execution is included in the revised validation workflow.
+
 Reviewed 2026-09-23. Phase 4 software is implemented. This is distinct from
 completing the full research experiment. The manuscript has not been edited.
 
@@ -43,7 +50,8 @@ validation reports, hashes, objectives, and the frozen common cutoff. Its loader
 checks the selection rules and validation predictions. Baseline bundles remain
 readable and unchanged. Official test evaluation rejects a baseline bundle;
 it requires a completed validation-selected bundle. No train+validation refit is
-performed. The full PaySim search has not yet been executed.
+performed. The full 1:1 PaySim search subsequently completed on validation; its
+frozen artifact remains separate from the later descriptive 1:3 sensitivity study.
 
 ## SHAP reference, computation, and numerical compatibility
 
@@ -128,8 +136,9 @@ is not yet a concurrent HTTP job service.
   both models, and the shared 200-training-record reference. This is preview
   coverage, not the 1,000-record global summary or full-dataset explanation.
 - Candidate selection and official test evaluation were exercised with synthetic
-  fixtures. The real PaySim candidate search, 1,000-record global explanation job,
-  and official test evaluation remain unexecuted. No final winner/cutoff is claimed.
+  fixtures. The real PaySim candidate search later completed on validation. The
+  1,000-record global explanation job and official test evaluation remain
+  unexecuted; the later 1:3 sensitivity report does not select a ratio or cutoff.
 - Machine-readable integrity/coverage verification:
   `backend/reports/phase4_verification_20260923/verification.json`.
 - No baseline model, prepared dataset, or manuscript was overwritten. HTTP remains

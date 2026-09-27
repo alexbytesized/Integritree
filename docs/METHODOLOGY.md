@@ -1,6 +1,22 @@
 # Methodology decision record
 
-Last updated: 2026-09-23
+Last updated: 2026-09-27
+
+## Current validation amendment (2026-09-27)
+
+The approved [three-stage protocol](THREE_STAGE_VALIDATION.md) supersedes the
+historical four-configuration/F1-grid selection for the new experiment only.
+Stage 1 compares ratios 1:10, 1:5, 1:3, 1:2, 1:1 at 100 trees/depth 10/leaf 1
+using RF-SMOTE AP. Stage 2 selects among 12 shared forests (trees 100/200,
+depth 10/20, leaf 1/10/50) using mean AP. Stage 3 selects a common threshold
+from all distinct paired validation scores plus 0/.50/1 using exact mean F1.
+See the protocol for the frozen tie rules, provenance, and execution boundaries.
+
+This revision follows inspection of earlier validation results. It retains the
+unchanged validation split and may miss ratio/forest interactions. Historical
+results are not reinterpreted as this protocol's results. The held-out test remains
+unused; neither model is presumed superior and official testing needs separate
+authorization. Older decisions below remain an historical record.
 
 This is an implementation decision record, not a revised Chapter 3.
 Read [THESIS_CONTEXT.md](THESIS_CONTEXT.md) for the manuscript requirements and
@@ -415,7 +431,34 @@ Baseline validation scored both models on all 636,262 validation records at .50:
 Five uniformly sampled validation records were explained for both saved models,
 with reconstruction errors below 1e-6. Waterfalls were visually checked.
 
-The real PaySim candidate search, 1,000-record global SHAP summary, and official
-test evaluation have not run. The test set was not used for development or setting
-selection. Baseline validation results do not finalize the experiment. No manuscript
-was edited; use the updated THESIS_DOCUMENT_CHANGES.md checklist for that work.
+The real PaySim candidate search subsequently completed on validation. The
+1,000-record global SHAP summary and official test evaluation have not run. The test
+set was not used for development or setting selection. Validation results do not
+finalize the experiment. No manuscript was edited; use the updated
+THESIS_DOCUMENT_CHANGES.md checklist for that work.
+
+### Post-validation SMOTE ratio sensitivity study (approved 2026-09-25)
+
+After reviewing the completed 1:1 validation results, the researchers approved a
+descriptive 1:3 fraud-to-legitimate SMOTE study. This timing must be disclosed: the
+ratio was not predeclared before the 1:1 validation run. The held-out test split
+remains untouched.
+
+The new branch uses ordinary SMOTE with `sampling_strategy=1/3`, k=5, and the same
+training split, preprocessing, seeds, and RF settings. It fixes the forest at 200
+trees and depth 20, inherited from the earlier 1:1 validation search. The existing
+benchmark RF is reused only after artifact, preparation, configuration, dependency,
+and model checks; the new training operation fits RF-SMOTE only.
+
+Compare Benchmark RF, RF-SMOTE 1:1, and RF-SMOTE 1:3 on the unchanged validation
+records. Report Average Precision and precision, recall, F1, MCC, accuracy, and
+confusion counts at every common threshold from .05 through .95. This study does
+not choose a ratio, cutoff, or winner and does not authorize test evaluation or
+SHAP generation. The fixed forest setting and post-validation decision limit any
+causal claim that observed differences are due only to the sampling ratio.
+
+The full 1:3 branch and validation comparison completed on 2026-09-25. Its audit
+records 1,687,938 synthetic fraud rows and 6,778,034 total training rows. PR-AUC
+was 0.335711 for 1:1 and 0.330708 for 1:3. The threshold-grid report is retained in
+`backend/reports/paysim_smote_ratio_comparison_validation_20260925/`; it remains
+descriptive and does not select a ratio, cutoff, or final model.

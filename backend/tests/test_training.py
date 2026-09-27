@@ -10,7 +10,7 @@ from integritree.ml.features import FEATURE_COLUMNS, SOURCE_COLUMNS
 from integritree.ml.preparation import prepare_dataset, load_prepared_split
 from integritree.ml.artifacts import load_bundle
 from integritree.ml.inference import predict_records, predict_features
-from integritree.ml.training import train_models, resample_training, validate_labels, main
+from integritree.ml.training import train_models, resample_training, validate_labels, memory_preflight, main
 
 
 @pytest.fixture
@@ -57,7 +57,11 @@ def test_end_to_end_training_reload_pairing_and_no_held_out_reads(prepared, tmp_
     audit = json.loads((output / "training_audit.json").read_text())
     assert audit["original_rows"] == 160
     assert audit["synthetic_rows"] == 96
+    assert audit["generated_fraud_rows"] == 96
     assert audit["class_counts"] == {"0": 128, "1": 128}
+    assert audit["original_class_counts"] == {"0": 128, "1": 32}
+    assert audit["requested_sampling_ratio"] == 1.0
+    assert audit["achieved_sampling_ratio"] == 1.0
     for name, digest in before.items():
         assert file_sha256(path / name) == digest
     X, y, ids = load_prepared_split(path, "validation")
@@ -102,6 +106,62 @@ def test_smote_retains_fractional_one_hot_features():
     assert audit["fractional_indicator_counts"]["type_TRANSFER"] > 0
     assert np.all(labels[26:] == 1)
     assert len(labels) == 40
+
+
+def test_one_to_three_smote_counts_and_dynamic_memory_estimate(monkeypatch):
+    config = load_experiment(BACKEND_ROOT / "configs/experiment.yaml").model_copy(deep=True)
+    config.smote.sampling_ratio = 1 / 3
+    X = np.zeros((36, len(FEATURE_COLUMNS)), dtype="uint8")
+    y = np.array([1] * 6 + [0] * 30, dtype="uint8")
+    resampled, labels, audit = resample_training(X, y, config)
+    assert len(resampled) == len(labels) == 40
+    assert audit["original_class_counts"] == {"0": 30, "1": 6}
+    assert audit["class_counts"] == {"0": 30, "1": 10}
+    assert audit["generated_fraud_rows"] == 4
+    assert audit["requested_sampling_ratio"] == pytest.approx(1 / 3)
+    assert audit["achieved_sampling_ratio"] == pytest.approx(1 / 3)
+    monkeypatch.setattr("integritree.ml.training.sys.platform", "test")
+    balanced = memory_preflight(36, 30, 1.0)
+    partial = memory_preflight(36, 30, 1 / 3)
+    assert balanced["estimated_resampled_rows"] == 60
+    assert partial["estimated_resampled_rows"] == 40
+    assert partial["estimated_array_bytes"] < balanced["estimated_array_bytes"]
+
+
+def test_reuses_verified_rf_and_trains_only_smote(prepared, tmp_path, monkeypatch):
+    path, config = prepared
+    source = train_models(path, config, tmp_path / "source", "source", progress=lambda _: None)
+    target = config.model_copy(deep=True)
+    target.smote.sampling_ratio = 1 / 3
+    import integritree.ml.training as training
+    real_fit = training.RandomForestClassifier.fit
+    fits = []
+    def tracked_fit(self, *args, **kwargs):
+        fits.append(len(args[0]))
+        return real_fit(self, *args, **kwargs)
+    monkeypatch.setattr(training.RandomForestClassifier, "fit", tracked_fit)
+    output = train_models(path, target, tmp_path / "target", "target", progress=lambda _: None,
+                          reuse_rf_from=source)
+    assert fits == [170]
+    assert file_sha256(output / "rf.joblib") == file_sha256(source / "rf.joblib")
+    metadata = json.loads((output / "metadata.json").read_text())
+    assert metadata["rf_reuse"]["source_run_id"] == "source"
+    assert metadata["rf_reuse"]["source_rf_sha256"] == file_sha256(source / "rf.joblib")
+    audit = json.loads((output / "training_audit.json").read_text())
+    assert audit["class_counts"] == {"0": 128, "1": 42}
+    assert load_bundle(output).config.smote.sampling_ratio == pytest.approx(1 / 3)
+
+
+def test_reusable_rf_rejects_mismatched_settings(prepared, tmp_path):
+    path, config = prepared
+    source = train_models(path, config, tmp_path / "source", "source", progress=lambda _: None)
+    mismatch = config.model_copy(deep=True)
+    mismatch.smote.sampling_ratio = 1 / 3
+    mismatch.seeds.model = 7
+    with pytest.raises(ValueError, match="Reusable RF provenance"):
+        train_models(path, mismatch, tmp_path / "target", "target", progress=lambda _: None,
+                     reuse_rf_from=source)
+    assert not (tmp_path / "target").exists()
 
 
 @pytest.mark.parametrize("labels,message", [

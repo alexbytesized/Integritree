@@ -1,13 +1,36 @@
 # Integritree backend
 
+## Current validation protocol: three stages
+
+The revised workflow selects SMOTE ratio by RF-SMOTE validation AP, one of 12
+shared forests (including minimum leaf size) by mean validation AP, then a common
+cutoff by exact mean validation F1 over all distinct scores. It retains both
+models and never evaluates test data. Historical selectors/artifacts remain intact.
+See [protocol, outputs, and resume instructions](../docs/THREE_STAGE_VALIDATION.md).
+
+Current execution status: all 169 backend tests passed. The 2026-09-27 full-data
+attempt stopped before its first fit because available RAM was below preflight.
+The plan is saved; use the resume command in the protocol after freeing memory.
+See [run status](../docs/VALIDATION_RUN_STATUS.md). No new selection is claimed.
+
+From `backend/`, after the complete backend suite passes:
+
+```powershell
+& ./.venv/Scripts/python.exe scripts/select_three_stage.py --prepared data/prepared/paysim_phase2_20260918 --config configs/experiment.yaml --protocol configs/validation_three_stage.yaml --run-id paysim_three_stage_validation_20260927 --jobs 1
+```
+
+The sections below document historical workflows; their test commands require a
+separate authorization and are not part of the current validation-only execution.
+
 Phases 1-4 code is implemented: configuration, a health endpoint, PaySim
 preparation, matched RF/RF-SMOTE baseline training, saved artifacts, and shared
 individual/batch inference. Full PaySim preparation and baseline training are
 complete and verified. Both models are saved in artifacts/paysim_phase3_baseline_20260920/.
-Phase 4 adds evaluation, validation selection, and SHAP. Full baseline validation
-has run on 636,262 records; five validation records have verified explanations for
-both saved models. Full candidate tuning, the 1,000-record global SHAP job, and
-final test evaluation have not run. Prediction APIs and OCR remain future work.
+Phase 4 adds evaluation, validation selection, and SHAP. Full baseline validation,
+the four-candidate 1:1 validation search, and the validation-only 1:3 sensitivity
+study have run on 636,262 records; five validation records have verified explanations
+for both baseline models. The 1,000-record global SHAP job and final test evaluation
+have not run. Prediction APIs and OCR remain future work.
 
 The 2026-09-22 [alignment audit](../docs/BACKEND_ALIGNMENT_AUDIT.md) checked this
 foundation against the completed mock-up review: 125 tests passed. Active evaluation
@@ -364,3 +387,40 @@ On this machine, five preview records took roughly 0.1?0.2 seconds each for RF
 and 0.7?1.0 seconds each for RF-SMOTE attribution alone, excluding initialization,
 plotting, and I/O. These measurements are not a latency guarantee for API requests.
 No full-dataset SHAP job or final test evaluation has been run.
+
+## Validation-only 1:3 SMOTE sensitivity study
+
+`configs/experiment_smote_1_to_3.yaml` keeps the prepared data, seeds, features,
+ordinary SMOTE method, and RF settings fixed while changing the post-resampling
+fraud-to-legitimate ratio to 1:3. The 200-tree/depth-20 setting is inherited from
+the completed 1:1 validation search. This is a post-validation descriptive study,
+not a new predeclared selection procedure.
+
+First resolve the existing 200/depth-20 candidate bundle referenced by
+`artifacts/paysim_validation_selection/selection.json`, then train the 1:3 branch
+while reusing its verified benchmark RF:
+
+```powershell
+& ./.venv/Scripts/python.exe scripts/train_models.py --prepared data/prepared/paysim_phase2_20260918 --config configs/experiment_smote_1_to_3.yaml --reuse-rf-from <existing-200-depth-20-candidate> --jobs 1
+```
+
+Evaluate the resulting bundle on validation only, then compare its report with the
+existing 1:1 200/depth-20 validation report:
+
+```powershell
+& ./.venv/Scripts/python.exe scripts/evaluate_models.py --models <new-1-to-3-bundle> --prepared data/prepared/paysim_phase2_20260918 --config configs/experiment_smote_1_to_3.yaml --split validation
+& ./.venv/Scripts/python.exe scripts/compare_smote_ratios.py --one-to-one-report <existing-1-to-1-validation-report> --one-to-three-report <new-1-to-3-validation-report>
+```
+
+The comparison writes fingerprinted score and threshold tables, raw 1:3-minus-1:1
+differences, a readable summary, and SVG figures. It deliberately records no winner
+or selected cutoff. Do not run either ratio on the held-out test split without a
+separate final-selection decision.
+
+The full 1:3 run completed as `paysim_smote_1_to_3_200_depth20_20260925` with
+1,687,938 synthetic fraud rows and 6,778,034 total training rows. Its validation
+report is `paysim_smote_1_to_3_validation_20260925`; the verified comparison is
+`paysim_smote_ratio_comparison_validation_20260925`. The comparison found PR-AUC
+0.335711 for 1:1 and 0.330708 for 1:3. At the .95 reference checkpoint, 1:3 had
+precision 0.293948, recall 0.372263, F1 0.328502, and MCC 0.329825. These are
+validation-only descriptive findings, not a selected ratio or final test result.

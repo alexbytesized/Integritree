@@ -14,6 +14,7 @@ from integritree.ml.research import evaluate_run, load_report
 from integritree.ml.selection import select_models, choose_configuration, choose_threshold
 from integritree.ml.inference import predict_records, predict_features
 from integritree.ml.features import FEATURE_COLUMNS
+from integritree.ml.ratio_comparison import compare_ratio_reports, load_ratio_comparison
 
 
 @pytest.fixture
@@ -173,3 +174,44 @@ def test_selection_releases_previous_report_before_next_training(experiment,tmp_
     selected=select_models(baseline,prepared,config,tmp_path / "selections","memory_cleanup",progress=lambda _:None)
     assert observed_previous_reports==[0,2,3]
     assert load_bundle(selected).metadata["stage"]=="validation_selected"
+
+
+def test_validation_only_smote_ratio_comparison(experiment,tmp_path):
+    prepared,_,config=experiment
+    one=config.model_copy(deep=True)
+    one.random_forest.n_estimators=200
+    one_to_one=train_models(prepared,one,tmp_path / "ratio_models","one",progress=lambda _:None)
+    third=one.model_copy(deep=True)
+    third.smote.sampling_ratio=1/3
+    one_to_three=train_models(prepared,third,tmp_path / "ratio_models","third",progress=lambda _:None,
+                              reuse_rf_from=one_to_one)
+    first_report=evaluate_run(one_to_one,prepared,one,tmp_path / "ratio_reports","validation","first",
+                              lambda _:None)
+    third_report=evaluate_run(one_to_three,prepared,third,tmp_path / "ratio_reports","validation","third",
+                              lambda _:None)
+    output=compare_ratio_reports(first_report,third_report,tmp_path / "comparisons","comparison",
+                                 progress=lambda _:None)
+    metadata,scores,thresholds,differences=load_ratio_comparison(output)
+    assert metadata["test_used"] is False
+    assert metadata["selection_performed"] is False
+    assert "winner" not in metadata and "selected_threshold" not in metadata
+    assert len(scores)==3 and len(thresholds)==57 and len(differences)==19
+    np.testing.assert_allclose(sorted(thresholds.threshold.unique()),[i/20 for i in range(1,20)],rtol=0,atol=1e-15)
+    assert set(thresholds.model)=={"rf","rf_smote_1_to_1","rf_smote_1_to_3"}
+    assert "does not select a sampling ratio" in (output / "SUMMARY.md").read_text()
+    first_predictions=load_report(first_report)[1]
+    third_predictions=load_report(third_report)[1]
+    np.testing.assert_array_equal(first_predictions.rf_risk_score,third_predictions.rf_risk_score)
+
+
+def test_ratio_comparison_rejects_misaligned_validation_reports(experiment,tmp_path,monkeypatch):
+    prepared,baseline,config=experiment
+    report=evaluate_run(baseline,prepared,config,tmp_path / "reports","validation","aligned",lambda _:None)
+    metadata,predictions=load_report(report)
+    shifted=predictions.copy()
+    shifted.loc[0,"actual_label"]=1-int(shifted.loc[0,"actual_label"])
+    import integritree.ml.ratio_comparison as comparison
+    calls=[(metadata,predictions),(metadata,shifted)]
+    monkeypatch.setattr(comparison,"load_report",lambda _:calls.pop(0))
+    with pytest.raises(ValueError,match="different validation identities or labels"):
+        compare_ratio_reports(report,report,tmp_path / "comparisons",progress=lambda _:None)

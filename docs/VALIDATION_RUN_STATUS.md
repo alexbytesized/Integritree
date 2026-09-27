@@ -1,5 +1,70 @@
 # Full validation run started 2026-09-24
 
+## Three-stage revision authorized 2026-09-27
+
+The new [protocol](THREE_STAGE_VALIDATION.md) adds five-ratio AP selection,
+12 paired forests including minimum leaf size, and an exact all-score threshold
+search. Its separate schema-2 selector, stage checkpoints, verified reuse, and
+report export are implemented. Verification passed **169 backend tests** with
+five upstream deprecation warnings; `pip check` found no broken requirements.
+Synthetic checks cover all ratios, the 12-setting grid, exact threshold selection
+(including cutoffs above .95 and ties), matching leaf settings, reuse, corruption
+rejection, and recovery after an interruption following a completed fit.
+
+The full-data run `paysim_three_stage_validation_20260927` was attempted at
+18:15 Manila time (10:15 UTC). Its reuse inventory verified five existing model
+bundles and recorded seven validation reports for candidate-specific checks.
+The first candidate, 1:10 at 100 trees/depth 10/leaf 1, stopped at RAM preflight:
+**3.10 GiB available versus 3.15 GiB estimated working arrays**, excluding
+additional tree/runtime memory. No candidate was newly fitted and no stage froze.
+The run is not active; its metadata records `status: failed`, `MemoryError`.
+
+Implementation and synthetic verification are complete; full-data execution and
+verification of the final frozen result remain blocked by available RAM. Free
+memory before resuming; later ratios may require larger working arrays (up to
+about 4.65 GiB for 1:1, plus trees/runtime). The guard was not reduced or bypassed,
+and unrelated applications were not closed. Historical artifacts and the held-out
+test remain untouched. Resume from `backend/` with:
+
+```powershell
+& ./.venv/Scripts/python.exe scripts/select_three_stage.py --prepared data/prepared/paysim_phase2_20260918 --config configs/experiment.yaml --protocol configs/validation_three_stage.yaml --resume artifacts/paysim_three_stage_validation_20260927 --jobs 1
+```
+
+Evidence: `backend/artifacts/paysim_three_stage_validation_20260927/metadata.json`
+and `search_plan.json`. The plan SHA-256 is
+`283346c83dde74ef26fbee23adef8f0218cbd2abe83331f29c69d5e4ee3ae0bb`.
+No new ratio, forest configuration, common cutoff, or final validation report
+exists yet for this run. Do not populate new manuscript results from it.
+
+## 1:3 ratio sensitivity study approved 2026-09-25
+
+The completed 1:1 artifacts and validation reports remain immutable. A separate
+validation-only configuration now defines ordinary SMOTE at one fraud row per
+three legitimate rows after resampling, with 200 trees and depth 20. That forest
+setting was inherited from the 1:1 validation search; the ratio was proposed only
+after its results were reviewed.
+
+The implementation supports verified reuse of the existing 200/depth-20 benchmark
+RF, so only the 1:3 RF-SMOTE forest needs a new fit. The comparison uses the same
+636,262 validation identities and the common .05-.95 threshold grid. It is
+descriptive: no ratio, cutoff, or final model is selected. The held-out test split
+must not be read.
+
+The full job subsequently completed. It generated 1,687,938 fraud rows, producing
+5,083,526 legitimate and 1,694,508 fraud training rows (6,778,034 total). The
+existing benchmark RF was reused with matching source and copied-model hashes.
+The new artifact and reload verification are complete.
+
+The validation comparison passed identity, label, and exact benchmark-score checks.
+PR-AUC was 0.362801 for benchmark RF, 0.335711 for RF-SMOTE 1:1, and 0.330708 for
+RF-SMOTE 1:3. At the .95 reference checkpoint, 1:3 improved precision from 0.143695
+to 0.293948, F1 from 0.213774 to 0.328502, and MCC from 0.243280 to 0.329825 versus
+1:1, while recall decreased from 0.417275 to 0.372263. These findings do not select
+a ratio or cutoff. Evidence is under
+`backend/reports/paysim_smote_ratio_comparison_validation_20260925/`.
+The complete backend suite passed 150 tests with five upstream deprecation warnings,
+and the installed dependency check reported no broken requirements.
+
 The researchers authorized execution of the approved four-configuration search.
 The run started at 02:54 Manila time on 2026-09-24 (18:54 UTC on 2026-09-23).
 

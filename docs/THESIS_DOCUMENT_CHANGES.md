@@ -1,6 +1,21 @@
 # Thesis manuscript alignment checklist
 
-Last reviewed: 2026-09-23
+Last reviewed: 2026-09-27
+
+## New protocol amendment for manuscript review
+
+Use [THREE_STAGE_VALIDATION.md](THREE_STAGE_VALIDATION.md) as the current
+validation specification. Update the methods to include five SMOTE ratios,
+12 shared forest configurations (minimum leaf sizes 1/10/50), AP objectives in
+Stages 1/2, and exact mean-F1 selection over all distinct score thresholds in
+Stage 3. State all tie rules and `score >= threshold`. Report every candidate,
+the exact selected cutoff, and both models' metrics; do not choose a model winner.
+
+Disclose that the protocol changed after earlier validation results were reviewed,
+that one validation set supports all three decisions, and that sequential freezing
+can miss interactions. Keep historical findings labeled as historical. New
+numerical conclusions require a completed verified run; no official test result
+is authorized by this protocol. The manuscript itself has not been edited.
 
 This is a checklist for researcher/adviser review, not an edited manuscript.
 Source: `C:/Users/Carpicorn/Downloads/Thesis/COSC-305_CS-Thesis-Writing-1/Post-Proposal-Defense_Revision/Thesis-Proposal-Revised.docx`.
@@ -12,10 +27,11 @@ RF/RF-SMOTE training are complete and verified. Run
 paysim_phase3_baseline_20260920 contains both trained models and provenance.
 The initial RAM preflight stop was resolved after unused applications were closed;
 the successful retry preserved the approved settings and all training records.
-Evaluation, selection, and SHAP code are implemented. Full baseline validation and
-a five-record SHAP preview have run; full candidate tuning, global SHAP, official
-test evaluation, prediction APIs, and OCR have not. Baseline validation results
-are not final thesis performance results. See PHASE4_IMPLEMENTATION.md.
+Evaluation, selection, and SHAP code are implemented. Full baseline validation,
+the four-candidate 1:1 validation search, the descriptive 1:3 validation sensitivity
+study, and a five-record SHAP preview have run. Global SHAP, official test evaluation,
+prediction APIs, and OCR have not. Validation results are not final thesis performance
+results. See PHASE4_IMPLEMENTATION.md and VALIDATION_RUN_STATUS.md.
 
 Use the checkboxes when the researchers actually update and review the manuscript.
 All items remain unchecked because no manuscript edits were made.

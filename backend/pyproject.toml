@@ -39,6 +39,8 @@ integritree-prepare = "integritree.ml.preparation:main"
 integritree-train = "integritree.ml.training:main"
 integritree-evaluate = "integritree.ml.research:main"
 integritree-select = "integritree.ml.selection:main"
+integritree-select-three-stage = "integritree.ml.staged_selection:main"
+integritree-compare-ratios = "integritree.ml.ratio_comparison:main"
 integritree-explain = "integritree.ml.explainability:main"
 
 [tool.setuptools.packages.find]

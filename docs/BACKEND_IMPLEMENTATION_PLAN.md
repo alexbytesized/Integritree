@@ -1,17 +1,23 @@
 # Integritree backend implementation plan
 
-Last updated: 2026-09-23 (Phase 4 software and baseline validation)
+Last updated: 2026-09-27 (three-stage validation revision)
+
+The current new-experiment specification is [THREE_STAGE_VALIDATION.md](THREE_STAGE_VALIDATION.md).
+It adds ratio/AP, forest/AP (including minimum leaf size), and exact threshold/F1
+stages with checkpoints and compatible historical reuse. Older search details
+below describe historical work and do not override the revised protocol.
 
 ## Current status and scope
 
 The backend scaffold and Phases 1-4 are implemented. Full PaySim preparation and
 baseline RF/RF-SMOTE training are complete and verified. Both saved models are in
 backend/artifacts/paysim_phase3_baseline_20260920/. The initial RAM preflight stop
-was resolved on retry. No validation tuning or official test evaluation has run.
-Evaluation, selection, and SHAP software are implemented. Full baseline validation
-and a five-record paired SHAP preview are verified. The real candidate search,
-1,000-record global SHAP job, prediction routes, and receipts remain to be executed
-or developed, as applicable. See [Phase 4 evidence](PHASE4_IMPLEMENTATION.md).
+was resolved on retry. Evaluation, selection, and SHAP software are implemented.
+Full baseline validation, the real four-candidate 1:1 validation search, the
+descriptive 1:3 validation sensitivity study, and a five-record paired SHAP preview
+are verified. Official test evaluation and the 1,000-record global SHAP job have not
+run; prediction routes and receipts remain to be developed. See
+[Phase 4 evidence](PHASE4_IMPLEMENTATION.md).
 See [setup instructions](../backend/README.md), [methodology decisions](METHODOLOGY.md),
 and [API contracts](API.md).
 

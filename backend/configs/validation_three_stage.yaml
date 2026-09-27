@@ -1,0 +1,16 @@
+# Protocol revised after the September 2026 validation experiments.
+schema_version: 1
+name: sequential_ratio_forest_threshold
+ratios: [0.1, 0.2, 0.3333333333333333, 0.5, 1.0]
+reference_forest: [100, 10, 1]
+trees: [100, 200]
+depths: [10, 20]
+leaves: [1, 10, 50]
+ratio_objective: rf_smote_average_precision
+forest_objective: mean_average_precision
+threshold_objective: mean_f1
+ratio_ties: smaller_ratio
+forest_ties: shallower_fewer_trees_larger_leaf
+threshold_candidates: distinct_scores_plus_0_half_1
+threshold_ties: closest_to_half_then_higher
+selection_split: validation

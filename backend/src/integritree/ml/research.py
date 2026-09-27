@@ -119,6 +119,7 @@ def evaluate_run(model_path, prepared, config, output_root, split="validation", 
             "evaluation": config.evaluation.model_dump(),
             "effective_scoring": bundle.config.scoring.model_dump(),
             "effective_random_forest": bundle.config.random_forest.model_dump(),
+            "effective_smote": bundle.config.smote.model_dump(),
             "model_metadata_sha256": manifest["model_metadata_sha256"],
             "requested_configuration": config.model_dump(),
             "note": "Effective model settings come from the saved bundle, not the requested configuration."})

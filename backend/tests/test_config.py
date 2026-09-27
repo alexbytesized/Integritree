@@ -43,6 +43,19 @@ def test_committed_config_ready_for_approved_phase_four_methods():
     assert config.smote.k_neighbors == 5
 
 
+def test_one_to_three_validation_config_is_separate_and_ready():
+    baseline = load_experiment(BACKEND_ROOT / "configs/experiment.yaml")
+    study = load_experiment(BACKEND_ROOT / "configs/experiment_smote_1_to_3.yaml")
+    study.require_ready("evaluate")
+    assert study.experiment_name != baseline.experiment_name
+    assert study.smote.sampling_ratio == pytest.approx(1 / 3)
+    assert (study.random_forest.n_estimators, study.random_forest.max_depth) == (200, 20)
+    assert study.dataset == baseline.dataset
+    assert study.preprocessing == baseline.preprocessing
+    assert study.split == baseline.split
+    assert study.seeds == baseline.seeds
+
+
 def test_comparison_method_preserves_legacy_snapshots_and_rejects_unknown_methods():
     legacy = EvaluationConfig.model_validate({"percentage_difference": "absolute_over_mean"})
     assert EvaluationConfig.model_validate_json(legacy.model_dump_json()) == legacy

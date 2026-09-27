@@ -27,7 +27,7 @@ from integritree.settings import load_settings
 def validate_training_config(config: ExperimentConfig) -> None:
     config.require_ready("train")
     validate_preparation_config(config)
-    expected = {"smote.method": "smote_encoded", "smote.sampling_ratio": 1.0,
+    expected = {"smote.method": "smote_encoded",
                 "scoring.probability_method": "mean_tree_probability", "scoring.tie_policy": "fraud",
                 "scoring.threshold": 0.5,
                 "random_forest.tuning_procedure": "fixed_baseline"}
@@ -37,9 +37,10 @@ def validate_training_config(config: ExperimentConfig) -> None:
             raise ValueError(f"Unsupported Phase 3 setting {field}; baseline training only")
 
 
-def memory_preflight(rows: int, majority: int) -> dict:
+def memory_preflight(rows: int, majority: int, sampling_ratio: float = 1.0) -> dict:
     """Conservative working-array estimate, not a guarantee of RF peak memory."""
-    estimate = (3 * rows + 4 * (2 * majority)) * len(FEATURE_COLUMNS) * 8 + 64 * 1024**2
+    resampled_rows = majority + int(majority * sampling_ratio)
+    estimate = (3 * rows + 4 * resampled_rows) * len(FEATURE_COLUMNS) * 8 + 64 * 1024**2
     available = None
     if sys.platform == "win32":
         class MemoryStatus(ctypes.Structure):
@@ -55,7 +56,9 @@ def memory_preflight(rows: int, majority: int) -> dict:
         raise MemoryError(f"Insufficient available RAM: {available / 1024**3:.2f} GiB; "
                           f"estimated working arrays need {estimate / 1024**3:.2f} GiB "
                           "before additional tree/runtime memory. Free memory before retrying.")
-    return {"estimated_array_bytes": estimate, "available_bytes": available}
+    return {"estimated_array_bytes": estimate, "available_bytes": available,
+            "estimated_resampled_rows": resampled_rows,
+            "sampling_ratio": sampling_ratio}
 
 
 def forest_parameters(config: ExperimentConfig, jobs: int) -> dict:
@@ -85,6 +88,10 @@ def validate_labels(labels, rows: int, neighbors: int) -> np.ndarray:
 def resample_training(values: np.ndarray, labels: np.ndarray, config: ExperimentConfig):
     # Explicit float conversion prevents integer dtype truncation by resampling.
     values = np.asarray(values, dtype="float64")
+    original_counts = np.bincount(labels, minlength=2)
+    expected_added = int(original_counts[0] * config.smote.sampling_ratio - original_counts[1])
+    if expected_added <= 0:
+        raise ValueError("SMOTE sampling ratio must add fraud rows to the original training set")
     sampler = SMOTE(sampling_strategy=config.smote.sampling_ratio,
                     k_neighbors=config.smote.k_neighbors, random_state=config.seeds.smote)
     resampled, targets = sampler.fit_resample(values, labels)
@@ -93,8 +100,9 @@ def resample_training(values: np.ndarray, labels: np.ndarray, config: Experiment
     if not np.isfinite(resampled).all() or not np.all(targets[len(labels):] == 1):
         raise ValueError("Invalid synthetic features or labels")
     counts = np.bincount(targets, minlength=2)
-    if counts[0] != counts[1]:
-        raise ValueError("SMOTE did not produce the requested 1:1 balance")
+    expected_minority = int(original_counts[1] + expected_added)
+    if counts[0] != original_counts[0] or counts[1] != expected_minority:
+        raise ValueError("SMOTE did not produce the requested minority-to-majority ratio")
     indicators = [i for i, name in enumerate(FEATURE_COLUMNS) if name not in SCALED_COLUMNS]
     fractional = {FEATURE_COLUMNS[i]: 0 for i in indicators}
     mixed_type_rows = 0
@@ -105,15 +113,61 @@ def resample_training(values: np.ndarray, labels: np.ndarray, config: Experiment
             fractional[FEATURE_COLUMNS[i]] += int(((batch[:, i] != 0) & (batch[:, i] != 1)).sum())
         mixed_type_rows += int(((batch[:, type_indices] > 0).sum(axis=1) > 1).sum())
     audit = {"original_rows": len(values), "synthetic_rows": len(resampled) - len(values),
+             "generated_fraud_rows": len(resampled) - len(values),
              "resampled_rows": len(resampled), "class_counts": {"0": int(counts[0]), "1": int(counts[1])},
+             "original_class_counts": {"0": int(original_counts[0]), "1": int(original_counts[1])},
+             "requested_sampling_ratio": config.smote.sampling_ratio,
+             "achieved_sampling_ratio": float(counts[1] / counts[0]),
+             "expected_minority_rows": expected_minority,
              "dtype": str(resampled.dtype), "fractional_indicator_counts": fractional,
              "multiple_positive_type_rows": mixed_type_rows, "synthetic_label": 1,
              "fraction_policy": "preserve; no rounding, argmax, truncation, or filtering"}
     return resampled, targets, audit
 
 
+def _reusable_rf(source_path: Path, config: ExperimentConfig, prepared_hash: str):
+    """Load only a verified RF whose training settings match apart from SMOTE."""
+    source_path = source_path.resolve()
+    metadata = json.loads((source_path / "metadata.json").read_text(encoding="utf-8"))
+    if (metadata.get("status") != "complete" or metadata.get("schema_version") != 1
+            or metadata.get("stage") != "baseline_not_final"
+            or set(metadata.get("files", {})) != REQUIRED_FILES):
+        raise ValueError("Reusable RF source is incomplete or unsupported")
+    for name, expected in metadata["files"].items():
+        if file_sha256(source_path / name) != expected:
+            raise ValueError(f"Reusable RF source fingerprint mismatch: {name}")
+    for name in PACKAGES:
+        if metadata.get("package_versions", {}).get(name) != version(name):
+            raise ValueError(f"Reusable RF source dependency version mismatch: {name}")
+    source_config = ExperimentConfig.model_validate_json(
+        (source_path / "configuration.json").read_text(encoding="utf-8"))
+    source_config.require_ready("train")
+    compatible = (
+        source_config.dataset == config.dataset
+        and source_config.preprocessing == config.preprocessing
+        and source_config.split == config.split
+        and source_config.seeds == config.seeds
+        and source_config.random_forest == config.random_forest
+        and source_config.scoring == config.scoring
+        and metadata.get("prepared_metadata_sha256") == prepared_hash
+    )
+    if not compatible:
+        raise ValueError("Reusable RF provenance or training settings differ from the requested run")
+    model = joblib.load(source_path / "rf.joblib")
+    expected_parameters = forest_parameters(source_config, metadata["rf_parameters"]["n_jobs"])
+    if (not isinstance(model, RandomForestClassifier)
+            or model.n_features_in_ != len(FEATURE_COLUMNS)
+            or not np.array_equal(model.classes_, [0, 1])
+            or any(model.get_params()[key] != value for key, value in expected_parameters.items())):
+        raise ValueError("Reusable RF model differs from its recorded configuration")
+    return {"path": source_path, "model": model, "run_id": metadata["run_id"],
+            "metadata_sha256": file_sha256(source_path / "metadata.json"),
+            "rf_sha256": file_sha256(source_path / "rf.joblib")}
+
+
 def train_models(prepared: Path, config: ExperimentConfig, output_root: Path,
-                 run_id: str | None = None, jobs: int = 1, progress=print) -> Path:
+                 run_id: str | None = None, jobs: int = 1, progress=print,
+                 reuse_rf_from: Path | None = None) -> Path:
     validate_training_config(config)
     parameters = forest_parameters(config, jobs)
     preparation = json.loads((prepared / "metadata.json").read_text(encoding="utf-8"))
@@ -126,8 +180,11 @@ def train_models(prepared: Path, config: ExperimentConfig, output_root: Path,
     if (prior.dataset != config.dataset or prior.preprocessing != config.preprocessing
             or prior.split != config.split or prior.seeds.split != config.seeds.split):
         raise ValueError("Training configuration does not match prepared dataset/preprocessing/splits")
+    prepared_hash = file_sha256(prepared / "metadata.json")
     resources = memory_preflight(preparation["splits"]["train"]["rows"],
-                                 preparation["splits"]["train"]["legitimate"])
+                                 preparation["splits"]["train"]["legitimate"],
+                                 config.smote.sampling_ratio)
+    reusable = _reusable_rf(reuse_rf_from, config, prepared_hash) if reuse_rf_from else None
     preprocessor = FittedPreprocessor.load(prepared / "preprocessing.json")
     progress("Loading and verifying original training split only")
     features, labels, ids = load_prepared_split(prepared, "train")
@@ -145,11 +202,17 @@ def train_models(prepared: Path, config: ExperimentConfig, output_root: Path,
                 "created_at": datetime.now(timezone.utc).isoformat(), "stage": "baseline_not_final",
                 "feature_order": FEATURE_COLUMNS, "dataset": config.dataset.model_dump(),
                 "prepared_run_id": preparation["run_id"],
-                "prepared_metadata_sha256": file_sha256(prepared / "metadata.json"),
+                "prepared_metadata_sha256": prepared_hash,
                 "split_manifest_sha256": preparation["split_manifest_sha256"],
                 "package_versions": {p: version(p) for p in PACKAGES},
                 "test_used": False, "validation_used": False, "rf_parameters": parameters,
                 "resource_preflight": resources}
+    if reusable:
+        metadata["rf_reuse"] = {
+            "source_run_id": reusable["run_id"],
+            "source_metadata_sha256": reusable["metadata_sha256"],
+            "source_rf_sha256": reusable["rf_sha256"],
+        }
     write_json(output / "metadata.json", metadata)
     started = time.monotonic()
     try:
@@ -164,16 +227,24 @@ def train_models(prepared: Path, config: ExperimentConfig, output_root: Path,
                 progress("Applying ordinary SMOTE to training only, preserving synthetic fractions")
                 values, labels, audit = resample_training(values, labels, config)
                 write_json(output / "training_audit.json", audit)
-            progress(f"Training {name}: {len(values):,} rows, {parameters['n_estimators']} trees")
-            model = RandomForestClassifier(**parameters).fit(values, labels)
+            if name == "rf" and reusable:
+                progress(f"Reusing verified rf from {reusable['run_id']}")
+                shutil.copyfile(reusable["path"] / "rf.joblib", output / "rf.joblib")
+                model = reusable["model"]
+            else:
+                progress(f"Training {name}: {len(values):,} rows, {parameters['n_estimators']} trees")
+                model = RandomForestClassifier(**parameters).fit(values, labels)
             expected = fraud_scores(model, reference)
-            joblib.dump(model, output / f"{name}.joblib", compress=3)
+            if not (name == "rf" and reusable):
+                joblib.dump(model, output / f"{name}.joblib", compress=3)
             del model
             reloaded = joblib.load(output / f"{name}.joblib")
             actual = fraud_scores(reloaded, reference)
             np.testing.assert_allclose(actual, expected, rtol=0, atol=1e-12)
             verification["models"][name] = {"passed": True, "max_absolute_error": float(np.max(np.abs(actual - expected)))}
             del reloaded
+            if name == "rf" and reusable:
+                del reusable["model"]
             progress(f"Saved and verified {name}")
         del values, labels
         write_json(output / "reload_verification.json", verification)
@@ -197,6 +268,8 @@ def main() -> int:
     parser.add_argument("--config", type=Path)
     parser.add_argument("--run-id")
     parser.add_argument("--jobs", type=int, default=1, help="Parallel tree workers; keep low for large datasets")
+    parser.add_argument("--reuse-rf-from", type=Path,
+                        help="Completed compatible model bundle whose benchmark RF should be reused")
     args = parser.parse_args()
     try:
         settings = load_settings()
@@ -204,7 +277,8 @@ def main() -> int:
         config = load_experiment(resolve(args.config or settings.experiment_config))
         output = train_models(resolve(args.prepared), config, settings.artifacts_dir,
                               args.run_id, args.jobs,
-                              progress=lambda message: print(message, file=sys.stderr, flush=True))
+                              progress=lambda message: print(message, file=sys.stderr, flush=True),
+                              reuse_rf_from=resolve(args.reuse_rf_from) if args.reuse_rf_from else None)
     except (ValueError, OSError, MemoryError) as exc:
         print(json.dumps({"success": False, "error": str(exc)}), file=sys.stderr)
         return 2
