@@ -1,14 +1,11 @@
-# Phase 4: evaluation, validation selection, and explanations
+# Evaluation, three-stage selection, and explanations
 
-The 2026-09-27 [three-stage revision](THREE_STAGE_VALIDATION.md) is the current
-selection workflow for new experiments. `scripts/select_three_stage.py` uses
-`configs/validation_three_stage.yaml`, adds minimum leaf size to the 12-setting
-forest grid, and retains separate schema-2 selection manifests. Historical
-selection and SHAP interfaces described below remain unchanged. No test or SHAP
-execution is included in the revised validation workflow.
-
-Reviewed 2026-09-23. Phase 4 software is implemented. This is distinct from
-completing the full research experiment. The manuscript has not been edited.
+The sole selection workflow is [three-stage validation](THREE_STAGE_VALIDATION.md):
+SMOTE ratio by RF-SMOTE validation Average Precision, shared forest settings by
+mean validation AP, then a common threshold by exact mean validation F1. Each
+stage freezes before the next. Both models are retained; selection does not pick
+a model winner. Current execution stops after Stage 1. See
+[run status](VALIDATION_RUN_STATUS.md) for measured outcomes.
 
 ## Approved and implemented methods
 
@@ -33,25 +30,18 @@ completing the full research experiment. The manuscript has not been edited.
 
 ## Selection and test isolation
 
-`selection.py` implements the predeclared four shared RF settings: (trees, depth)
-=(100,10), (100,20), (200,10), (200,20). At threshold .50 choose the greatest mean
-validation F1 across both variants. Exact ties favor shallower, then fewer trees.
-For that configuration search the common thresholds .05 through .95 by .05;
-maximize the same mean F1, breaking exact ties by closeness to .50 then higher
-threshold. Fraction arithmetic avoids rounding the F1 selection objective.
+`staged_selection.py` implements the [canonical protocol](THREE_STAGE_VALIDATION.md).
+Stage 1 selects the ratio by RF-SMOTE AP, Stage 2 selects a shared forest by mean
+AP, and Stage 3 freezes the common threshold by exact mean F1. A schema-2 selected
+bundle references immutable candidate models, reports, decisions, and hashes.
+The loader independently checks the frozen evidence and selection rules.
 
-The original 100-tree/depth-20 baseline is reused. Other pairs are trained only on
-the original training split using the same preprocessing, seeds, and SMOTE policy.
-An incomplete search can resume completed candidates/reports after checking its
-saved search plan. Failed artifacts are retained, not silently overwritten.
-
-A selected bundle references immutable candidate models and records all candidate
-validation reports, hashes, objectives, and the frozen common cutoff. Its loader
-checks the selection rules and validation predictions. Baseline bundles remain
-readable and unchanged. Official test evaluation rejects a baseline bundle;
-it requires a completed validation-selected bundle. No train+validation refit is
-performed. The full 1:1 PaySim search subsequently completed on validation; its
-frozen artifact remains separate from the later descriptive 1:3 sensitivity study.
+Stage 1-only execution stops before forest or threshold selection. A partial run
+cannot be loaded as a final model pair. Official test evaluation requires a
+completed selection. Ordinary fitted pairs remain readable for validation and
+inference; obsolete two-step selections are unsupported. There is no refit on
+combined partitions. Interrupted runs verify the frozen plan and recover completed
+fits and reports; one process owns the run lock at a time.
 
 ## SHAP reference, computation, and numerical compatibility
 
@@ -75,8 +65,7 @@ agreement. The saved model remains the source of the prediction and risk score.
 
 Compatibility work was necessary for the pinned SHAP 0.52.0 interventional
 kernel: it stores float32 thresholds and signed 16-bit node indexes. Unadjusted
-threshold rounding failed the synthetic reconstruction check, and the real
-RF-SMOTE forest contains trees with up to 106,731 nodes.
+threshold rounding failed the synthetic reconstruction check, and large forests can exceed its node-index range.
 
 `shap_adapter.py` supplies an equivalent internal representation to TreeExplainer:
 
@@ -122,27 +111,14 @@ is not yet a concurrent HTTP job service.
   contributions, and a coverage/provenance manifest. Local cached waterfall assets
   are referenced from those explanations. Portable application downloads are Phase 5.
 
-## Execution evidence
+## Verification and execution
 
-- Full suite: **143 passed**, five upstream deprecation warnings; dependency check
-  passed. The original model-critical versions are preserved.
-- Full baseline validation report:
-  `backend/reports/paysim_phase4_baseline_validation_20260923/`.
-  Both models scored all **636,262 validation records**, including 822 fraud labels,
-  at the unchanged .50 baseline. These are development/validation results.
-- Saved-model SHAP report:
-  `backend/reports/paysim_phase4_shap_validation_verified_20260923/`.
-  Verification uses five uniformly sampled validation records,
-  both models, and the shared 200-training-record reference. This is preview
-  coverage, not the 1,000-record global summary or full-dataset explanation.
-- Candidate selection and official test evaluation were exercised with synthetic
-  fixtures. The real PaySim candidate search later completed on validation. The
-  1,000-record global explanation job and official test evaluation remain
-  unexecuted; the later 1:3 sensitivity report does not select a ratio or cutoff.
-- Machine-readable integrity/coverage verification:
-  `backend/reports/phase4_verification_20260923/verification.json`.
-- No baseline model, prepared dataset, or manuscript was overwritten. HTTP remains
-  health-only; application prediction endpoints and OCR remain later phases.
+Synthetic checks cover metric edge cases, exact selection, freezing, interruption
+recovery, candidate memory release, model reuse and corruption rejection, held-out
+guards, inference parity, and SHAP reconstruction/coalition equivalence.
+See [current run status](VALIDATION_RUN_STATUS.md) for the latest test count and
+real-data Stage 1 evidence. Software checks do not establish fraud-detection
+performance. Current execution includes no official test or SHAP job.
 
 See [backend commands](../backend/README.md) and
 [manuscript changes](THESIS_DOCUMENT_CHANGES.md).

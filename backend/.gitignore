@@ -34,3 +34,6 @@ dist/
 !/runtime/uploads/.gitkeep
 /runtime/exports/*
 !/runtime/exports/.gitkeep
+
+/runtime/validation/*
+!/runtime/validation/.gitkeep

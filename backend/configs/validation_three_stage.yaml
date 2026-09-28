@@ -1,7 +1,7 @@
-# Protocol revised after the September 2026 validation experiments.
+# Canonical sequential SMOTE ratio, forest configuration, and threshold protocol.
 schema_version: 1
 name: sequential_ratio_forest_threshold
-ratios: [0.1, 0.2, 0.3333333333333333, 0.5, 1.0]
+ratios: [0.01, 0.02, 0.05, 0.1, 0.2, 0.3333333333333333, 0.5, 1.0]
 reference_forest: [100, 10, 1]
 trees: [100, 200]
 depths: [10, 20]

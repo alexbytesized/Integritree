@@ -1,5 +1,5 @@
-# Phase 2 preparation and selected Phase 3 decisions approved by the researchers.
-# Later-phase null values remain unresolved, never implicit library defaults.
+# Shared preparation, training, evaluation, and explanation settings.
+# Selection overrides ratio/forest candidates using validation_three_stage.yaml.
 # The original CSV is preserved; its provenance was inspected on 2026-09-18.
 schema_version: 1
 experiment_name: rf_vs_rf_smote
@@ -44,7 +44,7 @@ preprocessing:
   # All 11 original columns, before splitting; keep the first source occurrence.
   duplicates: drop_exact
 random_forest:
-  # Fixed baseline now; approved bounded validation search follows Phase 4.
+  # Standalone fixed-fit defaults, not final selected research settings.
   n_estimators: 100
   max_depth: 20
   min_samples_split: 2

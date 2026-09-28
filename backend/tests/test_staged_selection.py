@@ -13,23 +13,24 @@ from integritree.ml.artifacts import load_bundle
 from integritree.ml.data import RAW_COLUMNS, file_sha256
 from integritree.ml.features import FEATURE_COLUMNS
 from integritree.ml.preparation import prepare_dataset
-from integritree.ml.selection import exact_mean_f1
+from integritree.ml.selection_utils import exact_mean_f1
 from integritree.ml.threshold_search import all_score_thresholds
 from integritree.ml.training import resample_training, memory_preflight
 
 
 def test_declared_protocol_and_ties():
     protocol = staged.load_protocol(BACKEND_ROOT / "configs/validation_three_stage.yaml")
-    assert protocol.ratios == [.1, .2, 1 / 3, .5, 1]
+    assert protocol.ratios == [.01, .02, .05, .1, .2, 1 / 3, .5, 1]
+    assert staged.SelectionProtocol().model_dump() == protocol.model_dump()
     assert protocol.reference_forest == (100, 10, 1)
     assert len(protocol.forests()) == 12
     assert set(protocol.forests()) == {(t, d, l) for t in (100, 200) for d in (10, 20) for l in (1, 10, 50)}
     ratios = [{"ratio": r, "rf_smote": {"pr_auc": .8}} for r in reversed(protocol.ratios)]
-    assert staged.choose_ratio(ratios)["ratio"] == .1
+    assert staged.choose_ratio(ratios)["ratio"] == .01
     forests = [{"forest": f, "mean_ap": .8} for f in reversed(protocol.forests())]
     assert staged.choose_forest(forests)["forest"] == (100, 10, 50)
     ratios[-1]["rf_smote"]["pr_auc"] = .7
-    assert staged.choose_ratio(ratios)["ratio"] == .2
+    assert staged.choose_ratio(ratios)["ratio"] == .02
     forests[0]["mean_ap"] = .9
     assert staged.choose_forest(forests) is forests[0]
     for change in ({"ratios": []}, {"ratios": [float("nan")]}, {"ratios": [0]},
@@ -74,25 +75,26 @@ def test_high_threshold_and_closest_half_ties():
         all_score_thresholds([0, 0], [0, 1], [0, 1])
 
 
-@pytest.mark.parametrize("ratio", [.1, .2, 1 / 3, .5, 1.])
+@pytest.mark.parametrize("ratio", [.01, .02, .05, .1, .2, 1 / 3, .5, 1.])
 def test_all_resampling_counts_and_memory(ratio):
     config = load_experiment(BACKEND_ROOT / "configs/experiment.yaml")
     config.smote.sampling_ratio = ratio
-    values = np.random.default_rng(42).random((211, len(FEATURE_COLUMNS)))
-    labels = np.r_[np.ones(10, dtype="uint8"), np.zeros(201, dtype="uint8")]
+    values = np.random.default_rng(42).random((2011, len(FEATURE_COLUMNS)))
+    labels = np.r_[np.ones(10, dtype="uint8"), np.zeros(2001, dtype="uint8")]
     original = values.copy()
     resampled, targets, audit = resample_training(values, labels, config)
-    minority = int(201 * ratio)
-    assert len(targets) == 201 + minority
-    assert audit["class_counts"] == {"0": 201, "1": minority}
+    minority = int(2001 * ratio)
+    assert len(targets) == 2001 + minority
+    assert audit["class_counts"] == {"0": 2001, "1": minority}
     assert audit["generated_fraud_rows"] == minority - 10
     assert audit["requested_sampling_ratio"] == ratio
-    assert audit["achieved_sampling_ratio"] == minority / 201
-    np.testing.assert_array_equal(resampled[:211], original)
-    np.testing.assert_array_equal(targets[:211], labels)
-    assert (targets[211:] == 1).all()
-    preflight = memory_preflight(211, 201, ratio)
+    assert audit["achieved_sampling_ratio"] == minority / 2001
+    np.testing.assert_array_equal(resampled[:2011], original)
+    np.testing.assert_array_equal(targets[:2011], labels)
+    assert (targets[2011:] == 1).all()
+    preflight = memory_preflight(2011, 2001, ratio)
     assert preflight["estimated_resampled_rows"] == len(targets)
+    assert preflight["estimated_array_bytes"] == (3 * 2011 + 4 * len(targets)) * len(FEATURE_COLUMNS) * 8 + 64 * 1024**2
 
 
 @pytest.fixture
@@ -106,7 +108,23 @@ def experiment(tmp_path, raw_record):
     config.dataset = config.dataset.model_copy(update={"filename": source.name,
                   "sha256": file_sha256(source), "row_count": len(frame)})
     prepared = prepare_dataset(source, config, tmp_path / "prepared", "tiny", progress=lambda _: None)
-    protocol = staged.SelectionProtocol(trees=[3, 4], depths=[2, 3], leaves=[1, 2, 4], reference_forest=(3, 2, 1))
+    protocol = staged.SelectionProtocol(ratios=[.1, .2, 1 / 3, .5, 1.], trees=[3, 4], depths=[2, 3], leaves=[1, 2, 4], reference_forest=(3, 2, 1))
+    return prepared, config, protocol
+
+
+@pytest.fixture
+def sparse_experiment(tmp_path, raw_record):
+    """Enough minority neighbors, with original prevalence below 1:100."""
+    frame = pd.DataFrame([raw_record | {"step": i + 1, "amount": float(i + 1),
+             "nameOrig": f"C_{i}", "type": "TRANSFER" if i % 2 else "CASH_OUT",
+             "isFraud": int(i % 200 == 0)} for i in range(4000)]).loc[:, RAW_COLUMNS]
+    source = tmp_path / "sparse.csv"
+    frame.to_csv(source, index=False)
+    config = load_experiment(BACKEND_ROOT / "configs/experiment.yaml").model_copy(deep=True)
+    config.dataset = config.dataset.model_copy(update={"filename": source.name,
+                  "sha256": file_sha256(source), "row_count": len(frame)})
+    prepared = prepare_dataset(source, config, tmp_path / "prepared", "sparse", progress=lambda _: None)
+    protocol = staged.SelectionProtocol(trees=[3], depths=[2], leaves=[1], reference_forest=(3, 2, 1))
     return prepared, config, protocol
 
 
@@ -207,8 +225,19 @@ def test_reuse_rejects_dependency_parameters_and_fingerprints(experiment, tmp_pa
         staged.inspect_model(model, prepared_hash)
 
 
-def test_stage_one_only_stops_and_can_resume_without_refitting(experiment, tmp_path, monkeypatch):
-    prepared, config, protocol = experiment
+def test_stage_one_only_stops_and_can_resume_without_refitting(sparse_experiment, tmp_path, monkeypatch):
+    prepared, config, protocol = sparse_experiment
+    import integritree.ml.training as training
+    import integritree.ml.research as research
+    training_loader, evaluation_loader = training.load_prepared_split, research.load_prepared_split
+    def train_only(path, split):
+        assert split == "train"
+        return training_loader(path, split)
+    def validation_only(path, split):
+        assert split == "validation"
+        return evaluation_loader(path, split)
+    monkeypatch.setattr(training, "load_prepared_split", train_only)
+    monkeypatch.setattr(research, "load_prepared_split", validation_only)
     actual_train = staged.train_models
     fitted = []
     def reference_only(path, requested, *args, **kwargs):
@@ -224,6 +253,7 @@ def test_stage_one_only_stops_and_can_resume_without_refitting(experiment, tmp_p
     output = staged.select_three_stage(prepared, config, protocol, tmp_path / "selection",
                          "stage_one", stop_after_stage=1, progress=lambda _: None)
     assert fitted == protocol.ratios
+    assert len(staged.read_json(output / "search_progress.json")["completed_candidates"]) == 8
     manifest = staged.read_json(output / "metadata.json")
     assert manifest["status"] == "awaiting_next_stage"
     assert manifest["completed_stage"] == 1
@@ -234,13 +264,6 @@ def test_stage_one_only_stops_and_can_resume_without_refitting(experiment, tmp_p
     assert not (output / "stages/03_threshold").exists()
     with pytest.raises(ValueError, match="incomplete"):
         load_bundle(output)
-    # Emulate an immutable revision-1 plan from before explicit revision fields.
-    old_plan = staged.read_json(output / "search_plan.json")
-    old_plan["protocol"].pop("revision")
-    old_plan["protocol"].pop("amendment_note")
-    staged.atomic_json(output / "search_plan.json", old_plan)
-    manifest["search_plan_sha256"] = file_sha256(output / "search_plan.json")
-    staged.atomic_json(output / "metadata.json", manifest)
     plan_hash = file_sha256(output / "search_plan.json")
     decision_hash = file_sha256(output / "stages/01_smote_ratio/decision.json")
     staged.select_three_stage(prepared, config, protocol, output.parent, resume=output,
@@ -251,6 +274,12 @@ def test_stage_one_only_stops_and_can_resume_without_refitting(experiment, tmp_p
     report = staged.export_ratio_stage(output, tmp_path / "reports")
     assert staged.read_json(report / "metadata.json")["test_used"] is False
     assert file_sha256(report / "decision.json") == decision_hash
+    assert len(staged.read_json(report / "decision.json")["candidates"]) == 8
+    changed = protocol.model_copy(update={"ratios": [.1, .2, 1 / 3, .5, 1.]})
+    with pytest.raises(ValueError, match="Resume configuration"):
+        staged.select_three_stage(prepared, config, changed, output.parent, resume=output,
+                                  stop_after_stage=1, progress=lambda _: None)
+    assert file_sha256(output / "search_plan.json") == plan_hash
     with (output / "stages/01_smote_ratio/decision.json").open("a") as handle:
         handle.write(" ")
     with pytest.raises(ValueError, match="fingerprint"):
@@ -258,66 +287,56 @@ def test_stage_one_only_stops_and_can_resume_without_refitting(experiment, tmp_p
                                   stop_after_stage=1, progress=lambda _: None)
 
 
-def test_revision_two_changes_only_ratios_and_disclosure():
-    original = staged.load_protocol(BACKEND_ROOT / "configs/validation_three_stage.yaml")
-    extended = staged.load_protocol(BACKEND_ROOT / "configs/validation_three_stage_v2.yaml")
-    assert extended.revision == 2 and extended.amendment_note
-    assert extended.ratios == original.ratios + [.05, .02, .01]
-    assert extended.reference_forest == (100, 10, 1)
-    assert len(extended.forests()) == 12
-    exclude = {"revision", "amendment_note", "ratios"}
-    assert extended.model_dump(exclude=exclude) == original.model_dump(exclude=exclude)
-    with pytest.raises(ValueError, match="disclosure"):
-        staged.SelectionProtocol(revision=2)
+def test_obsolete_selection_bundle_rejected(tmp_path):
+    staged.atomic_json(tmp_path / "metadata.json", {
+        "kind": "validation_selection", "schema_version": 1, "status": "complete"})
+    with pytest.raises(ValueError, match="three-stage schema-2"):
+        load_bundle(tmp_path)
 
 
-def test_extended_stage_reuses_original_five_and_preserves_frozen_study(tmp_path, raw_record, monkeypatch):
-    frame = pd.DataFrame([raw_record | {"step": i + 1, "amount": float(i + 1),
-              "nameOrig": f"C_{i}", "isFraud": int(i % 400 == 0)} for i in range(4000)]).loc[:, RAW_COLUMNS]
-    source = tmp_path / "rare_fraud.csv"
-    frame.to_csv(source, index=False)
-    config = load_experiment(BACKEND_ROOT / "configs/experiment.yaml").model_copy(deep=True)
-    config.dataset = config.dataset.model_copy(update={"filename": source.name,
-                 "sha256": file_sha256(source), "row_count": len(frame)})
-    prepared = prepare_dataset(source, config, tmp_path / "prepared", "rare", progress=lambda _: None)
-    original = staged.SelectionProtocol(trees=[3], depths=[2], leaves=[1], reference_forest=(3, 2, 1))
-    import integritree.ml.research as research
-    real_loader = research.load_prepared_split
-    def validation_only(path, split):
-        assert split == "validation"
-        return real_loader(path, split)
-    monkeypatch.setattr(research, "load_prepared_split", validation_only)
-    first = staged.select_three_stage(prepared, config, original, tmp_path / "runs", "original",
-                                      stop_after_stage=1, progress=lambda _: None)
-    original_hashes = {p.relative_to(first): file_sha256(p) for p in first.rglob("*") if p.is_file()}
-    extended = original.model_copy(update={"revision": 2, "amendment_note": "Synthetic bounded extension",
-                                            "ratios": original.ratios + [.05, .02, .01]})
-    real_train = staged.train_models
-    new_ratios = []
-    def only_new(path, requested, *args, **kwargs):
-        assert kwargs.get("reuse_rf_from") is not None
-        new_ratios.append(requested.smote.sampling_ratio)
-        return real_train(path, requested, *args, **kwargs)
-    monkeypatch.setattr(staged, "train_models", only_new)
-    second = staged.select_three_stage(prepared, config, extended, tmp_path / "runs", "extended",
-                              reuse_roots=(first,), stop_after_stage=1, progress=lambda _: None)
-    assert new_ratios == [.05, .02, .01]
-    old_progress = staged.read_json(first / "search_progress.json")["completed_candidates"]
-    new_progress = staged.read_json(second / "search_progress.json")["completed_candidates"]
-    assert len(new_progress) == 8
-    for key, row in old_progress.items():
-        assert new_progress[key]["rf_smote"] == row["rf_smote"]
-        assert staged.resolve_reference(new_progress[key]["model"], second) == staged.resolve_reference(row["model"], first)
-        assert staged.resolve_reference(new_progress[key]["report"], second) == staged.resolve_reference(row["report"], first)
-    for ratio in [.05, .02, .01]:
-        row = new_progress[staged.candidate_key(ratio, extended.reference_forest)]
-        model = staged.resolve_reference(row["model"], second)
-        audit = staged.read_json(model / "training_audit.json")
-        majority = audit["original_class_counts"]["0"]
-        assert audit["class_counts"]["1"] == int(majority * ratio)
-        assert audit["generated_fraud_rows"] == int(majority * ratio) - audit["original_class_counts"]["1"]
-    assert original_hashes == {p.relative_to(first): file_sha256(p) for p in first.rglob("*") if p.is_file()}
-    assert not (second / "stages/02_random_forest").exists()
-    report = staged.export_ratio_stage(second, tmp_path / "reports")
-    assert "Protocol revision: 2" in (report / "SUMMARY.md").read_text()
-    assert "Synthetic bounded extension" in (report / "SUMMARY.md").read_text()
+def test_protocol_rejects_removed_amendment_fields():
+    with pytest.raises(ValueError, match="Extra inputs"):
+        staged.SelectionProtocol(revision=2, amendment_note="obsolete")
+
+
+def test_fresh_stage_one_reuses_only_its_benchmark_and_releases_reports(sparse_experiment, tmp_path, monkeypatch):
+    import weakref
+    prepared, config, protocol = sparse_experiment
+    real_load, real_train = staged.load_report, staged.train_models
+    frames, sources = [], []
+    output = tmp_path / "runs" / "fresh"
+    def tracked_load(path):
+        meta, frame = real_load(path)
+        frames.append(weakref.ref(frame))
+        return meta, frame
+    def checked_train(*args, **kwargs):
+        assert all(ref() is None for ref in frames)
+        source = kwargs.get("reuse_rf_from")
+        if sources:
+            assert source is not None and source.is_relative_to(output)
+        else:
+            assert source is None
+        sources.append(source)
+        return real_train(*args, **kwargs)
+    monkeypatch.setattr(staged, "load_report", tracked_load)
+    monkeypatch.setattr(staged, "train_models", checked_train)
+    staged.select_three_stage(prepared, config, protocol, output.parent, output.name,
+                              stop_after_stage=1, progress=lambda _: None)
+    plan = staged.read_json(output / "search_plan.json")
+    assert plan["reuse"]["models"] == [] and plan["reuse"]["reports"] == []
+    assert len(sources) == 8
+
+
+def test_completed_three_stage_selection_allows_synthetic_test(experiment, tmp_path):
+    from integritree.ml.research import evaluate_run, load_report
+    prepared, config, _ = experiment
+    protocol = staged.SelectionProtocol(ratios=[.1, .2, 1 / 3, .5, 1.], trees=[3], depths=[2], leaves=[1], reference_forest=(3, 2, 1))
+    output = staged.select_three_stage(prepared, config, protocol, tmp_path / "runs",
+                                      progress=lambda _: None)
+    bundle = load_bundle(output)
+    report = evaluate_run(output, prepared, config, tmp_path / "reports", "test", progress=lambda _: None)
+    meta, scores = load_report(report)
+    assert meta["official_test"] is True
+    assert scores.threshold.eq(bundle.config.scoring.threshold).all()
+    effective = staged.read_json(report / "evaluation_configuration.json")
+    assert effective["effective_random_forest"]["tuning_procedure"] == "three_stage_validation_selected"

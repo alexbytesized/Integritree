@@ -160,9 +160,9 @@ Undefined inputs propagate an unavailable status. Legacy absolute_over_mean rema
 readable and must keep its own method label. Calculation is not implemented yet.
 
 Use a separately recorded evaluation/explainer policy referencing immutable model
-artifacts. The Phase 3 artifact loader currently enforces fixed-baseline settings;
-Phase 4 must explicitly support validation-selected thresholds/runs and test legacy
-compatibility before serving them. Do not mutate a saved configuration to pass a gate.
+artifacts. Ordinary fitted bundles retain their integrity checks; completed
+three-stage selections use schema 2 and carry the frozen common threshold.
+Do not mutate a saved configuration to pass a gate.
 
 Current GET-only CORS will need the actual methods/headers when upload and prediction
 routes are added. A database is optional; file/job access and retention still need
@@ -178,10 +178,11 @@ Phase 5 services to call:
 - `ml.research.evaluate_run(...)`: paired full-split predictions, metrics, AP,
   comparisons, McNemar, figures, and provenance. Validation is the default;
   `split="test"` requires a frozen validation-selected bundle.
-- `ml.selection.select_models(...)`: approved shared RF/common-cutoff validation
-  search, with saved selection references and resume support.
-- `ml.artifacts.load_bundle(path)`: loads either an original immutable baseline
-  or a complete selection reference after integrity checks.
+- `ml.staged_selection.select_three_stage(...)`: sequential ratio/AP, forest/AP,
+  threshold/F1 selection, with frozen stage evidence and resume support.
+  `stop_after_stage=1` freezes the ratio only; the default 3 executes all stages.
+- `ml.artifacts.load_bundle(path)`: loads an ordinary fitted pair or a complete schema-2
+  three-stage selection after integrity checks; obsolete selections are rejected.
 - `ml.explainability.ExplanationEngine(...).explain(features, transaction_ids,
   analysis_id)`: both-model explanations from already-prepared features in saved
   order. Each computed item includes base/output probability, contributions,

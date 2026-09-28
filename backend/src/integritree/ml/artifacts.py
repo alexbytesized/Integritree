@@ -32,8 +32,7 @@ def load_bundle(path: Path) -> ModelBundle:
         if metadata.get("schema_version") == 2:
             from integritree.ml.staged_selection import load_staged_selected
             return load_staged_selected(path)
-        from integritree.ml.selection import load_selected
-        return load_selected(path)
+        raise ValueError("Unsupported selection bundle; a three-stage schema-2 selection is required")
     if metadata.get("status") != "complete" or metadata.get("schema_version") != 1:
         raise ValueError("Model bundle is incomplete or unsupported")
     if metadata.get("feature_order") != FEATURE_COLUMNS:

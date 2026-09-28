@@ -1,51 +1,14 @@
 # Thesis manuscript alignment checklist
 
-## 2026-09-28 ratio-search extension
+The Word reference documents remain unchanged. Apply the following corrections
+when updating the manuscript; report numbers only from verified current outputs.
 
-Disclose the [revision-2 amendment](STAGE1_RATIO_EXTENSION_V2.md), authorized after
-the original five-ratio study selected 1:10. Report the eight-candidate comparison
-separately from the original frozen study. Added candidates are 1:20, 1:50, and
-1:100; selection remains RF-SMOTE validation AP at 100 trees/depth 10/leaf 1.
-This is adaptive development on the same validation set, not independent evidence.
-Do not populate its conclusions until the new run completes. The manuscript has
-not been edited; Stage 2, threshold selection, and the official test remain pending.
-
-Last reviewed: 2026-09-27
-
-## New protocol amendment for manuscript review
-
-Use [THREE_STAGE_VALIDATION.md](THREE_STAGE_VALIDATION.md) as the current
-validation specification. Update the methods to include five SMOTE ratios,
-12 shared forest configurations (minimum leaf sizes 1/10/50), AP objectives in
-Stages 1/2, and exact mean-F1 selection over all distinct score thresholds in
-Stage 3. State all tie rules and `score >= threshold`. Report every candidate,
-the exact selected cutoff, and both models' metrics; do not choose a model winner.
-
-Disclose that the protocol changed after earlier validation results were reviewed,
-that one validation set supports all three decisions, and that sequential freezing
-can miss interactions. Keep historical findings labeled as historical. New
-numerical conclusions require a completed verified run; no official test result
-is authorized by this protocol. The manuscript itself has not been edited.
-
-This is a checklist for researcher/adviser review, not an edited manuscript.
-Source: `C:/Users/Carpicorn/Downloads/Thesis/COSC-305_CS-Thesis-Writing-1/Post-Proposal-Defense_Revision/Thesis-Proposal-Revised.docx`.
-The original Chapter 3 wording and equations were inspected. Section names and
-equation numbers below identify locations; page numbers may change during editing.
-
-**Implementation status:** Phases 1-4, full PaySim preparation, and baseline
-RF/RF-SMOTE training are complete and verified. Run
-paysim_phase3_baseline_20260920 contains both trained models and provenance.
-The initial RAM preflight stop was resolved after unused applications were closed;
-the successful retry preserved the approved settings and all training records.
-Evaluation, selection, and SHAP code are implemented. Full baseline validation,
-the four-candidate 1:1 validation search, the descriptive 1:3 validation sensitivity
-study, and a five-record SHAP preview have run. Global SHAP, official test evaluation,
-prediction APIs, and OCR have not. Validation results are not final thesis performance
-results. See PHASE4_IMPLEMENTATION.md and VALIDATION_RUN_STATUS.md.
-
-Use the checkboxes when the researchers actually update and review the manuscript.
-All items remain unchecked because no manuscript edits were made.
-“Implemented” means code exists; full-dataset execution is identified separately.
+The sole selection workflow is [three-stage validation](THREE_STAGE_VALIDATION.md):
+SMOTE ratio by RF-SMOTE validation Average Precision, shared forest settings by
+mean validation AP, then a common threshold by exact mean validation F1. Each
+stage freezes before the next. Both models are retained; selection does not pick
+a model winner. Current execution stops after Stage 1. See
+[run status](VALIDATION_RUN_STATUS.md) for measured outcomes.
 
 ## A. Align descriptions with implemented behavior
 
@@ -60,41 +23,37 @@ All items remain unchecked because no manuscript edits were made.
 | [ ] | Clarify | Timing features | hour_of_day=(step-1)%24; day_of_week=((step-1)//24)%7. These are simulation-cycle positions; do not label day 0 as a verified Monday or treat PaySim time as an established real GCash calendar mapping. | Approved convention implemented. |
 | [ ] | Add | Normalization | Apply Min-Max scaling to log_amount, hour_of_day, and day_of_week using training extrema only. Binary indicators remain 0/1 on real rows. Do not clip future values to the training range or refit on uploaded records. | preprocessing.py. |
 | [ ] | Clarify | Splitting | Stratified 80/10/10 implemented as 80/20, followed by a 50/50 split of the held-out 20%, both with seed 42. Shared row identities keep outputs paired. Report train=5,090,096 (6,570 fraud), validation=636,262 (822 fraud), test=636,262 (821 fraud). | Full preparation completed. |
-| [ ] | Add | SMOTE procedure | Ordinary SMOTE, minority:majority ratio 1:1, k_neighbors=5, seed=42. Apply only to the original training branch for RF-SMOTE. Require at least k+1 fraud examples. RF uses the unaugmented training set. | training.py implemented; full baseline training completed. |
-| [ ] | Clarify limitation | SMOTE and categorical encoding | Convert encoded inputs to float64 before SMOTE and preserve interpolated fractions, including categorical indicators. Do not round, truncate, select argmax, or assign synthetic rows a real transaction type. Such rows are numeric training vectors, not realistic receipts. Their fraud target remains 1. | Implemented and verified. Full-run audit found zero fractional categorical indicators/mixed type rows; the general limitation remains. |
-| [ ] | Add | SMOTE sample counts | Report the confirmed 5,076,956 additional fraud samples and 10,167,052 total RF-SMOTE training rows, with 5,083,526 in each class. These are training counts, not model-performance findings. | Confirmed by training_audit.json in the completed baseline run. |
-| [ ] | Add | Model training settings | Shared baseline: 100 trees, max_depth=20, min_samples_split=2, min_samples_leaf=1, max_features=sqrt, bootstrap=True, class_weight=None, criterion=gini, model seed=42. Both models use matching settings; SMOTE is the intended training difference. | experiment.yaml, training.py. |
+| [ ] | Add | SMOTE procedure | Ordinary SMOTE, eight candidate ratios from the protocol, k_neighbors=5, seed=42. Apply only to the original training branch for RF-SMOTE. Require at least k+1 fraud examples. RF uses the unaugmented training set. | training.py and canonical protocol; execution status recorded separately. |
+| [ ] | Clarify limitation | SMOTE and categorical encoding | Convert encoded inputs to float64 before SMOTE and preserve interpolated fractions, including categorical indicators. Do not round, truncate, select argmax, or assign synthetic rows a real transaction type. Such rows are numeric training vectors, not realistic receipts. Their fraud target remains 1. | Inspect each new candidate audit; do not infer realism from numeric validity. |
+| [ ] | Add | SMOTE sample counts | Report original, generated, and final class counts for each candidate from its new training audit. | Current run training_audit.json files. |
+| [ ] | Add | Model training settings | Stage 1 uses 100 trees/depth 10/leaf 1; Stage 2 compares the 12 shared settings in the protocol. Keep other RF settings and seeds matched. | Canonical protocol and current run plan. |
 | [ ] | Revise | Classification/risk-score description and equation | Define fraud score as the mean of individual trees' fraud-class probability estimates, using the class-1 column of predict_proba. A proportion of hard fraud votes is a different calculation. Internal score is 0..1. Do not describe it as a calibrated real-world probability without validation. | inference.py; a test demonstrates the difference from hard voting. |
-| [ ] | Add | Classification threshold | Baseline predicts fraud when score >= 0.50, including exact ties. Both models use the same cutoff. Baseline is not described as optimal or finalized after tuning. | Implemented. |
+| [ ] | Add | Classification threshold | Fraud when score >= common threshold. The 0.50 checkpoint is supplementary until Stage 3. | Canonical protocol. |
 | [ ] | Add | System architecture/reproducibility | Python scripts perform preparation and training. Shared inference loads both models plus fitted preprocessing, feature order, scoring policy, dataset/split fingerprints, software versions, and settings from a new run bundle. It does not retrain on application requests. | artifacts.py, inference.py, training.py. |
-| [ ] | Clarify | Implementation/testing status | Distinguish synthetic software tests, completed full baseline training, and artifact/inference consistency checks from future thesis performance evaluation. The memory issue was resolved on retry without reducing data or changing settings. | Full run and verification completed; see backend README and the saved verification report. |
+| [ ] | Clarify | Implementation/testing status | Separate synthetic software checks from completed research stages and official performance evaluation. | Current run status. |
 
-## B. Record approved future tuning without claiming it has run
+## B. Describe three-stage validation
 
-The researchers approved the following protocol, now implemented in Phase 4.
-It is verified on synthetic fixtures but has not run on full PaySim. The original
-fixed-baseline command does not select or finalize settings.
+- [ ] State the eight ratios, reference forest, RF-SMOTE AP objective, and exact
+  smaller-ratio tie rule for Stage 1.
+- [ ] State the 12 matched forests, mean AP objective, and shallower/fewer-trees/
+  larger-leaf tie order for Stage 2.
+- [ ] State Stage 3's union of distinct paired scores plus 0, 0.50, and 1; maximize
+  exact mean F1, breaking ties by proximity to 0.50 and then the higher threshold.
+- [ ] Freeze each stage before the next. Keep both models, shared settings, and one
+  cutoff. Classification metrics at 0.50 supplement Stages 1 and 2 only.
+- [ ] Report all candidates and acknowledge sequential ratio/forest interactions,
+  repeated validation use, one seed set, and prior inspection of this validation
+  set. Do not claim a global optimum or historical preregistration.
+- [ ] Distinguish completed stages from pending ones using current run status.
+  Official test evaluation follows completed selection and separate authorization;
+  there is no combined training/validation refit.
 
-- [ ] **Add to Model Validation:** candidate RF settings are (trees, depth):
-  (100,10), (100,20), (200,10), (200,20); other settings remain fixed and matched.
-  Evaluate both models for each candidate at the common 0.50 cutoff.
-- [ ] **Add the selection rule:** select one shared RF configuration by the highest
-  mean of RF validation F1 and RF-SMOTE validation F1. Exact ties prefer shallower
-  trees, then fewer trees. Report individual model results as well as the mean.
-- [ ] **Add common-threshold tuning:** after selecting the shared RF configuration,
-  evaluate 0.05, 0.10, ..., 0.95 on the validation set. Select the common threshold
-  giving the highest mean F1 across the pair. Exact ties prefer closest to 0.50,
-  then the higher cutoff. This need not maximize each model's individual F1.
-- [ ] **Clarify tuning limits:** define the search before inspecting its results;
-  keep settings and cutoff common. Do not promise that a small search guarantees
-  absence of overfitting or finds the global optimum.
-- [ ] **Clarify order:** implement metrics, tune on validation, freeze models and
-  cutoff, then perform official test evaluation. Do not retrain on combined
-  training+validation data unless that separate methodology change is approved.
+Use [the canonical protocol](THREE_STAGE_VALIDATION.md) for the exact settings.
 
 ## C. Align evaluation text with Phase 4
 
-Metric/statistical code is implemented and has run on baseline validation data.
+Metric/statistical code is implemented; current results require verified new outputs.
 The manuscript corrections remain unchecked until reviewed and applied.
 
 | Done | Action | Location | Change needed |
@@ -126,8 +85,7 @@ The manuscript corrections remain unchecked until reviewed and applied.
 - [ ] **Document implemented SHAP:** interventional fraud-probability TreeSHAP,
   shared uniform sample of 200 original-training records without replacement,
   seed 42, reconstruction tolerance 1e-6 and positive tolerance 1e-9. Record the
-  1,000-record global sampling policy and distinguish it from the executed five-row
-  preview. Explain the prediction-equivalent representation adapter in the technical
+  1,000-record global sampling policy and report actual explanation coverage separately. Explain the prediction-equivalent representation adapter in the technical
   implementation section; it does not alter the model or explanation target.
 - [ ] **Align the approved SHAP presentation:** top risk-increasing contributor
   even for legitimate predictions, deterministic explanations, and waterfall-only
@@ -149,21 +107,22 @@ The manuscript corrections remain unchecked until reviewed and applied.
 
 **Training and scoring (implemented behavior):**
 
-> The baseline compares Random Forest models with identical classifier settings
+> The experiment compares Random Forest models with identical classifier settings
 > and random seeds. The control is fitted to the original training split. For the
 > experimental branch, ordinary SMOTE is applied only to the training features to
-> target equal fraud and legitimate sample counts. Fractional values produced in
+> use the candidate fraud-to-legitimate ratio. Fractional values produced in
 > encoded indicators are retained as synthetic numerical training inputs and
 > acknowledged as a limitation. Each model's fraud risk score is the mean of its
 > trees' fraud-class probability estimates. Both models classify a transaction as
-> fraud when this score is at least 0.50 in the baseline experiment.
+> fraud when this score is at least the common threshold selected in Stage 3.
 
-**Validation and final testing (approved future procedure):**
+**Validation and final testing:**
 
-> A predefined, limited validation search will select shared classifier settings
-> and a common decision threshold using the mean F1 score of the two models.
-> Selection will use the validation split only. The final settings and threshold
-> will be fixed before both models are evaluated on the shared held-out test set.
+> Three sequential validation stages select the SMOTE ratio by RF-SMOTE Average
+> Precision, matched forest settings by mean Average Precision, and a common
+> threshold by exact mean F1. Each decision is frozen before the next stage.
+> Selection uses validation only. Both fitted models and the final cutoff are
+> fixed before a separately authorized evaluation on the untouched test set.
 
 Adjust tense when the full experiment has actually run. Include the numeric
 settings and search rules from the checklist, rather than relying on these short
@@ -201,7 +160,7 @@ passages alone.
   retraining, approximate explanations, or edited saved models.
 - [ ] State that the code supports frozen common-cutoff selected bundles, but the
   real search is not complete. Do not report .50 as validation-optimal.
-- [ ] Label current PaySim metrics as **baseline validation**. Final Chapter 4 thesis
-  performance tables must come from the final held-out test after selection.
-- [ ] Distinguish the 143 software tests and five-record explanation check from
-  a fraud-detection performance study or evaluation on genuine GCash transactions.
+- [ ] Final thesis performance tables must come from held-out testing after
+  completed selection. Stage 1 metrics are validation development evidence.
+- [ ] Distinguish software tests from fraud-detection performance studies and
+  evaluation on genuine GCash transactions.

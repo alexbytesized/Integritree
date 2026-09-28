@@ -1,23 +1,11 @@
-# Integritree — Thesis Context and Confirmed Requirements
+# Integritree - Thesis Context and Confirmed Requirements
 
-Last reviewed: 2026-09-28
-
-The researchers approved a [bounded Stage 1 extension](STAGE1_RATIO_EXTENSION_V2.md)
-after seeing the original 1:10 winner. New revision 2 adds 1:20, 1:50, and 1:100
-and compares all eight ratios under the unchanged reference forest/AP rule.
-It uses a separate run; original decisions are immutable. Only Stage 1 is
-authorized, and no further ratio expansion is assumed.
-
-## Current validation amendment
-
-The researchers approved a new [three-stage sequential validation protocol](THREE_STAGE_VALIDATION.md):
-five SMOTE ratios selected by RF-SMOTE AP; 12 matched forest configurations,
-including minimum leaf sizes 1/10/50, selected by mean AP; and a common threshold
-selected by exact mean F1 across all distinct scores plus 0/.50/1. Each stage
-freezes before the next. This supersedes older selection instructions for new
-experiments, not their immutable artifacts or historical conclusions.
-The revision occurred after reviewing previous validation results. All selection
-uses the existing validation partition; test use requires separate authorization.
+The sole selection workflow is [three-stage validation](THREE_STAGE_VALIDATION.md):
+SMOTE ratio by RF-SMOTE validation Average Precision, shared forest settings by
+mean validation AP, then a common threshold by exact mean validation F1. Each
+stage freezes before the next. Both models are retained; selection does not pick
+a model winner. Current execution stops after Stage 1. See
+[run status](VALIDATION_RUN_STATUS.md) for measured outcomes.
 
 ## 1. Purpose of this document
 
@@ -160,8 +148,8 @@ implementation clarifications are in [METHODOLOGY.md](METHODOLOGY.md).
 Phase 2 preparation is implemented and executed. The verified local bundle is
 `backend/data/prepared/paysim_phase2_20260918/`. Training has 5,090,096 rows
 (6,570 fraud), validation 636,262 (822 fraud), and testing 636,262 (821 fraud).
-Preprocessing was fitted on original training records only. Full PaySim baseline
-RF/RF-SMOTE training is now complete and verified; see the Phase 3 decision record.
+Preprocessing was fitted on original training records only. It is retained for
+the fresh validation run; see the current run status for training progress.
 
 ## 6. Evaluation and statistical interpretation
 
@@ -294,10 +282,9 @@ Research:
 - Application job scheduling/lifecycle remain open; the score display is now 0..100 with
   approved communication bands, while internal scores remain 0..1.
 
-The Phase 3 baseline is ordinary SMOTE at 1:1, k_neighbors=5, model/SMOTE seeds=42,
-matching RF settings, and common 0.50 cutoff. The bounded shared-configuration
-and common-cutoff search is documented in METHODOLOGY.md and follows Phase 4
-metric implementation. No per-model thresholds are planned.
+Ordinary SMOTE uses k_neighbors=5 and seed 42; both forests use model seed 42
+and matching settings. The three-stage protocol determines ratio, forest, and
+common cutoff. No per-model thresholds are planned.
 
 Receipt demonstration:
 
@@ -319,37 +306,15 @@ Software:
 Do not silently resolve a methodological ambiguity merely to make
 implementation easier.
 
-## 10. Repository status at the time of review
+## 10. Repository status
 
-- A React/Vite frontend exists.
-- It includes upload, researcher-results, and user-results screens.
-- Predictions, counts, and statistics currently include mock values.
-- The user screen currently contains ground-truth information, which
-  will need to reflect the agreed unlabeled-user workflow.
-- Phase 1 is implemented: an installable Python 3.12 package, application settings,
-  validated draft experiment configuration, shared data contracts, and a FastAPI
-  health endpoint. Seventy foundation tests pass; the live health check and
-  dependency consistency check also passed.
-- Phase 2 is implemented: batched source validation, disk-backed exact duplicate
-  checking, deterministic features, shared stratified splits, and saved
-  training-fitted preprocessing. The full supplied dataset has been prepared.
-- The 2026-09-22 audit passed 125 software tests. Completed Phase 2 full-output checks verified every
-  row for alignment/valid features, file hashes, and preprocessing replay.
-- Preparation and baseline training commands are implemented. Shared Python
-  inference supports one or many structured records through saved models.
-- Phase 3 and full PaySim baseline training are complete and verified. Both models
-  are saved under backend/artifacts/paysim_phase3_baseline_20260920/. The successful
-  retry followed an initial RAM preflight stop; the approved data/settings were unchanged.
-- Phase 4 evaluation, selection, and SHAP are implemented (143 tests passed).
-  Full baseline validation and a paired SHAP preview have run; full search/final
-  testing/global SHAP have not. General batch-export CLI, prediction APIs, and OCR
-  remain future work.
-  The frontend has not been connected to the backend.
-- The raw PaySim file is available locally and remains unchanged.
-- See [the backend implementation plan](BACKEND_IMPLEMENTATION_PLAN.md) and
-  [backend setup instructions](../backend/README.md).
-
-This is a dated observation. Reinspect before making changes.
+The React/Vite frontend includes upload and results screens with mock values;
+these are not experimental results. Python implements preparation, training,
+saved inference, evaluation, three-stage selection, and SHAP. HTTP is health-only;
+prediction routes, frontend integration, general batch exports, and OCR remain
+future work. The raw dataset, completed preparation, and preparation verification
+are retained. Current model/validation execution is recorded in
+[run status](VALIDATION_RUN_STATUS.md).
 
 ## 11. Working constraints for future development
 
@@ -362,7 +327,7 @@ This is a dated observation. Reinspect before making changes.
 - Do not confuse experimental receipt prediction with validated
   real-world fraud detection.
 - The researchers authorized the scaffold, phased plan, and Phases 1-3 code.
-  Phase 3 code and full PaySim baseline training are complete.
+  Training code is implemented; current run status determines available models.
   The six Phase 2 preparation recommendations were explicitly approved.
   Other open methodology choices are not approved by implementing contracts.
 - Internal result contracts represent risk scores on a 0..1 scale; the score
@@ -382,30 +347,14 @@ This is a dated observation. Reinspect before making changes.
 - SMOTE and categorical data:
   https://imbalanced-learn.org/stable/over_sampling.html
 
-## 13. Current Phase 3 decision and execution status
+## 13. Training and execution boundaries
 
-Read the Phase 3 section of [METHODOLOGY.md](METHODOLOGY.md). It distinguishes the
-implemented fixed baseline, approved but unexecuted validation search, and
-unresolved evaluation choices. The Phase 2 bundle retains its original
-configuration snapshot unchanged.
-
-Phase 3 and full PaySim baseline training are complete. Run
-paysim_phase3_baseline_20260920 contains both saved models and their provenance.
-The initial memory preflight stop was resolved after unused applications were
-closed. The successful retry used matching 100-tree/depth-20 models, all original
-training rows, and the approved 1:1 SMOTE configuration.
-
-The training audit confirms 5,076,956 synthetic fraud rows and 10,167,052 total
-RF-SMOTE rows; no fractional categorical indicators arose in this particular run.
-Artifact reloads, feature replay, paired inference consistency, and source/prepared
-file integrity passed verification. See
-backend/reports/paysim_phase3_baseline_20260920/verification.json.
-At the Phase 3 handoff, validation tuning, official test evaluation, and SHAP had
-not run. See the current Phase 4 status below. Do not describe
-baseline artifacts or software verification as finalized performance findings.
-
-Use [THESIS_DOCUMENT_CHANGES.md](THESIS_DOCUMENT_CHANGES.md) when aligning the
-manuscript. Distinguish implemented code from executed research jobs and GCash OCR.
+The three-stage protocol is the only supported selection workflow. Generic
+fixed-parameter training is a reusable component, not a separate tuning method.
+The current restart trains fresh candidates and executes only Stage 1. Tree
+selection, threshold selection, official testing, and SHAP execution remain
+outside this run. The Word reference documents have not been edited; use
+[the manuscript checklist](THESIS_DOCUMENT_CHANGES.md) for alignment.
 
 ## 14. Completed mock-up review and backend alignment (2026-09-22)
 
@@ -433,26 +382,16 @@ screen with McNemar, and ignore all screenshot sample numbers.
 [The backend audit](BACKEND_ALIGNMENT_AUDIT.md) found the completed preparation and
 baseline method aligned and documented future extensions: selected-run artifacts,
 evaluation/SHAP, application results/query/export contracts, and a receipt adapter
-using shared saved scaling. The plan now starts next with Phase 4. No new model
+using shared saved scaling. Evaluation, three-stage selection, and SHAP code are now implemented. No new model
 training or official performance result was produced by this review.
 
 
-## 15. Current Phase 4 status (updated 2026-09-25)
+## 15. Evaluation and explanation implementation
 
-The final responses approved continuity-corrected McNemar with the exact
-small-discordance supplement and the shared training-reference TreeSHAP proposal.
-The active YAML records all four approved decisions; immutable old bundles retain
-their historical configuration snapshots.
-
-Read [PHASE4_IMPLEMENTATION.md](PHASE4_IMPLEMENTATION.md) for implemented methods,
-selection guards, the prediction-equivalent SHAP compatibility adapter, and evidence.
-Full baseline validation covers 636,262 records. Five validation records have
-paired saved-model explanations that pass reconstruction checks. These are
-validation/development outputs, not final test findings. The real four-candidate
-1:1 search and the descriptive 1:3 validation sensitivity study have now run. The
-1,000-record global SHAP summary and official test evaluation have not run. No test
-data were used to choose settings or compare the SMOTE ratios.
-
-The software's selected-bundle loader and final-test guard are tested on synthetic
-fixtures. The next software phase is application services and API integration.
-The backend still exposes only health over HTTP. The manuscript is unchanged.
+Continuity-corrected McNemar with its small-discordance supplement and shared
+training-reference TreeSHAP are implemented. Read
+[implementation details](PHASE4_IMPLEMENTATION.md) for selected-bundle guards,
+metric policies, coverage, and the prediction-equivalent SHAP adapter.
+Only the [current run record](VALIDATION_RUN_STATUS.md) establishes which research
+stages have completed. A ratio decision does not finalize a forest or threshold.
+The next software phase is application services and API integration.

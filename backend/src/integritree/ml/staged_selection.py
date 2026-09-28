@@ -23,7 +23,7 @@ from integritree.ml.data import file_sha256, write_json
 from integritree.ml.evaluation import metrics, validate_policy
 from integritree.ml.features import FEATURE_COLUMNS
 from integritree.ml.research import evaluate_run, load_report, new_run
-from integritree.ml.selection import exact_mean_f1, release_candidate_memory
+from integritree.ml.selection_utils import exact_mean_f1, release_candidate_memory
 from integritree.ml.threshold_search import all_score_thresholds
 from integritree.ml.training import forest_parameters, train_models, validate_training_config
 from integritree.settings import load_settings
@@ -35,9 +35,7 @@ class SelectionProtocol(BaseModel):
     model_config = ConfigDict(extra="forbid")
     schema_version: Literal[1] = 1
     name: Literal["sequential_ratio_forest_threshold"] = "sequential_ratio_forest_threshold"
-    revision: Literal[1, 2] = 1
-    amendment_note: str | None = None
-    ratios: list[float] = [.1, .2, 1 / 3, .5, 1.]
+    ratios: list[float] = [.01, .02, .05, .1, .2, 1 / 3, .5, 1.]
     reference_forest: tuple[int, int, int] = (100, 10, 1)
     trees: list[int] = [100, 200]
     depths: list[int] = [10, 20]
@@ -53,8 +51,6 @@ class SelectionProtocol(BaseModel):
 
     @model_validator(mode="after")
     def valid_grid(self):
-        if self.revision == 2 and not (self.amendment_note and self.amendment_note.strip()):
-            raise ValueError("Protocol revision 2 requires an amendment disclosure")
         if not self.ratios or any(not np.isfinite(r) or not 0 < r <= 1 for r in self.ratios):
             raise ValueError("Ratios must be finite minority/majority values in (0, 1]")
         for values in (self.ratios, self.trees, self.depths, self.leaves):
@@ -286,9 +282,7 @@ def select_three_stage(prepared, config, protocol, output_root, run_id=None, job
             if file_sha256(output / "search_plan.json") != manifest["search_plan_sha256"]:
                 raise ValueError("Frozen search plan fingerprint mismatch")
             plan = read_json(output / "search_plan.json")
-            # Revision-1 plans written before explicit revision fields stay readable.
-            comparable_plan = plan | {"protocol": SelectionProtocol.model_validate(plan["protocol"]).model_dump(mode="json")}
-            if any(comparable_plan.get(k) != v for k, v in plan_core.items()):
+            if any(plan.get(k) != v for k, v in plan_core.items()):
                 raise ValueError("Resume configuration differs from frozen search plan")
             for name, digest in manifest.get("frozen_stage_files", {}).items():
                 if file_sha256(output / name) != digest:
@@ -624,8 +618,6 @@ def export_ratio_stage(selection_path, reports_root):
         shutil.copyfile(source / name, root / name)
     shutil.copyfile(selection_path / "search_plan.json", root / "search_plan.json")
     lines = ["# Stage 1: SMOTE ratio validation", "", "Validation only; held-out test unused.", "",
-             f"Protocol revision: {plan['protocol'].get('revision', 1)}.",
-             *([plan['protocol']['amendment_note'], ""] if plan['protocol'].get('amendment_note') else []),
              f"Reference forest (trees/depth/minimum leaf): {plan['protocol']['reference_forest']}.",
              "Selection: highest RF-SMOTE Average Precision; exact ties prefer the smaller ratio.", "",
              "| Fraud/legitimate ratio | Benchmark RF AP | RF-SMOTE AP | Selected |",
@@ -636,7 +628,7 @@ def export_ratio_stage(selection_path, reports_root):
     lines += ["", f"Frozen ratio: {winner['ratio']:.17g}.",
               "Supplementary classification metrics in candidates.csv use 0.50; this is not a selected cutoff.",
               "This report does not select a forest configuration, final threshold, or model winner.",
-              "The protocol was revised after earlier validation results; sequential selection can miss interactions.", ""]
+              "Sequential selection can miss ratio/forest interactions; validation is development evidence.", ""]
     (root / "SUMMARY.md").write_text("\n".join(lines), encoding="utf-8")
     atomic_json(root / "metadata.json", {"status": "complete", "kind": "stage1_ratio_review",
                  "test_used": False, "selection_run": str(selection_path),

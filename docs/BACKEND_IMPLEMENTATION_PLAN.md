@@ -1,32 +1,18 @@
 # Integritree backend implementation plan
 
-Last updated: 2026-09-27 (three-stage validation revision)
-
-The current new-experiment specification is [THREE_STAGE_VALIDATION.md](THREE_STAGE_VALIDATION.md).
-It adds ratio/AP, forest/AP (including minimum leaf size), and exact threshold/F1
-stages with checkpoints and compatible historical reuse. Older search details
-below describe historical work and do not override the revised protocol.
-
-## Current status and scope
-
-The backend scaffold and Phases 1-4 are implemented. Full PaySim preparation and
-baseline RF/RF-SMOTE training are complete and verified. Both saved models are in
-backend/artifacts/paysim_phase3_baseline_20260920/. The initial RAM preflight stop
-was resolved on retry. Evaluation, selection, and SHAP software are implemented.
-Full baseline validation, the real four-candidate 1:1 validation search, the
-descriptive 1:3 validation sensitivity study, and a five-record paired SHAP preview
-are verified. Official test evaluation and the 1,000-record global SHAP job have not
-run; prediction routes and receipts remain to be developed. See
-[Phase 4 evidence](PHASE4_IMPLEMENTATION.md).
-See [setup instructions](../backend/README.md), [methodology decisions](METHODOLOGY.md),
-and [API contracts](API.md).
+The sole selection workflow is [three-stage validation](THREE_STAGE_VALIDATION.md):
+SMOTE ratio by RF-SMOTE validation Average Precision, shared forest settings by
+mean validation AP, then a common threshold by exact mean validation F1. Each
+stage freezes before the next. Both models are retained; selection does not pick
+a model winner. Current execution stops after Stage 1. See
+[run status](VALIDATION_RUN_STATUS.md) for measured outcomes.
 
 The mock-up corrections are established in [the decision record](MOCKUP_EVALUATION_DECISIONS.md).
 The latest SHAP scope is top positive contributor, deterministic narrative, and
 waterfall-only expanded details. A numerical table is a suggestion, not a phase
 deliverable. [The code alignment audit](BACKEND_ALIGNMENT_AUDIT.md) records evidence,
 the small signed-comparison configuration fix, and remaining implementation gaps.
-The audit passed 125 tests; it did not rerun full training or produce thesis metrics.
+The audit records application requirements; current verification is in the run status.
 
 The planned application will support two uses of the same saved RF and RF-SMOTE models:
 
@@ -46,8 +32,8 @@ does not approve an algorithm change or a Chapter 3 rewrite.
 | 0 | Directory scaffold | Clearly labeled module/configuration placeholders | Complete |
 | 1 | Foundation and contracts | Reproducible development setup and validated configuration/data contracts | Complete |
 | 2 | Dataset and preprocessing | Audited, reproducible splits and training-fitted transformations | Complete |
-| 3 | Training and saved inference | Baseline trainer and reloadable paired model bundles | Complete; full PaySim baseline verified |
-| 4 | Research evaluation and SHAP | Verified evaluation reports and model explanations | Code complete; baseline validation and SHAP preview verified; full selection/test pending |
+| 3 | Training and saved inference | Baseline trainer and reloadable paired model bundles | Training code complete; fresh candidates come from the three-stage run |
+| 4 | Research evaluation and SHAP | Verified evaluation reports and model explanations | Code complete; current execution stops after Stage 1 |
 | 5 | Application services and API | Research and individual structured-record workflows | Not started |
 | 6 | GCash receipt demonstration | Image extraction, confirmation, mapping, and prediction | Not started |
 | 7 | Integration and reproducibility | Backend handoff validated against the frontend workflows | Not started |
@@ -162,10 +148,9 @@ Work:
 - Implement `ml/training.py` and `scripts/train_models.py` for RF and RF-SMOTE.
   Both start from the same original training records. Only the second branch
   applies the approved SMOTE procedure.
-- Phase 3 implements the fixed baseline. The approved validation search follows
-  Phase 4 metric implementation; see METHODOLOGY.md. Do not
+- Fixed-parameter training supports the three-stage selector; see
+  METHODOLOGY.md for the selection protocol. Do not
   introduce class weighting or other differences that confound the comparison.
-  If cross-validation is selected, fit preprocessing and SMOTE within each fold.
 - Preserve the untouched test set during tuning. Record the final configuration
   and validation-based model selection before final test evaluation.
 - Implement shared score/class prediction in `ml/inference.py` and artifact
@@ -185,11 +170,8 @@ Completion checks:
 - Configuration/data combinations with too few fraud neighbors fail clearly.
 - Validate the workflow on small synthetic fixtures before the full experiment.
 
-Phase 3 verification at implementation: 123 tests passed, including matched RF settings, training-only
-SMOTE, fractional indicators, reload parity, and individual/batch agreement.
-Full PaySim baseline training is complete. Both models passed reload checks;
-source/prepared hashes, training-row preprocessing replay, and individual/batch
-prediction consistency passed full-run verification. See the methodology record.
+Training verification covers matched settings, training-only SMOTE, saved model
+reload, and inference parity. Current execution evidence is in the run status.
 
 ## Phase 4 - Research evaluation and SHAP
 
@@ -211,16 +193,12 @@ Work:
   supplement applies to 1-24 discordant pairs. Zero discordances: p=1 by convention, statistic unavailable,
   status No discordant pairs. Do not silently substitute exact testing.
 
-- Implement approved shared RF candidate/common-cutoff selection on validation F1,
-  saving a selection record before official test evaluation.
-  Candidates are (100,10), (100,20), (200,10), (200,20) for trees/depth. At 0.50,
-  maximize mean validation F1 across both variants; ties favor shallower then fewer
-  trees. For that shared configuration, search common cutoffs 0.05..0.95 by 0.05;
-  ties favor nearest 0.50 then higher cutoff. Keep preprocessing and seeds fixed.
-  Factor baseline-only validation out of the general artifact loader: it currently
-  rejects non-0.50 thresholds and non-fixed_baseline runs. Introduce an explicit
-  selected-run/selection-artifact contract and validate it without weakening
-  legacy-bundle integrity. Preserve the original baseline, and test both loaders.
+- Use the sole three-stage selector: eight SMOTE ratios by RF-SMOTE AP, 12 shared
+  forests by mean AP, then an exact all-score common threshold by mean F1.
+  Follow [the protocol](THREE_STAGE_VALIDATION.md) for settings and tie rules.
+  Keep preprocessing and seeds fixed. Completed schema-2 selected bundles record
+  immutable candidate references and frozen evidence; ordinary fitted pairs retain
+  their own integrity checks. Reject obsolete two-step selected bundles.
 - Implement `ml/evaluation.py` and `scripts/evaluate_models.py` on the same held-out
   test records for both models. Full-PaySim training-record predictions must not
   be presented as the official test results.
@@ -286,11 +264,8 @@ Completion checks:
 - Verify new selected-run loading preserves threshold ties and legacy inference;
   do not evaluate the official test set while developing or choosing settings.
 
-Phase 4 verification: 143 tests passed; full paired validation covered 636,262
-records. Saved-model SHAP reconstruction passed for five validation records. The
-complete selection/test workflow passed on synthetic fixtures. Full PaySim tuning,
-final testing, and the 1,000-record SHAP summary have not run. Preserve that
-distinction when reporting completion.
+Evaluation and selection verification uses synthetic fixtures with held-out
+guards. See current run status for the latest suite and Stage 1 evidence.
 
 ## Phase 5 - Application services and API
 

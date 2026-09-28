@@ -1,50 +1,17 @@
 # Integritree backend
 
-## Current validation protocol: three stages
+## Validation workflow
 
-The revised workflow selects SMOTE ratio by RF-SMOTE validation AP, one of 12
-shared forests (including minimum leaf size) by mean validation AP, then a common
-cutoff by exact mean validation F1 over all distinct scores. It retains both
-models and never evaluates test data. Historical selectors/artifacts remain intact.
-See [protocol, outputs, and resume instructions](../docs/THREE_STAGE_VALIDATION.md).
+The sole selection workflow is [three-stage validation](../docs/THREE_STAGE_VALIDATION.md):
+SMOTE ratio by RF-SMOTE validation Average Precision, shared forest settings by
+mean validation AP, then a common threshold by exact mean validation F1. Each
+stage freezes before the next. Both models are retained; selection does not pick
+a model winner. Current execution stops after Stage 1. See
+[run status](../docs/VALIDATION_RUN_STATUS.md) for measured outcomes.
 
-Current execution status: all 172 backend tests passed. Original Stage 1 completed
-and froze 1:10. The separately authorized [revision-2 extension](../docs/STAGE1_RATIO_EXTENSION_V2.md)
-adds 1:20, 1:50, and 1:100 and selects across all eight ratios. It started at
-00:53 Manila time on 2026-09-28; the original five candidates were reused and
-1:20 began training. The new job stops before Stage 2 or threshold selection.
-Check [run status and logs](../docs/VALIDATION_RUN_STATUS.md) for current evidence.
-
-The revision-2 job has already started. If interrupted, resume it from `backend/`:
-
-```powershell
-& ./.venv/Scripts/python.exe scripts/select_three_stage.py --prepared data/prepared/paysim_phase2_20260918 --config configs/experiment.yaml --protocol configs/validation_three_stage_v2.yaml --resume artifacts/paysim_stage1_ratio_extension_v2_20260928 --jobs 1 --stop-after-stage 1
-```
-
-The sections below document historical workflows; their test commands require a
-separate authorization and are not part of the current validation-only execution.
-
-Phases 1-4 code is implemented: configuration, a health endpoint, PaySim
-preparation, matched RF/RF-SMOTE baseline training, saved artifacts, and shared
-individual/batch inference. Full PaySim preparation and baseline training are
-complete and verified. Both models are saved in artifacts/paysim_phase3_baseline_20260920/.
-Phase 4 adds evaluation, validation selection, and SHAP. Full baseline validation,
-the four-candidate 1:1 validation search, and the validation-only 1:3 sensitivity
-study have run on 636,262 records; five validation records have verified explanations
-for both baseline models. The 1,000-record global SHAP job and final test evaluation
-have not run. Prediction APIs and OCR remain future work.
-
-The 2026-09-22 [alignment audit](../docs/BACKEND_ALIGNMENT_AUDIT.md) checked this
-foundation against the completed mock-up review: 125 tests passed. Active evaluation
-configuration now selects signed_over_mean; legacy saved configurations remain
-readable and unchanged. Phase 4 now implements the metric calculations.
-The next software phase is application services/API; expanded SHAP details require only a
-waterfall graph. The numerical table is a suggestion, not an implementation target.
-
-Read [the thesis context](../docs/THESIS_CONTEXT.md),
-[the implementation plan](../docs/BACKEND_IMPLEMENTATION_PLAN.md),
-[methodology decisions](../docs/METHODOLOGY.md), and
-[API contracts](../docs/API.md) before developing the next phase.
+Preparation, paired RF/RF-SMOTE training, saved inference, evaluation, three-stage
+selection, and SHAP are implemented. HTTP currently exposes health; prediction
+APIs, frontend integration, and receipt OCR remain future work.
 
 ## Install on Windows
 
@@ -118,8 +85,8 @@ Unresolved research choices are explicitly `null`.
 
 The approved signed comparison is explicit in this active file. Evaluation and
 explainer policies are saved separately against immutable model-run provenance;
-do not edit an old bundle's configuration to enable a later phase. Phase 3 bundle
-loading preserves baseline checks; Phase 4 adds a separate validated selected-run contract.
+do not edit an old bundle's configuration to enable a later phase. Ordinary model bundles preserve fixed-parameter checks; completed three-stage
+selections have a separate validated schema-2 contract.
 
 ```powershell
 & .\.venv\Scripts\python.exe -m integritree.config
@@ -195,7 +162,7 @@ one split in memory; preparation itself is batched. Consumers must require
 `FittedPreprocessor.load(path).transform(inputs)` accepts exactly the five source
 attributes and reuses the saved training state. It accepts missing amount/type
 under the approved policy; missing timing/entity inputs and extra target/balance
-columns fail validation. No inference model is implemented yet.
+columns fail validation. Shared inference loads the fitted model bundle and reuses these transformations.
 
 Memory use is bounded for parsing, deduplication, and feature writing. Splitting
 still allocates arrays proportional to the number of records; training-median
@@ -217,212 +184,61 @@ and saved-preprocessing replay on 100 records per split. See
 `reports/paysim_phase2_20260918/verification.json` for the local verification record.
 The raw CSV is unchanged. Generated artifacts are ignored by Git.
 
-## Directory responsibilities
 
-| Location                       | Responsibility                                                                           |
-| ------------------------------ | ---------------------------------------------------------------------------------------- |
-| `configs/`                     | Experiment configuration and seeds.                                                      |
-| `scripts/`                     | Preparation and baseline training commands; evaluation/batch-export placeholders.        |
-| `src/integritree/settings.py`  | Local paths and environment settings.                                                    |
-| `src/integritree/config.py`    | Experiment schema, validation, and stage requirements.                                   |
-| `src/integritree/contracts.py` | Shared transaction/result/provenance contracts.                                          |
-| `src/integritree/api/`         | HTTP interfaces; currently health only.                                                  |
-| `src/integritree/services/`    | Future workflow coordination.                                                            |
-| `src/integritree/ml/`          | Data, preprocessing, training, artifacts, and paired inference; evaluation/SHAP pending. |
-| `src/integritree/receipts/`    | Future GCash extraction and confirmed-input mapping.                                     |
-| `tests/`                       | Synthetic foundation, preparation, training, artifact, and inference tests.              |
-| `data/raw/`                    | Original local PaySim CSV; preserve the source.                                          |
-| `data/prepared/<run_id>/`      | Local preparation bundles, audits, and split membership.                                 |
-| `artifacts/<run_id>/`          | Models, preprocessing, configuration, audit, and provenance bundles.                     |
-| `reports/<run_id>/`            | Future predictions, metrics, statistics, and figures.                                    |
-| `runtime/`                     | Future temporary uploads and exports.                                                    |
+## Training, selection, and saved inference
 
-Scripts and application services will share the `ml/` implementation.
-Application inference must reuse saved models and fitted transformations.
+`configs/experiment.yaml` supplies data, features, seeds, and fixed training
+parameters. Its standalone trainer defaults are not selected research settings.
+The three-stage protocol overrides ratio and forest candidates; 0.50 is only a
+supplementary classification checkpoint until Stage 3 freezes a threshold.
 
-Git ignores datasets, environments, model binaries, generated reports, uploads,
-and secrets. Commit source, reviewed configuration, the dependency lock, and
-small synthetic fixtures. Do not commit personal receipts.
-
-## Foundation references
-
-- [Python project configuration](https://packaging.python.org/en/latest/guides/writing-pyproject-toml/)
-- [Pydantic settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/)
-- [Dependency locking with pip-tools](https://pip-tools.readthedocs.io/en/latest/)
-- [FastAPI testing](https://fastapi.tiangolo.com/tutorial/testing/)
-
-## Phase 3: baseline training and saved inference
-
-Run from the backend directory:
+Run Stage 1 from `backend/`:
 
 ```powershell
-& .\.venv\Scripts\python.exe -m integritree.config --require-stage train
-& .\.venv\Scripts\python.exe scripts/train_models.py --prepared data/prepared/paysim_phase2_20260918 --run-id paysim_phase3_baseline_20260920 --jobs 1
+& ./.venv/Scripts/python.exe scripts/select_three_stage.py --prepared data/prepared/paysim_phase2_20260918 --config configs/experiment.yaml --protocol configs/validation_three_stage.yaml --jobs 1 --stop-after-stage 1
 ```
 
-The installed entry point integritree-train accepts the same arguments.
-Paths are relative to the backend root unless absolute. Omit --run-id for a
-generated unique name. Existing run directories are never overwritten.
+Installed commands `integritree-select` and `integritree-select-three-stage` are
+aliases for this implementation. To resume, add `--resume artifacts/<run-id>`
+and keep `--stop-after-stage 1`. Resolve memory failures without changing the
+frozen plan or reducing the data. Only one worker may own a run.
 
-Current config selects the approved 100-tree/depth-20 matched baseline, ordinary
-SMOTE at 1:1 with k=5, model/SMOTE seeds 42, and common >=0.50 fraud cutoff.
-Bootstrap is enabled and class weighting disabled. Only original training records
-are loaded. No validation tuning or test evaluation is performed.
+Stage 1 compares eight ratios and exports `reports/<run-id>/stage1_review/`.
+Status `awaiting_next_stage` means ratio selection is complete, while the final
+forest and common cutoff are still pending. Later stages require separate
+continuation; see the [complete protocol](../docs/THREE_STAGE_VALIDATION.md).
 
-The full run completed successfully on 2026-09-20 after unused applications were
-closed. The retry passed the memory check with 4.94 GiB available; the initial
-attempt had stopped at 0.32 GiB. Both models used the approved settings/data.
-Recorded training duration: 9,594.625 seconds (about 2 h 40 min).
-For future runs, the estimated working arrays need 4.65 GiB plus tree/runtime
-headroom; this is not a guaranteed peak-memory bound. The automatic physical-memory
-check is Windows-specific. Training materializes the original matrix and SMOTE
-output without silently reducing data or changing settings.
+The standalone `scripts/train_models.py` command remains available for explicit
+fixed-parameter fits. It is not a selection workflow. Ordinary bundles contain
+both joblib models, preprocessing, configuration, preparation provenance, training
+audit, reload verification, and fingerprinted metadata. Load only trusted local
+joblib bundles. Incomplete bundles and mismatched hashes/dependencies are rejected.
 
-The run ID shown above now exists. For a new run, omit --run-id or choose a new
-name; existing bundles are never overwritten.
+`load_bundle` accepts ordinary fitted pairs and completed schema-2 three-stage
+selections. Old two-step selections are rejected. Shared inference applies saved
+preprocessing and returns both continuous scores and thresholded labels.
 
-A successful run writes these files under artifacts/<run_id>/:
+## Evaluation and explanations
 
-| File                       | Meaning                                                                       |
-| -------------------------- | ----------------------------------------------------------------------------- |
-| rf.joblib, rf_smote.joblib | Both fitted baseline classifiers.                                             |
-| preprocessing.json         | Original training-fitted transformations; no refit.                           |
-| configuration.json         | Exact settings for this run.                                                  |
-| prepared_metadata.json     | Preparation provenance and split/file fingerprints.                           |
-| training_audit.json        | Original/synthetic counts and fractional-indicator audit.                     |
-| reload_verification.json   | Score agreement before/after serialization on up to 128 training rows.        |
-| metadata.json              | Status, schema, dataset/split IDs, versions, hashes, resources, elapsed time. |
+`scripts/evaluate_models.py` writes paired predictions, metrics, comparisons,
+McNemar results, figures, and provenance. Official test evaluation requires a
+completed three-stage selection. A Stage 1 run is not a final selected bundle.
+No test evaluation is included in the current execution.
 
-These are baseline artifacts, not final thesis evaluation results. Incomplete
-or failed bundles are rejected. Abrupt process termination may leave a run marked
-running, which loaders also reject. Only load trusted local bundles: joblib uses
-pickle and hashes do not authenticate a maliciously replaced bundle.
+`scripts/explain_models.py` explains an existing report using the same saved
+models and a shared original-training background. Coverage is explicitly preview,
+sampled global, or full report. SHAP is not triggered by validation selection.
+See [method and integrity details](../docs/PHASE4_IMPLEMENTATION.md).
 
-Python inference example, after a successful training run:
+## Generated files and references
 
-```python
-from pathlib import Path
-import pandas as pd
-from integritree.ml.artifacts import load_bundle
-from integritree.ml.inference import predict_records
+Raw/prepared data, models, reports, runtime outputs, environments, and secrets are
+local and excluded from Git. `data/prepared/` retains preprocessing and split
+provenance; `artifacts/` holds fitted pairs and selection checkpoints; `reports/`
+holds exported evidence; `runtime/validation/` holds current worker logs.
 
-bundle = load_bundle(Path("artifacts/paysim_phase3_baseline_20260920"))
-# Synthetic structured input; not a validated GCash receipt mapping.
-inputs = pd.DataFrame([{
-    "step": 1, "type": "TRANSFER", "amount": 100.0,
-    "nameOrig": "C_EXAMPLE_SENDER", "nameDest": "C_EXAMPLE_RECIPIENT",
-}])
-results = predict_records(bundle, inputs, ["demo-1"])
-```
-
-Use exactly the five raw predictor attributes. Labels, balances, flags and IDs
-are not model inputs. Results preserve input order with transaction_id, run_id,
-and each model's risk_score and predicted_label. Frontend prediction routes and
-batch-export commands are not implemented yet.
-
-The approved four-candidate RF search and common-cutoff search are implemented
-in Phase 4; see [METHODOLOGY.md](../docs/METHODOLOGY.md). PR-AUC uses Average
-Precision. Original saved configurations remain unchanged.
-Freeze selection before official test evaluation.
-
-Verification: **123 tests passed** during Phase 3 implementation, with two existing
-third-party deprecation warnings and no broken dependencies. Full PaySim training
-and subsequent artifact/inference verification now passed too; no code changes
-were needed for the retry. The full-run report is
-reports/paysim_phase3_baseline_20260920/verification.json.
-
-The audit confirms 5,076,956 synthetic fraud records and 10,167,052 total RF-SMOTE
-training rows (5,083,526 per class). No fractional categorical indicators arose in
-this run; the code still preserves them if generated. Both reload checks had zero
-score difference on 128 training rows. Source/prepared file hashes were unchanged,
-raw/prepared prediction replay agreed on 128 training rows, and individual/batch
-predictions agreed on 16 rows. These checks are not performance evaluation.
-At the Phase 3 handoff, validation tuning, test evaluation, and SHAP were
-unexecuted. Current Phase 4 execution is recorded below.
-
-Use [THESIS_DOCUMENT_CHANGES.md](../docs/THESIS_DOCUMENT_CHANGES.md) for manuscript updates.
-
-
-## Phase 4 research commands
-
-Run from `backend`. Commands create new output directories; run IDs cannot overwrite
-existing results. Full [method and verification notes](../docs/PHASE4_IMPLEMENTATION.md)
-explain coverage, edge cases, selected bundles, and SHAP compatibility.
-
-Baseline validation (already executed as `paysim_phase4_baseline_validation_20260923`):
-
-```powershell
-& ./.venv/Scripts/python.exe scripts/evaluate_models.py --models artifacts/paysim_phase3_baseline_20260920 --prepared data/prepared/paysim_phase2_20260918 --split validation
-```
-
-Run the approved four-candidate validation search when conducting final selection.
-This trains three additional model pairs and can take many hours on this machine;
-it is not required just to load or inspect the completed baseline validation report.
-The previous baseline training alone took about 2 hours 40 minutes.
-
-```powershell
-& ./.venv/Scripts/python.exe scripts/select_models.py --baseline artifacts/paysim_phase3_baseline_20260920 --prepared data/prepared/paysim_phase2_20260918 --run-id paysim_validation_selection --jobs 1
-```
-
-Resume an interrupted search with the same baseline/prepared arguments and
-`--resume artifacts/paysim_validation_selection`. Complete candidates and reports
-are reused after provenance checks. Do not change the frozen search plan mid-run.
-Only after that selection completes may its bundle be used for the official test:
-
-```powershell
-& ./.venv/Scripts/python.exe scripts/evaluate_models.py --models artifacts/paysim_validation_selection --prepared data/prepared/paysim_phase2_20260918 --split test
-```
-
-Generate explanations from an existing evaluation report. This preview uses five
-shared records; remove `--limit 5` and change `--scope preview` to `--scope sample`
-for the approved 1,000-record global sample. Use `--scope full` explicitly for all
-report records. Sampling is uniform, seeded, and not stratified by label.
-
-```powershell
-& ./.venv/Scripts/python.exe scripts/explain_models.py --models artifacts/paysim_phase3_baseline_20260920 --prepared data/prepared/paysim_phase2_20260918 --report reports/paysim_phase4_baseline_validation_20260923 --scope preview --limit 5
-```
-
-SHAP uses the shared original-training background in
-`artifacts/explanation_cache/background_<hash>/`; per-record SVG/JSON cache entries
-are under `artifacts/explanation_cache/records/`. Reports record actual coverage.
-On this machine, five preview records took roughly 0.1?0.2 seconds each for RF
-and 0.7?1.0 seconds each for RF-SMOTE attribution alone, excluding initialization,
-plotting, and I/O. These measurements are not a latency guarantee for API requests.
-No full-dataset SHAP job or final test evaluation has been run.
-
-## Validation-only 1:3 SMOTE sensitivity study
-
-`configs/experiment_smote_1_to_3.yaml` keeps the prepared data, seeds, features,
-ordinary SMOTE method, and RF settings fixed while changing the post-resampling
-fraud-to-legitimate ratio to 1:3. The 200-tree/depth-20 setting is inherited from
-the completed 1:1 validation search. This is a post-validation descriptive study,
-not a new predeclared selection procedure.
-
-First resolve the existing 200/depth-20 candidate bundle referenced by
-`artifacts/paysim_validation_selection/selection.json`, then train the 1:3 branch
-while reusing its verified benchmark RF:
-
-```powershell
-& ./.venv/Scripts/python.exe scripts/train_models.py --prepared data/prepared/paysim_phase2_20260918 --config configs/experiment_smote_1_to_3.yaml --reuse-rf-from <existing-200-depth-20-candidate> --jobs 1
-```
-
-Evaluate the resulting bundle on validation only, then compare its report with the
-existing 1:1 200/depth-20 validation report:
-
-```powershell
-& ./.venv/Scripts/python.exe scripts/evaluate_models.py --models <new-1-to-3-bundle> --prepared data/prepared/paysim_phase2_20260918 --config configs/experiment_smote_1_to_3.yaml --split validation
-& ./.venv/Scripts/python.exe scripts/compare_smote_ratios.py --one-to-one-report <existing-1-to-1-validation-report> --one-to-three-report <new-1-to-3-validation-report>
-```
-
-The comparison writes fingerprinted score and threshold tables, raw 1:3-minus-1:1
-differences, a readable summary, and SVG figures. It deliberately records no winner
-or selected cutoff. Do not run either ratio on the held-out test split without a
-separate final-selection decision.
-
-The full 1:3 run completed as `paysim_smote_1_to_3_200_depth20_20260925` with
-1,687,938 synthetic fraud rows and 6,778,034 total training rows. Its validation
-report is `paysim_smote_1_to_3_validation_20260925`; the verified comparison is
-`paysim_smote_ratio_comparison_validation_20260925`. The comparison found PR-AUC
-0.335711 for 1:1 and 0.330708 for 1:3. At the .95 reference checkpoint, 1:3 had
-precision 0.293948, recall 0.372263, F1 0.328502, and MCC 0.329825. These are
-validation-only descriptive findings, not a selected ratio or final test result.
+- [Methodology](../docs/METHODOLOGY.md)
+- [Thesis context](../docs/THESIS_CONTEXT.md)
+- [Application implementation plan](../docs/BACKEND_IMPLEMENTATION_PLAN.md)
+- [API contracts](../docs/API.md)
+- [Manuscript alignment checklist](../docs/THESIS_DOCUMENT_CHANGES.md)
