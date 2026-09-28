@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import time
 from typing import Literal
 
 import numpy as np
@@ -76,23 +77,36 @@ def atomic_json(path, value):
     temporary.replace(path)
 
 
+class RunLockedError(ValueError):
+    """An active writer holds the requested OS file lock."""
+
+
+class _SelectionPaused(Exception):
+    pass
+
+
 @contextmanager
-def run_lock(path):
+def run_lock(path, filename=".run.lock"):
     """OS lock survives no process exit; the harmless lock file may remain."""
-    with (path / ".run.lock").open("a+b") as handle:
+    with (path / filename).open("a+b") as handle:
         if handle.tell() == 0:
             handle.write(b"0")
             handle.flush()
         handle.seek(0)
-        try:
-            if sys.platform == "win32":
-                import msvcrt
-                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
-            else:
-                import fcntl
-                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except OSError as exc:
-            raise ValueError("Another worker owns this selection run") from exc
+        for attempt in range(101):
+            try:
+                if sys.platform == "win32":
+                    import msvcrt
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    import fcntl
+                    fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except OSError as exc:
+                if filename == ".control.lock" and attempt < 100:
+                    time.sleep(.05)
+                    continue
+                raise RunLockedError("Another worker owns this selection run or control lock; retry shortly") from exc
         try:
             yield
         finally:
@@ -101,6 +115,47 @@ def run_lock(path):
                 msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
             else:
                 fcntl.flock(handle, fcntl.LOCK_UN)
+
+
+def request_pause(path):
+    """Request a checkpoint pause; never signal or terminate the training process."""
+    path = Path(path).resolve()
+    if not (path / "metadata.json").is_file():
+        raise ValueError("Pause requires an existing selection run")
+    with run_lock(path, ".control.lock"):
+        manifest = read_json(path / "metadata.json")
+        if (manifest.get("kind") != "validation_selection" or manifest.get("schema_version") != 2
+                or manifest.get("status") != "running" or manifest.get("active_stage") not in (1, 2)):
+            raise ValueError("Pause requires an active candidate-selection worker")
+        try:
+            with run_lock(path):
+                pass
+        except RunLockedError:
+            pass
+        else:
+            raise ValueError("Selection worker is inactive; resume the run instead")
+        execution = manifest["execution_history"][-1]["started_at"]
+        target = path / "pause_request.json"
+        if not target.exists() or read_json(target).get("execution_started_at") != execution:
+            atomic_json(target, {"requested_at": datetime.now(timezone.utc).isoformat(),
+                                "execution_started_at": execution, "worker_pid": manifest["worker_pid"]})
+        return {"status": "pause_requested", "run": str(path),
+                "message": "Current candidate will finish training and validation before the worker pauses"}
+
+
+def pause_main():
+    parser = argparse.ArgumentParser(description="Request a graceful pause after the current selection candidate")
+    parser.add_argument("--run", type=Path, required=True)
+    args = parser.parse_args()
+    try:
+        settings = load_settings()
+        path = args.run if args.run.is_absolute() else settings.backend_root / args.run
+        result = request_pause(path)
+    except (ValueError, OSError) as exc:
+        print(json.dumps({"success": False, "error": str(exc)}), file=sys.stderr)
+        return 2
+    print(json.dumps({"success": True, **result}))
+    return 0
 
 
 def read_json(path):
@@ -250,8 +305,8 @@ def candidate_key(ratio, forest):
 
 def select_three_stage(prepared, config, protocol, output_root, run_id=None, jobs=1,
                        resume=None, reuse_roots=(), progress=print, stop_after_stage=3):
-    if stop_after_stage not in (1, 3):
-        raise ValueError("stop_after_stage must be 1 or 3")
+    if stop_after_stage not in (1, 2, 3):
+        raise ValueError("stop_after_stage must be 1, 2, or 3")
     config.require_ready("evaluate")
     validate_training_config(config)
     validate_policy(config.evaluation)
@@ -287,6 +342,8 @@ def select_three_stage(prepared, config, protocol, output_root, run_id=None, job
             for name, digest in manifest.get("frozen_stage_files", {}).items():
                 if file_sha256(output / name) != digest:
                     raise ValueError("Frozen stage fingerprint mismatch")
+            if manifest.get("completed_stage", 0) > stop_after_stage:
+                raise ValueError("Requested stop precedes an already completed stage")
             if manifest.get("status") == "complete":
                 load_staged_selected(output)
                 return output
@@ -301,13 +358,44 @@ def select_three_stage(prepared, config, protocol, output_root, run_id=None, job
                         "created_at": datetime.now(timezone.utc).isoformat(),
                         "search_plan_sha256": file_sha256(output / "search_plan.json"),
                         "test_used": False, "stage": "three_stage_search"}
-        manifest.update(status="running", worker_pid=os.getpid())
-        manifest.setdefault("execution_history", []).append({
-            "started_at": datetime.now(timezone.utc).isoformat(), "worker_pid": os.getpid(),
-            "stop_after_stage": stop_after_stage,
-            "selector_sha256": file_sha256(Path(__file__))})
-        manifest.pop("failure", None)
-        atomic_json(output / "metadata.json", manifest)
+        with run_lock(output, ".control.lock"):
+            # Resume explicitly acknowledges any request from the previous execution.
+            (output / "pause_request.json").unlink(missing_ok=True)
+            manifest.update(status="running", worker_pid=os.getpid(), active_stage=1, active_candidate=None)
+            manifest.setdefault("execution_history", []).append({
+                "started_at": datetime.now(timezone.utc).isoformat(), "worker_pid": os.getpid(),
+                "stop_after_stage": stop_after_stage,
+                "selector_sha256": file_sha256(Path(__file__))})
+            for name in ("failure", "paused_at", "stopped_at", "pause_requested_at"):
+                manifest.pop(name, None)
+            atomic_json(output / "metadata.json", manifest)
+
+        def finish(status, **fields):
+            with run_lock(output, ".control.lock"):
+                manifest.update(status=status, active_candidate=None, **fields)
+                atomic_json(output / "metadata.json", manifest)
+                (output / "pause_request.json").unlink(missing_ok=True)
+
+        def pause_if_requested(next_stage=None, next_candidate=None):
+            with run_lock(output, ".control.lock"):
+                target = output / "pause_request.json"
+                if target.exists():
+                    request = read_json(target)
+                    if request.get("execution_started_at") == manifest["execution_history"][-1]["started_at"]:
+                        manifest.update(status="paused", active_candidate=None,
+                                        paused_at=datetime.now(timezone.utc).isoformat(),
+                                        pause_requested_at=request["requested_at"])
+                        atomic_json(output / "metadata.json", manifest)
+                        target.unlink()
+                        raise _SelectionPaused()
+                    target.unlink()
+                if next_stage is not None:
+                    manifest["active_stage"] = next_stage
+                if next_candidate is not None:
+                    manifest["active_candidate"] = next_candidate
+                if next_stage is not None or next_candidate is not None:
+                    atomic_json(output / "metadata.json", manifest)
+
         completed = {}
         if (output / "search_progress.json").exists():
             completed = read_json(output / "search_progress.json")["completed_candidates"]
@@ -391,24 +479,47 @@ def select_three_stage(prepared, config, protocol, output_root, run_id=None, job
             release_candidate_memory()
             return row
 
+        def candidates(specifications, active_stage):
+            manifest["active_stage"] = active_stage
+            atomic_json(output / "metadata.json", manifest)
+            rows = []
+            for ratio, forest in specifications:
+                pause_if_requested(next_candidate=candidate_key(ratio, forest))
+                row = candidate(ratio, forest)
+                rows.append(row)
+                manifest.update(last_completed_candidate=row["key"], active_candidate=None)
+                atomic_json(output / "metadata.json", manifest)
+            # A request during the final candidate yields to stage freezing first.
+            return rows
+
         try:
-            ratios = [candidate(r, protocol.reference_forest) for r in protocol.ratios]
+            ratios = candidates([(r, protocol.reference_forest) for r in protocol.ratios], 1)
             ratio_winner = choose_ratio(ratios)
             freeze_stage(output / "stages" / STAGES[0], ratios, ratio_winner, protocol.ratio_objective)
             progress(f"Stage 1 frozen: SMOTE ratio {ratio_winner['ratio']:.17g}")
             stage_names = [f"stages/{STAGES[0]}/{name}" for name in ("decision.json", "candidates.csv")]
-            manifest["frozen_stage_files"] = {name: file_sha256(output / name) for name in stage_names}
+            manifest.setdefault("frozen_stage_files", {}).update({name: file_sha256(output / name) for name in stage_names})
+            manifest["completed_stage"] = max(1, manifest.get("completed_stage", 0))
+            manifest["stage"] = "forest_selected" if manifest["completed_stage"] == 2 else "ratio_selected"
             if stop_after_stage == 1:
-                manifest.update(status="awaiting_next_stage", stage="ratio_selected", completed_stage=1,
-                                stopped_at=datetime.now(timezone.utc).isoformat())
-                atomic_json(output / "metadata.json", manifest)
+                finish("awaiting_next_stage", stopped_at=datetime.now(timezone.utc).isoformat())
                 progress("Stage 1 complete; Stage 2, threshold selection, and test evaluation were not started")
                 return output
             atomic_json(output / "metadata.json", manifest)
-            forests = [candidate(ratio_winner["ratio"], forest) for forest in protocol.forests()]
+            forests = candidates([(ratio_winner["ratio"], forest) for forest in protocol.forests()], 2)
             winner = choose_forest(forests)
             freeze_stage(output / "stages" / STAGES[1], forests, winner, protocol.forest_objective)
             progress(f"Stage 2 frozen: trees/depth/leaf {winner['forest']}")
+            stage_names = [f"stages/{STAGES[1]}/{name}" for name in ("decision.json", "candidates.csv")]
+            manifest["frozen_stage_files"].update({name: file_sha256(output / name) for name in stage_names})
+            manifest.update(completed_stage=2, stage="forest_selected")
+            if stop_after_stage == 2:
+                finish("awaiting_next_stage", stopped_at=datetime.now(timezone.utc).isoformat())
+                progress("Stage 2 complete; threshold selection and test evaluation were not started")
+                return output
+            atomic_json(output / "metadata.json", manifest)
+            # Atomically close candidate pausing before threshold work starts.
+            pause_if_requested(next_stage=3)
             predictions = verify_report(resolve_reference(winner["report"], output),
                                         resolve_reference(winner["model"], output), config, prepared_hash)
             threshold, curve = all_score_thresholds(predictions.actual_label, predictions.rf_risk_score,
@@ -433,18 +544,22 @@ def select_three_stage(prepared, config, protocol, output_root, run_id=None, job
             write_summary(output, ratio_winner, winner, threshold)
             names = ["search_plan.json", "search_progress.json", "selection.json", "SUMMARY.md"]
             names += [p.relative_to(output).as_posix() for p in (output / "stages").rglob("*") if p.is_file()]
-            manifest.update(status="complete", stage="validation_selected",
-                            files={name: file_sha256(output / name) for name in sorted(names)})
-            atomic_json(output / "metadata.json", manifest)
+            finish("complete", stage="validation_selected", completed_stage=3,
+                   files={name: file_sha256(output / name) for name in sorted(names)})
             del predictions, curve, identity
             release_candidate_memory()
             load_staged_selected(output)
             progress(f"Three-stage selection frozen: ratio={selection['ratio']:.17g}, forest={selection['forest']}, threshold={selection['threshold']:.17g}")
             return output
+        except _SelectionPaused:
+            progress("Selection paused after a saved candidate checkpoint; resume the same run to continue")
+            return output
         except BaseException as exc:
-            manifest.update(status="failed", failure={"type": type(exc).__name__, "message": str(exc)})
-            atomic_json(output / "metadata.json", manifest)
+            finish("failed", failure={"type": type(exc).__name__, "message": str(exc)})
             raise
+        finally:
+            identity = None
+            release_candidate_memory()
 
 
 def save_threshold_figure(curve, decision, path):
@@ -597,6 +712,90 @@ def export_validation(selection_path, prepared, config, reports_root, progress=p
     return root
 
 
+def export_forest_stage(selection_path, reports_root):
+    """Verify and publish Stage 2 without threshold selection or test access."""
+    import shutil
+    manifest = read_json(selection_path / "metadata.json")
+    if (manifest.get("status") not in ("awaiting_next_stage", "complete")
+            or manifest.get("completed_stage", 0) < 2 or manifest.get("test_used") is not False):
+        raise ValueError("Stage 2 is incomplete")
+    required = {f"stages/{stage}/{name}" for stage in STAGES[:2]
+                for name in ("decision.json", "candidates.csv")}
+    if not required.issubset(manifest.get("frozen_stage_files", {})):
+        raise ValueError("Frozen Stage 2 evidence is incomplete")
+    for name in required:
+        if file_sha256(selection_path / name) != manifest["frozen_stage_files"][name]:
+            raise ValueError("Frozen stage fingerprint mismatch")
+    if file_sha256(selection_path / "search_plan.json") != manifest["search_plan_sha256"]:
+        raise ValueError("Frozen search plan fingerprint mismatch")
+    plan = read_json(selection_path / "search_plan.json")
+    protocol = SelectionProtocol.model_validate(plan["protocol"])
+    config = ExperimentConfig.model_validate(plan["configuration"])
+    ratio_decision = read_json(selection_path / "stages" / STAGES[0] / "decision.json")
+    ratio = choose_ratio(ratio_decision["candidates"])
+    if not ratio_decision["frozen"] or ratio_decision["chosen_key"] != ratio["key"]:
+        raise ValueError("Invalid frozen ratio decision")
+    source = selection_path / "stages" / STAGES[1]
+    decision = read_json(source / "decision.json")
+    rows = decision["candidates"]
+    if (not decision["frozen"] or decision["objective"] != protocol.forest_objective
+            or len(rows) != len(protocol.forests())
+            or {tuple(row["forest"]) for row in rows} != set(protocol.forests())
+            or any(row["ratio"] != ratio["ratio"] for row in rows)):
+        raise ValueError("Invalid forest stage candidates")
+    identity = None
+    for row in rows:
+        requested = candidate_config(config, row["ratio"], row["forest"])
+        model_path = resolve_reference(row["model"], selection_path)
+        _, actual_config = inspect_model(model_path, plan["prepared_metadata_sha256"])
+        if training_identity(requested) != training_identity(actual_config):
+            raise ValueError("Forest candidate configuration differs")
+        report_path = resolve_reference(row["report"], selection_path)
+        predictions = verify_report(report_path, model_path, config, plan["prepared_metadata_sha256"])
+        current = predictions[["transaction_id", "source_row_number", "actual_label", "split"]]
+        if identity is None:
+            identity = current.copy()
+        elif not identity.equals(current):
+            raise ValueError("Forest validation identities or labels differ")
+        expected = summarize_candidate(predictions, requested) | {
+            "key": candidate_key(row["ratio"], row["forest"]), "model": row["model"], "report": row["report"]}
+        if expected != row:
+            raise ValueError("Forest metrics differ from validation evidence")
+        del predictions, current
+        release_candidate_memory()
+    winner = choose_forest(rows)
+    if decision["chosen_key"] != winner["key"]:
+        raise ValueError("Invalid forest stage decision")
+    root = reports_root / selection_path.name / "stage2_review"
+    root.mkdir(parents=True, exist_ok=True)
+    for name in ("decision.json", "candidates.csv"):
+        shutil.copyfile(source / name, root / name)
+    shutil.copyfile(selection_path / "search_plan.json", root / "search_plan.json")
+    # Snapshot the mutable run manifest so this review remains verifiable after resume.
+    shutil.copyfile(selection_path / "metadata.json", root / "selection_metadata.json")
+    lines = ["# Stage 2: shared forest validation", "", "Validation only; held-out test unused.", "",
+             f"Frozen SMOTE ratio: {ratio['ratio']:.17g}.",
+             "Selection: highest mean validation Average Precision across RF and RF-SMOTE.",
+             "Exact ties: shallower depth, fewer trees, then larger minimum leaf size.", "",
+             "| Trees | Depth | Minimum leaf | RF AP | RF-SMOTE AP | Mean AP | Selected |",
+             "|---:|---:|---:|---:|---:|---:|---|"]
+    for row in rows:
+        trees, depth, leaf = row["forest"]
+        lines.append(f"| {trees} | {depth} | {leaf} | {row['rf']['pr_auc']:.9f} | "
+                     f"{row['rf_smote']['pr_auc']:.9f} | {row['mean_ap']:.9f} | "
+                     f"{'Yes' if row['key'] == winner['key'] else ''} |")
+    lines += ["", f"Frozen forest (trees/depth/minimum leaf): {winner['forest']}.",
+              "Classification metrics at 0.50 are supplementary; no final threshold has been selected.",
+              "Both models are retained. This is development evidence from one validation split and seed set.", ""]
+    (root / "SUMMARY.md").write_text("\n".join(lines), encoding="utf-8")
+    names = ("decision.json", "candidates.csv", "search_plan.json", "selection_metadata.json", "SUMMARY.md")
+    atomic_json(root / "metadata.json", {"status": "complete", "kind": "stage2_forest_review",
+                "test_used": False, "selection_run": str(selection_path), "selected_ratio": ratio["ratio"],
+                "selected_forest": winner["forest"], "selection_metadata_sha256": file_sha256(root / "selection_metadata.json"),
+                "files": {name: file_sha256(root / name) for name in names}})
+    return root
+
+
 def export_ratio_stage(selection_path, reports_root):
     """Publish the frozen ratio comparison without claiming a final selection."""
     import shutil
@@ -647,8 +846,8 @@ def main():
     parser.add_argument("--run-id")
     parser.add_argument("--resume", type=Path)
     parser.add_argument("--jobs", type=int, default=1)
-    parser.add_argument("--stop-after-stage", type=int, choices=(1, 3), default=3,
-                        help="Use 1 to freeze only the SMOTE ratio and stop before forest tuning")
+    parser.add_argument("--stop-after-stage", type=int, choices=(1, 2, 3), default=3,
+                        help="Stop after ratio (1), forest (2), or threshold (3) selection")
     args = parser.parse_args()
     try:
         settings = load_settings()
@@ -660,12 +859,20 @@ def main():
                                       args.run_id, args.jobs, resolve(args.resume) if args.resume else None,
                                       (settings.artifacts_dir, settings.reports_dir), progress,
                                       stop_after_stage=args.stop_after_stage)
-        report = (export_ratio_stage(selected, settings.reports_dir) if args.stop_after_stage == 1 else
-                  export_validation(selected, prepared, config, settings.reports_dir, progress))
+        metadata = read_json(selected / "metadata.json")
+        if metadata["status"] == "paused":
+            report = None
+        elif args.stop_after_stage == 1:
+            report = export_ratio_stage(selected, settings.reports_dir)
+        elif args.stop_after_stage == 2:
+            report = export_forest_stage(selected, settings.reports_dir)
+        else:
+            report = export_validation(selected, prepared, config, settings.reports_dir, progress)
     except (ValueError, OSError, MemoryError) as exc:
         print(json.dumps({"success": False, "error": str(exc)}), file=sys.stderr)
         return 2
-    print(json.dumps({"success": True, "selection": str(selected), "report": str(report)}))
+    print(json.dumps({"success": True, "status": metadata["status"], "selection": str(selected),
+                      "report": str(report) if report is not None else None}))
     return 0
 
 

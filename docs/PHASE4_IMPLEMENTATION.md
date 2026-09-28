@@ -4,7 +4,7 @@ The sole selection workflow is [three-stage validation](THREE_STAGE_VALIDATION.m
 SMOTE ratio by RF-SMOTE validation Average Precision, shared forest settings by
 mean validation AP, then a common threshold by exact mean validation F1. Each
 stage freezes before the next. Both models are retained; selection does not pick
-a model winner. Current execution stops after Stage 1. See
+a model winner. Stage 1 froze 1:100; current execution stops after Stage 2. See
 [run status](VALIDATION_RUN_STATUS.md) for measured outcomes.
 
 ## Approved and implemented methods
@@ -36,7 +36,11 @@ AP, and Stage 3 freezes the common threshold by exact mean F1. A schema-2 select
 bundle references immutable candidate models, reports, decisions, and hashes.
 The loader independently checks the frozen evidence and selection rules.
 
-Stage 1-only execution stops before forest or threshold selection. A partial run
+`--stop-after-stage 1` stops before forest selection; `--stop-after-stage 2`
+stops after the frozen forest decision and before threshold search. A graceful
+pause request finishes the active paired candidate and its validation checkpoint,
+then records `paused`. Stage 2 reviews recompute candidate metrics from verified
+reports and include a snapshot of the run metadata for later audit. A partial run
 cannot be loaded as a final model pair. Official test evaluation requires a
 completed selection. Ordinary fitted pairs remain readable for validation and
 inference; obsolete two-step selections are unsupported. There is no refit on

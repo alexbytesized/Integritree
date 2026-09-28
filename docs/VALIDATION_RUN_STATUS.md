@@ -48,37 +48,71 @@ exact AP ties, eight-candidate Stage 1 completion, benchmark reuse, memory relea
 held-out guards, and rejection of protocol changes on resume. Retained data, Word
 documents, and all files of the superseded attempt passed unchanged-hash checks.
 
-## Active eight-ratio Stage 1 run
+## Completed Stage 1
 
-Run: `paysim_three_stage_20260928_172539`. Started **17:25 Manila time on 2026-09-28**.
-At the initial check, status was `running`, worker PID **5408**.
-The first candidate (1:100) passed memory preflight and began fitting benchmark
-RF on **5,090,096 original training rows**, with 100 trees/depth 10/leaf 1.
-All eight preflight estimates passed with about **5.72 GiB available**; estimates
-range from **3.00 GiB** at 1:100 to **4.65 GiB** at 1:1, excluding model/runtime
-memory. Memory checks remain enabled for each candidate.
+Run: `paysim_three_stage_20260928_172539`.
+Stage 1 ran from **17:25 to 18:59 Manila time on 2026-09-28** and froze
+**1:100**. All eight candidates completed. RF-SMOTE AP was **0.38119617175331205**
+for the selected ratio; benchmark RF AP was **0.3915279330994021**.
+The frozen plan, decision, candidate table, and exported review passed integrity
+checks. No threshold or final model configuration was selected by this stage.
 
-The frozen reuse inventory is empty. Benchmark reuse will occur only among
-newly fitted candidates within this run. The plan SHA-256 is
+Review: `backend/reports/paysim_three_stage_20260928_172539/stage1_review/`.
+The original review remains an unchanged snapshot of Stage 1 completion; its
+selection-metadata hash refers to that export time, before later execution history.
+The scientific search plan remains unchanged, SHA-256:
 `1df14b38aa3fa5305649f228b4740d10e1e74c870e01b254d0f9b6ea98a89b25`.
-This is a running-status observation, not a completed result; no ratio is frozen
-yet. Check the live evidence for subsequent completion or failure:
+
+## Stage 2 continuation
+
+Continue the same run at 1:100 across trees {100, 200}, depths {10, 20}, and
+minimum leaf sizes {1, 10, 50}. Reuse the completed reference pair and train
+11 further pairs. Select the highest mean validation AP; exact ties prefer
+shallower depth, fewer trees, then larger leaves.
+
+The full backend suite passed **181 tests** with five upstream deprecation warnings;
+`pip check` found no broken requirements. A final control-lock refinement passed
+all **9 targeted pause tests**. Paused/resumed and uninterrupted synthetic runs
+produced identical scores, candidate metrics, and the selected forest. Requests
+during the last candidate correctly completed Stage 2 rather than pausing.
+
+Stage 2 resumed at **22:35 Manila time on 2026-09-28**, worker PID
+**22300**, with `--stop-after-stage 2`. The initial observation confirmed:
+
+- All Stage 1 evidence reverified; frozen plan, decision/table, and original review unchanged.
+- The 100-tree/depth-10/leaf-1 reference pair reused: **1 of 12 Stage 2 candidates complete**.
+- The first new pair, **100 trees/depth 10/leaf 10**, is training its benchmark RF
+  on 5,090,096 original rows. No new forest winner exists yet.
+- Candidate RAM preflight passed: **6.25 GiB available**, versus **3.00 GiB**
+  estimated working arrays, excluding additional model/runtime memory.
+
+This is a dated running-status observation. Live evidence:
 
 - `backend/artifacts/paysim_three_stage_20260928_172539/metadata.json`
-- `backend/artifacts/paysim_three_stage_20260928_172539/search_progress.json` (created after the first candidate)
-- `backend/runtime/validation/paysim_three_stage_20260928_172539.stderr.log`
-- `backend/runtime/validation/paysim_three_stage_20260928_172539.stdout.log`
+- `backend/artifacts/paysim_three_stage_20260928_172539/search_progress.json`
+- `backend/runtime/validation/stage2_20260928_223521.stderr.log`
+- `backend/runtime/validation/stage2_20260928_223521.stdout.log`
 
-On completion, the frozen ratio decision and candidate table are under
-`stages/01_smote_ratio/`, and its review is under
-`backend/reports/paysim_three_stage_20260928_172539/stage1_review/`.
-The worker stops at `awaiting_next_stage`; no Stage 2, Stage 3, test evaluation,
-or SHAP execution is included.
+Stage 3, official test evaluation, and SHAP remain outside this execution.
 
-Resume only after this worker exits, from `backend/`:
+## Pause and resume
+
+Request a pause from `backend/` while the selection worker is running:
 
 ```powershell
-& ./.venv/Scripts/python.exe scripts/select_three_stage.py --prepared data/prepared/paysim_phase2_20260918 --config configs/experiment.yaml --protocol configs/validation_three_stage.yaml --resume artifacts/paysim_three_stage_20260928_172539 --jobs 1 --stop-after-stage 1
+& ./.venv/Scripts/python.exe scripts/pause_selection.py --run artifacts/paysim_three_stage_20260928_172539
 ```
 
-Do not resume the superseded five-ratio run with the eight-ratio protocol.
+`pause_requested` is an acknowledgement, not a stopped worker. Wait for `paused`
+in metadata and worker exit: the current pair and validation finish first.
+Resume the same run after the worker exits:
+
+```powershell
+& ./.venv/Scripts/python.exe scripts/select_three_stage.py --prepared data/prepared/paysim_phase2_20260918 --config configs/experiment.yaml --protocol configs/validation_three_stage.yaml --resume artifacts/paysim_three_stage_20260928_172539 --jobs 1 --stop-after-stage 2
+```
+
+Successful Stage 2 ends with `awaiting_next_stage`, `completed_stage: 2`, and
+`stage: forest_selected`. Its review is exported to
+`backend/reports/paysim_three_stage_20260928_172539/stage2_review/`.
+Check live `metadata.json`, `search_progress.json`, and the current execution logs
+for updates. Do not resume the superseded five-ratio attempt.

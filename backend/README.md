@@ -6,7 +6,7 @@ The sole selection workflow is [three-stage validation](../docs/THREE_STAGE_VALI
 SMOTE ratio by RF-SMOTE validation Average Precision, shared forest settings by
 mean validation AP, then a common threshold by exact mean validation F1. Each
 stage freezes before the next. Both models are retained; selection does not pick
-a model winner. Current execution stops after Stage 1. See
+a model winner. Stage 1 froze 1:100; current execution stops after Stage 2. See
 [run status](../docs/VALIDATION_RUN_STATUS.md) for measured outcomes.
 
 Preparation, paired RF/RF-SMOTE training, saved inference, evaluation, three-stage
@@ -192,21 +192,42 @@ parameters. Its standalone trainer defaults are not selected research settings.
 The three-stage protocol overrides ratio and forest candidates; 0.50 is only a
 supplementary classification checkpoint until Stage 3 freezes a threshold.
 
-Run Stage 1 from `backend/`:
+Stage 1 is complete: the frozen SMOTE ratio is 1:100. Resume **Stage 2 only**
+from `backend/` after verification and a RAM check:
 
 ```powershell
-& ./.venv/Scripts/python.exe scripts/select_three_stage.py --prepared data/prepared/paysim_phase2_20260918 --config configs/experiment.yaml --protocol configs/validation_three_stage.yaml --jobs 1 --stop-after-stage 1
+& ./.venv/Scripts/python.exe scripts/select_three_stage.py --prepared data/prepared/paysim_phase2_20260918 --config configs/experiment.yaml --protocol configs/validation_three_stage.yaml --resume artifacts/paysim_three_stage_20260928_172539 --jobs 1 --stop-after-stage 2
 ```
 
-Installed commands `integritree-select` and `integritree-select-three-stage` are
-aliases for this implementation. To resume, add `--resume artifacts/<run-id>`
-and keep `--stop-after-stage 1`. Resolve memory failures without changing the
-frozen plan or reducing the data. Only one worker may own a run.
+Installed commands `integritree-select` and `integritree-select-three-stage` invoke
+the same selector. `--stop-after-stage` accepts 1 (ratio), 2 (forest), or 3
+(threshold); default 3 runs the full workflow. Use 2 for the current authorization.
+Resume the same frozen run after failure or graceful pausing; never run two workers.
+Memory checks remain enabled and the data/settings must not be changed to pass them.
 
-Stage 1 compares eight ratios and exports `reports/<run-id>/stage1_review/`.
-Status `awaiting_next_stage` means ratio selection is complete, while the final
-forest and common cutoff are still pending. Later stages require separate
-continuation; see the [complete protocol](../docs/THREE_STAGE_VALIDATION.md).
+Request a graceful pause from a separate terminal:
+
+```powershell
+& ./.venv/Scripts/python.exe scripts/pause_selection.py --run artifacts/paysim_three_stage_20260928_172539
+```
+
+The command reports `pause_requested`. Wait for worker metadata `status: paused`
+and worker exit before closing the training session or shutting down. Both model
+fits and validation for the active candidate finish before its checkpoint is saved
+and the worker exits. A final candidate instead completes and freezes the stage.
+Repeated requests are safe; requests to inactive/completed runs are rejected.
+Resume using the Stage 2 command above; completed candidates are verified and reused.
+Abrupt interruption does not preserve partial model fits and can require retraining
+an unfinished candidate. Changing when candidates run does not change their training
+inputs or selection rules. Mid-fit checkpoints are not implemented.
+
+A completed Stage 2 produces `status: awaiting_next_stage`, `completed_stage: 2`,
+and `stage: forest_selected`. The `reports/<run-id>/stage2_review/` export includes
+all 12 candidates, both AP values, mean AP, the frozen decision, and provenance.
+No threshold or final selected pair exists until Stage 3. A paused run exports no
+completed-stage report for its unfinished stage. See the
+[complete protocol](../docs/THREE_STAGE_VALIDATION.md) and
+[current run status](../docs/VALIDATION_RUN_STATUS.md).
 
 The standalone `scripts/train_models.py` command remains available for explicit
 fixed-parameter fits. It is not a selection workflow. Ordinary bundles contain

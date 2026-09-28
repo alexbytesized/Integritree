@@ -4,7 +4,7 @@ The sole selection workflow is [three-stage validation](THREE_STAGE_VALIDATION.m
 SMOTE ratio by RF-SMOTE validation Average Precision, shared forest settings by
 mean validation AP, then a common threshold by exact mean validation F1. Each
 stage freezes before the next. Both models are retained; selection does not pick
-a model winner. Current execution stops after Stage 1. See
+a model winner. Stage 1 froze 1:100; current execution stops after Stage 2. See
 [run status](VALIDATION_RUN_STATUS.md) for measured outcomes.
 
 ## 1. Purpose of this document
@@ -351,9 +351,9 @@ are retained. Current model/validation execution is recorded in
 
 The three-stage protocol is the only supported selection workflow. Generic
 fixed-parameter training is a reusable component, not a separate tuning method.
-The current restart trains fresh candidates and executes only Stage 1. Tree
-selection, threshold selection, official testing, and SHAP execution remain
-outside this run. The Word reference documents have not been edited; use
+Stage 1 is complete and its 1:100 ratio is frozen. The continuation compares
+all 12 forests and stops after Stage 2. Threshold selection, official testing,
+and SHAP execution remain outside this run. The Word reference documents have not been edited; use
 [the manuscript checklist](THESIS_DOCUMENT_CHANGES.md) for alignment.
 
 ## 14. Completed mock-up review and backend alignment (2026-09-22)

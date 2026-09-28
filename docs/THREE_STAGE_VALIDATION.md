@@ -89,28 +89,49 @@ Run software checks before full-data training:
 & ./.venv/Scripts/python.exe -m pip check
 ```
 
-Start a fresh Stage 1 run (omit `--run-id` for a unique generated name):
+The active run completed Stage 1 and froze 1:100. Resume it into **Stage 2 only**:
 
 ```powershell
-& ./.venv/Scripts/python.exe scripts/select_three_stage.py --prepared data/prepared/paysim_phase2_20260918 --config configs/experiment.yaml --protocol configs/validation_three_stage.yaml --jobs 1 --stop-after-stage 1
+& ./.venv/Scripts/python.exe scripts/select_three_stage.py --prepared data/prepared/paysim_phase2_20260918 --config configs/experiment.yaml --protocol configs/validation_three_stage.yaml --resume artifacts/paysim_three_stage_20260928_172539 --jobs 1 --stop-after-stage 2
 ```
 
 `integritree-select` and `integritree-select-three-stage` invoke the same selector.
-Resume only the same frozen run after an interruption:
+For a separate fresh study, omit `--resume` and use an unused or generated run ID;
+`--stop-after-stage 1` stops at ratio selection. Never change a frozen plan in place.
+The current run reuses the Stage 1 reference pair and trains 11 further paired
+forests at the frozen ratio, retaining all 12 in the comparison.
+
+Stage 2 ends with `status: awaiting_next_stage`, `completed_stage: 2`, and
+`stage: forest_selected`. Its decision and candidate table are under
+`stages/02_random_forest/`; its fingerprinted export is under
+`reports/<run-id>/stage2_review/`. Both stages' frozen evidence is verified on
+resume. A Stage 2-only run cannot be loaded as a final selected model pair.
+Threshold selection, final testing, and SHAP are outside this execution.
+Only a later authorized `--stop-after-stage 3` continuation selects the threshold.
+
+### Graceful candidate pause
+
+From a separate terminal in `backend/`:
 
 ```powershell
-& ./.venv/Scripts/python.exe scripts/select_three_stage.py --prepared data/prepared/paysim_phase2_20260918 --config configs/experiment.yaml --protocol configs/validation_three_stage.yaml --resume artifacts/<run-id> --jobs 1 --stop-after-stage 1
+& ./.venv/Scripts/python.exe scripts/pause_selection.py --run artifacts/paysim_three_stage_20260928_172539
 ```
 
-Stage 1 ends with `status: awaiting_next_stage`, `completed_stage: 1`.
-Its decision and candidate table are under `stages/01_smote_ratio/`; the exported
-review is under `reports/<run-id>/stage1_review/`. No final selection or selected
-threshold exists at this boundary. Current execution is limited to Stage 1.
-A later authorized continuation uses the same resume command with
-`--stop-after-stage 3`; that runs the remaining stages, without official test evaluation.
+This creates a run-local `pause_request.json`; it does not terminate or signal the
+worker. Requests are scoped to the current execution and coordinated by a short
+control lock. The worker checks between candidates, completing both model fits,
+validation, and its progress checkpoint before reporting `status: paused` and
+releasing the run lock. Metadata records the last completed candidate and pause
+time. Wait for that state and process exit before shutting down. If the last
+candidate finishes, the requested stage is frozen normally instead of pausing.
 
-Do not change the frozen plan to bypass resource or integrity failures. Resume
-completed candidates after resolving the failure. Do not launch concurrent workers.
+Resume with the same Stage 2 command. The acknowledged request is consumed, and
+completed models/reports are verified and reused. No parameters, seeds, data, or
+model-training algorithms change. Paused/resumed synthetic runs must match
+uninterrupted scores and decisions. Partial fits from abrupt interruptions are not
+resumable; the unfinished candidate may need retraining. Failure records remain
+available. Do not change the plan or disable RAM checks to bypass a failure.
+
 See [current run status](VALIDATION_RUN_STATUS.md).
 
 ## Manuscript reporting

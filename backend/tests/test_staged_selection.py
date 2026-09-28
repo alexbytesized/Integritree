@@ -340,3 +340,179 @@ def test_completed_three_stage_selection_allows_synthetic_test(experiment, tmp_p
     assert scores.threshold.eq(bundle.config.scoring.threshold).all()
     effective = staged.read_json(report / "evaluation_configuration.json")
     assert effective["effective_random_forest"]["tuning_procedure"] == "three_stage_validation_selected"
+
+
+@pytest.fixture
+def control_experiment(experiment):
+    prepared, config, _ = experiment
+    protocol = staged.SelectionProtocol(ratios=[.1, .2], trees=[3, 4], depths=[2],
+                                        leaves=[1, 2], reference_forest=(3, 2, 1))
+    return prepared, config, protocol
+
+
+def test_stage_two_pause_resume_matches_uninterrupted(control_experiment, tmp_path, monkeypatch):
+    import integritree.ml.training as training
+    import integritree.ml.research as research
+    prepared, config, protocol = control_experiment
+    train_loader, eval_loader = training.load_prepared_split, research.load_prepared_split
+    def train_only(path, split):
+        assert split == "train"
+        return train_loader(path, split)
+    def validation_only(path, split):
+        assert split == "validation"
+        return eval_loader(path, split)
+    monkeypatch.setattr(training, "load_prepared_split", train_only)
+    monkeypatch.setattr(research, "load_prepared_split", validation_only)
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Stage 2 must not enter threshold selection")
+    monkeypatch.setattr(staged, "all_score_thresholds", forbidden)
+    output = staged.select_three_stage(prepared, config, protocol, tmp_path / "runs", "paused_run",
+                                      stop_after_stage=1, progress=lambda _: None)
+    preserved = {p: file_sha256(p) for p in [output / "search_plan.json",
+                 *list((output / "stages/01_smote_ratio").glob("*"))]}
+    initial = staged.read_json(output / "search_progress.json")["completed_candidates"]
+    real_train = staged.train_models
+    calls = []
+    def pause_during_training(*args, **kwargs):
+        calls.append(1)
+        assert len(calls) == 1, "Started another fit after a pause request"
+        first = staged.request_pause(output)
+        before = (output / "pause_request.json").read_bytes()
+        assert staged.request_pause(output) == first
+        assert (output / "pause_request.json").read_bytes() == before
+        assert first["status"] == "pause_requested"
+        assert staged.read_json(output / "metadata.json")["status"] == "running"
+        return real_train(*args, **kwargs)
+    monkeypatch.setattr(staged, "train_models", pause_during_training)
+    staged.select_three_stage(prepared, config, protocol, output.parent, resume=output,
+                              stop_after_stage=2, progress=lambda _: None)
+    meta = staged.read_json(output / "metadata.json")
+    completed = staged.read_json(output / "search_progress.json")["completed_candidates"]
+    assert meta["status"] == "paused" and meta["completed_stage"] == 1
+    assert meta["active_stage"] == 2 and meta["active_candidate"] is None
+    assert len(completed) == len(initial) + 1
+    row = completed[meta["last_completed_candidate"]]
+    assert staged.read_json(staged.resolve_reference(row["model"], output) / "metadata.json")["status"] == "complete"
+    assert staged.read_json(staged.resolve_reference(row["report"], output) / "metadata.json")["status"] == "complete"
+    assert not (output / "pause_request.json").exists()
+    assert not (output / "stages/02_random_forest/decision.json").exists()
+    with staged.run_lock(output):
+        pass  # Paused worker released its OS lock.
+    with pytest.raises(ValueError, match="incomplete"):
+        staged.export_forest_stage(output, tmp_path / "reports")
+    with pytest.raises(ValueError, match="incomplete"):
+        load_bundle(output)
+    with pytest.raises(ValueError, match="active"):
+        staged.request_pause(output)
+    already = {(r["ratio"], tuple(r["forest"])) for r in completed.values()}
+    resumed_fits = []
+    def only_remaining(path, requested, *args, **kwargs):
+        key = (requested.smote.sampling_ratio, (requested.random_forest.n_estimators,
+               requested.random_forest.max_depth, requested.random_forest.min_samples_leaf))
+        assert key not in already
+        resumed_fits.append(key)
+        return real_train(path, requested, *args, **kwargs)
+    monkeypatch.setattr(staged, "train_models", only_remaining)
+    staged.select_three_stage(prepared, config, protocol, output.parent, resume=output,
+                              stop_after_stage=2, progress=lambda _: None)
+    assert len(resumed_fits) == 2
+    assert all(file_sha256(p) == digest for p, digest in preserved.items())
+    meta = staged.read_json(output / "metadata.json")
+    assert (meta["status"], meta["stage"], meta["completed_stage"]) == ("awaiting_next_stage", "forest_selected", 2)
+    assert not (output / "selection.json").exists()
+    assert not (output / "stages/03_threshold").exists()
+    with pytest.raises(ValueError, match="incomplete"):
+        load_bundle(output)
+    report = staged.export_forest_stage(output, tmp_path / "reports")
+    review = staged.read_json(report / "metadata.json")
+    assert review["test_used"] is False and review["status"] == "complete"
+    for name, digest in review["files"].items():
+        assert file_sha256(report / name) == digest
+    monkeypatch.setattr(staged, "train_models", real_train)
+    uninterrupted = staged.select_three_stage(prepared, config, protocol, output.parent, "uninterrupted",
+                                             stop_after_stage=2, progress=lambda _: None)
+    actual = staged.read_json(output / "stages/02_random_forest/decision.json")
+    expected = staged.read_json(uninterrupted / "stages/02_random_forest/decision.json")
+    assert actual["chosen_key"] == expected["chosen_key"]
+    for left, right in zip(actual["candidates"], expected["candidates"]):
+        assert {k:v for k,v in left.items() if k not in ("model", "report")} == {
+                k:v for k,v in right.items() if k not in ("model", "report")}
+        _, lpred = research.load_report(staged.resolve_reference(left["report"], output))
+        _, rpred = research.load_report(staged.resolve_reference(right["report"], uninterrupted))
+        pd.testing.assert_frame_equal(lpred[["rf_risk_score", "rf_smote_risk_score"]],
+                                      rpred[["rf_risk_score", "rf_smote_risk_score"]], check_exact=True)
+    with (output / "stages/02_random_forest/candidates.csv").open("a") as handle:
+        handle.write("corrupt")
+    with pytest.raises(ValueError, match="fingerprint"):
+        staged.export_forest_stage(output, tmp_path / "reports")
+    with pytest.raises(ValueError, match="fingerprint"):
+        staged.select_three_stage(prepared, config, protocol, output.parent, resume=output, stop_after_stage=2)
+
+
+def test_pause_during_last_candidate_freezes_stage_two(control_experiment, tmp_path, monkeypatch):
+    prepared, config, protocol = control_experiment
+    output = tmp_path / "runs" / "last"
+    real_train = staged.train_models
+    requested_pause = []
+    def last_candidate(path, requested, *args, **kwargs):
+        forest = (requested.random_forest.n_estimators, requested.random_forest.max_depth,
+                  requested.random_forest.min_samples_leaf)
+        if forest == protocol.forests()[-1]:
+            requested_pause.append(staged.request_pause(output))
+        return real_train(path, requested, *args, **kwargs)
+    monkeypatch.setattr(staged, "train_models", last_candidate)
+    staged.select_three_stage(prepared, config, protocol, output.parent, output.name,
+                              stop_after_stage=2, progress=lambda _: None)
+    assert len(requested_pause) == 1
+    meta = staged.read_json(output / "metadata.json")
+    assert meta["status"] == "awaiting_next_stage" and meta["completed_stage"] == 2
+    assert not (output / "pause_request.json").exists()
+    assert not (output / "stages/03_threshold").exists()
+    with pytest.raises(ValueError, match="active"):
+        staged.request_pause(output)
+
+
+@pytest.mark.parametrize("status", ["paused", "complete", "failed", "awaiting_next_stage", "running"])
+def test_pause_rejects_inactive_or_stale_worker(tmp_path, status):
+    staged.atomic_json(tmp_path / "metadata.json", {"kind": "validation_selection", "schema_version": 2,
+                       "status": status, "active_stage": 2, "worker_pid": 999999,
+                       "execution_history": [{"started_at": "synthetic"}]})
+    with pytest.raises(ValueError, match="active"):
+        staged.request_pause(tmp_path)
+    assert not (tmp_path / "pause_request.json").exists()
+
+
+def test_paused_cli_does_not_export_final_results(tmp_path, settings, monkeypatch, capsys):
+    output = tmp_path / "paused"
+    output.mkdir()
+    staged.atomic_json(output / "metadata.json", {"status": "paused"})
+    monkeypatch.setattr(staged, "load_settings", lambda: settings)
+    monkeypatch.setattr(staged, "load_experiment", lambda _: None)
+    monkeypatch.setattr(staged, "load_protocol", lambda _: None)
+    monkeypatch.setattr(staged, "select_three_stage", lambda *a, **k: output)
+    def forbidden(*args, **kwargs):
+        raise AssertionError("A paused run must not export a final report")
+    for name in ("export_forest_stage", "export_ratio_stage", "export_validation"):
+        monkeypatch.setattr(staged, name, forbidden)
+    monkeypatch.setattr("sys.argv", ["select", "--prepared", "synthetic", "--stop-after-stage", "2"])
+    assert staged.main() == 0
+    response = json.loads(capsys.readouterr().out)
+    assert response["status"] == "paused" and response["report"] is None
+
+
+def test_pause_script_requests_without_reporting_paused(tmp_path):
+    import subprocess
+    import sys
+    staged.atomic_json(tmp_path / "metadata.json", {"kind": "validation_selection", "schema_version": 2,
+                       "status": "running", "active_stage": 2, "worker_pid": 123,
+                       "execution_history": [{"started_at": "synthetic"}]})
+    with staged.run_lock(tmp_path):
+        result = subprocess.run([sys.executable, str(BACKEND_ROOT / "scripts/pause_selection.py"),
+                                 "--run", str(tmp_path)], capture_output=True, text=True, check=False)
+        assert result.returncode == 0, result.stderr
+        assert json.loads(result.stdout)["status"] == "pause_requested"
+        assert staged.read_json(tmp_path / "metadata.json")["status"] == "running"
+    stale = subprocess.run([sys.executable, str(BACKEND_ROOT / "scripts/pause_selection.py"),
+                            "--run", str(tmp_path)], capture_output=True, text=True, check=False)
+    assert stale.returncode == 2
+    assert "inactive" in json.loads(stale.stderr)["error"]

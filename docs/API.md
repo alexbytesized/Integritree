@@ -180,7 +180,12 @@ Phase 5 services to call:
   `split="test"` requires a frozen validation-selected bundle.
 - `ml.staged_selection.select_three_stage(...)`: sequential ratio/AP, forest/AP,
   threshold/F1 selection, with frozen stage evidence and resume support.
-  `stop_after_stage=1` freezes the ratio only; the default 3 executes all stages.
+  `stop_after_stage=1` freezes the ratio, 2 freezes the forest, and default 3
+  executes all stages. Graceful pauses return a run with `status: paused`.
+- `ml.staged_selection.request_pause(path)`: asks an active selection worker to
+  stop after its current candidate checkpoint; returns `pause_requested`.
+- `ml.staged_selection.export_forest_stage(...)`: verifies and exports a completed
+  Stage 2 review without threshold selection or test access.
 - `ml.artifacts.load_bundle(path)`: loads an ordinary fitted pair or a complete schema-2
   three-stage selection after integrity checks; obsolete selections are rejected.
 - `ml.explainability.ExplanationEngine(...).explain(features, transaction_ids,
