@@ -1,0 +1,229 @@
+.bmv-root {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* Side-by-side columns */
+.bmv-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+/* Model column */
+.bmv-model-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.bmv-model-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 36px;
+  border-radius: 14px 14px 0 0;
+  background: var(--results-blue);
+  color: #FFFFFF;
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: clamp(14px, 1.4vw, 20px);
+  font-weight: 600;
+}
+
+.bmv-model-col-body {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  padding: 35px;
+  border: 1px solid var(--results-border);
+  border-top: none;
+  border-radius: 0 0 14px 14px;
+  background: #FFFFFF;
+  box-shadow: var(--results-shadow);
+}
+
+/* Mini gauge */
+.bmv-gauge-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-bottom: 4px;
+}
+
+.bmv-gauge-track {
+  position: relative;
+  height: 20px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    #1DB954 0%,    #1DB954 20%,
+    #F9C923 20%,   #F9C923 40%,
+    #F47C20 40%,   #F47C20 60%,
+    #D9312B 60%,   #D9312B 80%,
+    #7A0000 80%,   #7A0000 100%
+  );
+}
+
+.bmv-gauge-thumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  border: 2.5px solid #BBBBBB;
+  box-shadow: 0 1px 5px rgb(0 0 0 / 25%);
+  z-index: 1;
+}
+
+.bmv-gauge-label {
+  margin: 0;
+  text-align: center;
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: clamp(12px, 1.1vw, 14px);
+  font-weight: 700;
+  color: #23272A;
+}
+
+/* Stacked card */
+.bmv-stacked-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.bmv-stacked-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 15px 20px;
+  border-radius: 10px 10px 0 0;
+  background: var(--results-blue);
+  color: #FFFFFF;
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: clamp(13px, 1.2vw, 19px);
+  font-weight: 600;
+}
+
+.bmv-stacked-card-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 20px 14px;
+  border: 1px solid var(--results-border);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  background: #FFFFFF;
+  box-shadow: var(--results-shadow);
+  font-family: 'SF Pro Display', sans-serif;
+}
+
+/* Value helpers */
+.bmv-fraud {
+  color: #C0392B;
+  font-size: clamp(12px, 1.2vw, 18px);
+  font-weight: 700;
+}
+
+.bmv-legit {
+  color: #1DB954;
+  font-size: clamp(12px, 1.2vw, 18px);
+  font-weight: 700;
+}
+
+.bmv-value {
+  font-size: clamp(12px, 1.2vw, 18px);
+  color: #23272A;
+}
+
+.bmv-value--bold { font-weight: 700; }
+
+/* Expanded card */
+.bmv-expanded-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.bmv-expanded-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 36px;
+  border-radius: 14px 14px 0 0;
+  background: var(--results-blue);
+  color: #fff;
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: clamp(14px, 1.4vw, 20px);
+  font-weight: 600;
+}
+
+.bmv-expanded-body {
+  padding: 28px 36px;
+  border: 1px solid var(--results-border);
+  border-top: none;
+  border-radius: 0 0 14px 14px;
+  background: #FFFFFF;
+  box-shadow: var(--results-shadow);
+}
+
+.bmv-section-heading {
+  margin: 0 0 10px;
+  text-align: center;
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: clamp(13px, 1.6vw, 19px);
+  font-weight: 700;
+  color: var(--results-blue);
+}
+
+.bmv-section-text {
+  margin: 0 0 20px;
+  text-align: center;
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: clamp(13px, 1.6vw, 19px);
+  line-height: 1.5;
+  color: #23272a;
+}
+
+.bmv-section-text:last-of-type { margin-bottom: 0; }
+
+.bmv-highlight-risk { color: #c0392b; font-weight: 700; }
+
+.bmv-shap-link-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.bmv-shap-link {
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: clamp(12px, 1.1vw, 15px);
+  color: #6b7280;
+  text-decoration: none;
+  cursor: default;
+}
+
+.bmv-shap-link:not(.bmv-shap-link--placeholder) {
+  cursor: pointer;
+}
+
+.bmv-shap-link:not(.bmv-shap-link--placeholder):hover {
+  color: var(--results-blue);
+  text-decoration: underline;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 760px) {
+  .bmv-columns { gap: 16px; }
+  .bmv-model-col-body { padding: 14px; gap: 10px; }
+  .bmv-gauge-track { height: 14px; }
+  .bmv-gauge-thumb { width: 18px; height: 18px; }
+  .bmv-expanded-body { padding: 20px; }
+  .bmv-section-heading { font-size: 12px; }
+  .bmv-section-text { font-size: 13px; }
+}
+
+@media (max-width: 540px) {
+  .bmv-columns { grid-template-columns: 1fr; }
+  .bmv-expanded-body { padding: 16px; }
+}

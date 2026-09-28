@@ -1,7 +1,7 @@
 .fraudDonutCard { display: flex; flex-direction: column; align-items: center; }
 .fraudDonut {
-  --size: clamp(104px, 10vw, 155px);
-  --thickness: 18px;
+  --size: clamp(76px, 10vw, 120px);
+  --thickness: 15px;
   --donut-color: #086dc1;
   position: relative;
   display: flex;
@@ -15,9 +15,9 @@
     repeating-conic-gradient(from -90deg, #bfc1c3 0deg 26deg, #fff 26deg 30deg);
 }
 .fraudDonut::after { content: ''; position: absolute; inset: var(--thickness); border-radius: 50%; background: #fff; }
-.fraudDonut span { position: relative; z-index: 1; font-size: clamp(16px, 1.5vw, 23px); font-weight: 700; }
+.fraudDonut span { position: relative; z-index: 1; font-size: clamp(12px, 1.1vw, 17px); font-weight: 700; }
 .rf-smote-donut { --donut-color: var(--smote-blue); }
 .benchmark-donut { --donut-color: var(--benchmark-blue); }
 .ground-truth-donut { --donut-color: var(--results-blue); }
-.fraudDonutTitle { margin: 20px 0 0; font-size: clamp(14px, 1.3vw, 19px); }
-@media (max-width: 760px) { .fraudDonutTitle { margin-top: 12px; } }
+.fraudDonutTitle { margin: 14px 0 0; font-size: clamp(11px, 1.3vw, 16px); }
+@media (max-width: 760px) { .fraudDonutTitle { margin-top: 8px; } }

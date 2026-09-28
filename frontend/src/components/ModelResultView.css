@@ -1,0 +1,181 @@
+/* Risk Gauge */
+.mrv-gauge-wrapper {
+  position: relative;
+  margin-bottom: 44px;
+  padding-bottom: 28px;
+}
+
+.mrv-gauge-track {
+  position: relative;
+  height: 28px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    #1DB954 0%,    #1DB954 20%,
+    #F9C923 20%,   #F9C923 40%,
+    #F47C20 40%,   #F47C20 60%,
+    #D9312B 60%,   #D9312B 80%,
+    #7A0000 80%,   #7A0000 100%
+  );
+}
+
+.mrv-gauge-thumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  border: 3px solid #BBBBBB;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 28%);
+  z-index: 1;
+}
+
+.mrv-gauge-labels {
+  position: relative;
+  height: 22px;
+  margin-top: 10px;
+}
+
+.mrv-gauge-label {
+  position: absolute;
+  transform: translateX(-50%);
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: clamp(11px, 1.1vw, 14px);
+  font-weight: 600;
+  color: #23272A;
+  white-space: nowrap;
+}
+
+.mrv-gauge-label:first-child { transform: translateX(0); }
+.mrv-gauge-label:last-child  { transform: translateX(-100%); }
+
+/* 2×2 Info card grid */
+.mrv-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+/* Info card */
+.mrv-info-card {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0;
+}
+
+.mrv-info-card--full {
+  margin-bottom: 24px;
+}
+
+.mrv-info-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 36px;
+  border-radius: 14px 14px 0 0;
+  background: var(--results-blue);
+  color: #FFFFFF;
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: clamp(14px, 1.4vw, 20px);
+  font-weight: 600;
+}
+
+.mrv-info-card-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 78px;
+  padding: 20px 28px;
+  border: 1px solid var(--results-border);
+  border-top: none;
+  border-radius: 0 0 14px 14px;
+  background: #FFFFFF;
+  box-shadow: var(--results-shadow);
+  font-family: 'SF Pro Display', sans-serif;
+}
+
+/* full-width cards (Interpretation, SHAP) */
+.mrv-info-card--full .mrv-info-card-body {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  min-height: unset;
+  padding: 30px 30px;
+}
+
+/* Value types */
+.mrv-highlight-fraud {
+  color: #C0392B;
+  font-size: clamp(13px, 1.6vw, 19px);
+  font-weight: 700;
+}
+
+.mrv-highlight-legit {
+  color: #1DB954;
+  font-size: clamp(13px, 1.6vw, 19px);
+  font-weight: 700;
+}
+
+.mrv-highlight-risk { color: #C0392B; font-weight: 700; }
+
+.mrv-risk-score,
+.mrv-outcome {
+  font-size: clamp(13px, 1.6vw, 19px);
+  color: #23272A;
+}
+
+.mrv-outcome { font-weight: 600; }
+
+/* Text */
+.mrv-text {
+  margin: 0;
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: clamp(13px, 1.6vw, 19px);
+  line-height: 1.5;
+  color: #23272A;
+  text-align: center;
+}
+
+.mrv-shap-link-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.mrv-shap-link {
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: clamp(12px, 1.1vw, 15px);
+  color: #6B7280;
+  text-decoration: none;
+  cursor: default;
+}
+
+.mrv-shap-link:not(.mrv-shap-link--placeholder) {
+  cursor: pointer;
+}
+
+.mrv-shap-link:not(.mrv-shap-link--placeholder):hover {
+  color: var(--results-blue);
+  text-decoration: underline;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 760px) {
+  .mrv-gauge-track { height: 20px; }
+  .mrv-gauge-thumb { width: 24px; height: 24px; }
+  .mrv-gauge-label { font-size: 10px; }
+  .mrv-gauge-wrapper { margin-bottom: 32px; padding-bottom: 22px; }
+  .mrv-cards-grid { gap: 16px; }
+  .mrv-info-card-header { padding: 12px 14px; font-size: 13px; }
+  .mrv-info-card-body { min-height: 64px; padding: 14px 18px; }
+  .mrv-info-card--full .mrv-info-card-body { padding: 18px 20px; }
+}
+
+@media (max-width: 540px) {
+  .mrv-cards-grid { grid-template-columns: 1fr; }
+  .mrv-gauge-labels { display: none; }
+  .mrv-gauge-wrapper { margin-bottom: 20px; padding-bottom: 0; }
+}

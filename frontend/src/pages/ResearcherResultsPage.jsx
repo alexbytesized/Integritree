@@ -1,7 +1,6 @@
 import "./ResearcherResultsPage.css"
-import backbutton from "../assets/back-button_revised.png"
 import stars from "../assets/stars.png"
-import { useNavigate } from "react-router-dom"
+import ReturnButton from "../components/ReturnButton"
 import SystemResults from "../components/SystemResults"
 import SearchBar from "../components/SearchBar"
 import FilterBar from "../components/FilterBar"
@@ -45,9 +44,19 @@ const ResearcherResultsPage = () => {
         console.log("callback - particles.js config loaded")
       })
     }
+
+    return () => {
+      if (window.pJSDom && window.pJSDom.length > 0) {
+        window.pJSDom.forEach((entry) => {
+          if (entry.pJS && entry.pJS.fn && entry.pJS.fn.vendors && entry.pJS.fn.vendors.destroypJS) {
+            entry.pJS.fn.vendors.destroypJS()
+          }
+        })
+        window.pJSDom = []
+      }
+    }
   }, [])
 
-  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState("")
   const [model, setModel] = useState("both")
   const [outcome, setOutcome] = useState("all")
@@ -73,14 +82,10 @@ const ResearcherResultsPage = () => {
   }
 
   return (
-    <>
+    <div className="researcher-results-wrapper">
       <div id="particles-js" className="particles-background" aria-hidden="true" />
+      <ReturnButton to="/researcher-upload" />
       <main className="researcher-results-page">
-      <header className="researcher-results-header">
-        <button type="button" className="back-button" aria-label="Go back" onClick={() => navigate(-1)}>
-          <img src={backbutton} alt="Back Button" />
-        </button>
-      </header>
 
       <section className="results-overview-section">
         <div className="results-overview-title">
@@ -266,7 +271,7 @@ const ResearcherResultsPage = () => {
       </footer>
       {activeInfoTopic && <InfoModal topic={activeInfoTopic} onClose={closeInfo} />}
       </main>
-    </>
+    </div>
   )
 }
 

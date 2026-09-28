@@ -5,11 +5,12 @@
   align-items: center;
   min-width: 0;
   height: 56px;
-  border: 1px solid #34383c;
+  border: 1px solid var(--results-border);
   border-radius: 10px;
   background: #fff;
+  box-shadow: var(--results-shadow);
 }
-.filterBar.is-disabled { border-color: #afb3b7; background: #f4f5f6; }
+.filterBar.is-disabled { border-color: #afb3b7; background: #f4f5f6; box-shadow: none; }
 .filterIcon { position: absolute; left: 17px; width: 23px; height: 23px; pointer-events: none; }
 .filterChevron { position: absolute; right: 16px; width: 20px; height: 20px; pointer-events: none; }
 .filterBar select {

@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import "./TransactionTable.css"
 
 const transactions = [
@@ -279,6 +280,7 @@ const PageJump = ({ currentPage, totalPages, onPageChange }) => {
 }
 
 const TransactionTable = ({ searchTerm, model, outcome, currentPage, onPageChange }) => {
+  const navigate = useNavigate()
   const rowsPerPage = 10
   const showSmote = model !== "benchmark"
   const showBenchmark = model !== "rfSmote"
@@ -334,7 +336,7 @@ const TransactionTable = ({ searchTerm, model, outcome, currentPage, onPageChang
                   </div>
                 </td>
                 <td>
-                  <button type="button" className="viewButton" aria-disabled="true" title="Transaction details are not available yet">View<span className="visually-hidden"> transaction {transaction.id}; details are not available yet</span></button>
+                  <button type="button" className="viewButton" onClick={() => navigate(`/researcher/transaction/${transaction.id}`)} aria-label={`View transaction ${transaction.id}`}>View</button>
                 </td>
               </tr>
             ))}

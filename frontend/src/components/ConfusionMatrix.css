@@ -4,14 +4,14 @@
   align-items: center;
   justify-content: center;
   width: min(63%, 840px);
-  height: 80px;
+  height: 92px;
   margin: 0 auto;
-  padding: 0 20px 28px;
+  padding: 0 38px 25px;
   border-radius: 28px 28px 0 0;
   color: #fff;
   background: var(--results-blue);
 }
-.confusion-matrix-title-container h2 { margin: 0; font-size: 23px; text-align: center; }
+.confusion-matrix-title-container h2 { margin: 0; font-size: 22px; text-align: center; }
 .confusion-matrix-container {
   position: relative;
   margin-top: -28px;

@@ -26,6 +26,17 @@ const LandingPage = () => {
         console.log('callback - particles.js config loaded')
       })
     }
+
+    return () => {
+      if (window.pJSDom && window.pJSDom.length > 0) {
+        window.pJSDom.forEach((entry) => {
+          if (entry.pJS && entry.pJS.fn && entry.pJS.fn.vendors && entry.pJS.fn.vendors.destroypJS) {
+            entry.pJS.fn.vendors.destroypJS()
+          }
+        })
+        window.pJSDom = []
+      }
+    }
   }, [])
 
   return (

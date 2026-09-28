@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useDropzone } from 'react-dropzone'
-import { ArrowLeft, Database, Upload, X, FileText } from 'lucide-react'
+import { Database, Upload, X, FileText } from 'lucide-react'
+import ReturnButton from '../components/ReturnButton'
 import './UploadPage.css'
 
 const ResearcherUploadPage = () => {
@@ -12,6 +13,17 @@ const ResearcherUploadPage = () => {
   useEffect(() => {
     if (window.particlesJS) {
       window.particlesJS.load('particles-js', '/particles.json', () => {})
+    }
+
+    return () => {
+      if (window.pJSDom && window.pJSDom.length > 0) {
+        window.pJSDom.forEach((entry) => {
+          if (entry.pJS && entry.pJS.fn && entry.pJS.fn.vendors && entry.pJS.fn.vendors.destroypJS) {
+            entry.pJS.fn.vendors.destroypJS()
+          }
+        })
+        window.pJSDom = []
+      }
     }
   }, [])
 
@@ -69,9 +81,7 @@ const ResearcherUploadPage = () => {
       <div id="particles-js"></div>
 
       {/* Back Button */}
-      <Link to="/" className="upload-back-btn">
-        <ArrowLeft size={20} strokeWidth={2} />
-      </Link>
+      <ReturnButton />
 
       {/* Title Header */}
       <div className="upload-title-container">

@@ -6,6 +6,11 @@
   --results-shadow: 0 3px 2px rgb(0 0 0 / 18%);
 }
 
+.researcher-results-wrapper {
+  position: relative;
+  min-height: 100vh;
+}
+
 .researcher-results-page {
   position: relative;
   width: min(1340px, calc(100% - 64px));
@@ -19,7 +24,7 @@
 .researcher-results-page * { box-sizing: border-box; }
 
 .particles-background {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 0;
   pointer-events: none;
@@ -30,23 +35,8 @@
   z-index: 1;
 }
 
-.researcher-results-header { margin-left: -40px; }
-
-.back-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-}
-
-.researcher-results-page .back-button img { display: block; width: 70px; height: 70px; }
-.back-button:hover { opacity: .7; }
-
 .researcher-results-page section { margin-top: 104px; }
-.researcher-results-page .results-overview-section { margin-top: 58px; }
+.researcher-results-page .results-overview-section { margin-top: 100px; }
 
 .results-overview-title {
   display: flex;
@@ -58,9 +48,8 @@
 .section-heading { display: flex; align-items: center; }
 .results-overview-title h1 {
   margin: 0;
-  font-size: clamp(25px, 2.5vw, 36px);
-  line-height: 1.2;
-  font-weight: 700;
+  font-size: clamp(25px, 2.2vw, 36px);
+  font-weight: 600;
 }
 
 .results-overview-title img {
@@ -71,15 +60,22 @@
 }
 
 .viewButton {
-  color: #666b70;
-  border: 1px solid #8e9499;
+  color: var(--results-blue);
+  border: 1px solid var(--results-blue);
   border-radius: 5px;
   background: #fff;
   font: inherit;
-  cursor: not-allowed;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.viewButton:hover {
+  background: var(--results-blue);
+  color: #fff;
 }
 
 .results-actions { display: flex; justify-content: flex-end; margin-top: 48px; }
+
 .download-button {
   min-height: 54px;
   padding: 12px 28px;
@@ -99,11 +95,11 @@
   gap: 14px;
   width: 100%;
   height: 92px;
-  padding: 0 44px 28px;
+  padding: 0 38px 25px;
   border-radius: 28px 28px 0 0;
   color: #fff;
   background: var(--results-blue);
-  font-size: 23px;
+  font-size: 22px;
 }
 
 .system-results-container {
@@ -111,9 +107,11 @@
   display: grid;
   grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
   gap: 64px;
+  gap: 36px;
   width: 100%;
   margin-top: -28px;
   padding: 44px;
+  padding: 30px;
   border: 1px solid var(--results-border);
   border-radius: 28px;
   background: #fff;
@@ -161,9 +159,9 @@
   justify-content: center;
   gap: 12px;
   width: min(63%, 840px);
-  height: 78px;
+  height: 92px;
   margin: 0 auto;
-  padding: 0 24px 28px;
+  padding: 0 38px 25px;
   border-radius: 28px 28px 0 0;
   color: #fff;
   background: var(--results-blue);
@@ -172,7 +170,7 @@
 .percentage-statistics-title-container h3,
 .mcnemar-statistics-title-container h3 {
   margin: 0;
-  font-size: 23px;
+  font-size: 22px;
   line-height: 1.2;
 }
 
@@ -290,16 +288,7 @@
 .percentage-statistics-title-container .info-button:hover,
 .mcnemar-statistics-title-container .info-button:hover { background: rgb(255 255 255 / 20%); }
 .info-button:focus-visible,
-.back-button:focus-visible,
 .download-button:focus-visible,
-.viewButton:focus-visible,
-.paginationButton:focus-visible,
-.tableWrapper:focus-visible,
-.searchBar:focus-within,
-.filterBar:focus-within {
-  outline: 3px solid #f5a524;
-  outline-offset: 3px;
-}
 
 .visually-hidden {
   position: absolute;
@@ -331,7 +320,7 @@
 @media (max-width: 760px) {
   .researcher-results-page { width: calc(100% - 32px); padding-top: 22px; }
   .researcher-results-page section { margin-top: 72px; }
-  .researcher-results-page .results-overview-section { margin-top: 36px; }
+  .researcher-results-page .results-overview-section { margin-top: 100px; }
   .results-overview-title { margin-bottom: 24px; }
   .results-overview-title img { width: 34px; transform: translateY(-10px); }
   .file-name-container { height: 82px; padding: 0 25px 22px; font-size: 18px; }
@@ -349,6 +338,7 @@
 }
 
 @media (max-width: 540px) {
+  .researcher-results-page .results-overview-section { margin-top: 100px; }
   .model-result-container { flex-direction: column; }
   .divider { width: 84%; height: 1px; }
   .model-statistics-container { grid-template-columns: 1fr; }

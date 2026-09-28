@@ -91,37 +91,51 @@
   margin-top: 20px;
   font-size: 17px;
 }
-.paginationControls { display: flex; align-items: center; gap: 20px; flex: none; }
+.paginationControls { display: flex; align-items: center; gap: 14px; flex: none; }
+.paginationRecords { color: #6b7280; }
 .paginationButton {
-  padding: 4px 2px;
-  border: 0;
-  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 1px solid var(--results-border);
+  border-radius: 50%;
+  background: #fff;
   color: var(--results-blue);
-  font: inherit;
-  font-size: 24px;
+  font-size: 16px;
   cursor: pointer;
+  box-shadow: var(--results-shadow);
+  transition: border-color 0.2s ease, color 0.2s ease;
 }
-.paginationButton:disabled { color: #aeb4b9; cursor: not-allowed; }
+.paginationButton:hover:not(:disabled) { border-color: var(--results-blue); }
+.paginationButton:disabled { color: #d0d5da; border-color: #e8eaec; box-shadow: none; cursor: not-allowed; }
 .pageJump {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 46px;
-  padding: 5px 9px 5px 14px;
-  border: 1px solid #d5d9dc;
-  border-radius: 6px;
+  min-height: 40px;
+  padding: 5px 14px;
+  border: 1px solid var(--results-border);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: var(--results-shadow);
   white-space: nowrap;
+  font-size: 15px;
 }
 .pageJump input {
-  height: 34px;
-  padding: 3px 5px;
-  border: 1px solid #b8bec3;
-  border-radius: 4px;
+  height: 30px;
+  padding: 2px 6px;
+  border: 1px solid var(--results-border);
+  border-radius: 6px;
   color: inherit;
   font: inherit;
+  font-size: 15px;
   text-align: center;
+  outline: none;
 }
-.pageJump input:focus-visible { outline: 3px solid #f5a524; outline-offset: 2px; }
+.pageJump input:focus { border-color: var(--results-blue); }
 @media (max-width: 760px) {
   .tableContainer { padding: 18px; }
   .transactionTable { min-width: 1430px; font-size: 15px; }
@@ -132,12 +146,13 @@
   .featureBadge { min-width: 145px; font-size: 14px; }
   .pagination { flex-wrap: wrap; font-size: 14px; }
   .paginationControls { margin-left: auto; }
+  .paginationButton { width: 34px; height: 34px; font-size: 13px; }
 }
 @media (max-width: 540px) {
   .tableContainer { padding: 12px; border-radius: 20px; }
   .transactionTable { min-width: 1300px; font-size: 14px; }
   .paginationControls { width: 100%; justify-content: center; gap: 8px; }
-  .pageJump { min-width: 0; max-width: calc(100% - 80px); padding-inline: 8px; font-size: 14px; }
-  .pageJump input { min-width: 46px; max-width: min(40vw, 260px); }
+  .pageJump { min-width: 0; max-width: calc(100% - 80px); padding-inline: 10px; font-size: 14px; }
+  .pageJump input { min-width: 40px; max-width: min(40vw, 260px); }
   .paginationRecords { width: 100%; text-align: center; }
 }

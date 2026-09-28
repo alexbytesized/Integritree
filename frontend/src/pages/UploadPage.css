@@ -21,27 +21,6 @@
   pointer-events: none;
 }
 
-/* Back Button */
-.upload-back-btn {
-  position: absolute;
-  top: clamp(16px, 4vw, 52px);
-  left: clamp(16px, 4vw, 52px);
-  width: 40px;
-  height: 40px;
-  border: 1.8px solid #181818;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #181818;
-  text-decoration: none;
-  transition: opacity 0.2s ease;
-  z-index: 10;
-}
-
-.upload-back-btn:hover {
-  opacity: 0.5;
-}
 
 /* Title / Logo */
 .upload-title-container {
@@ -268,10 +247,10 @@
   align-items: center;
   gap: 8px;
   padding: 10px 28px;
-  font-family: 'Coolvetica', sans-serif;
+  font-family: 'SF Pro Display', sans-serif;
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 3px;
+  letter-spacing: 2px;
   background-color: #111111;
   color: #ffffff;
   border: 1.5px solid #111111;
@@ -296,11 +275,6 @@
 
 /* Responsive Adjustments */
 @media (max-width: 600px) {
-  .upload-card-body {
-    padding: 0 14px 20px 14px;
-  }
-
-  .dropzone-area {
-    padding: 36px 16px;
-  }
+  .upload-card-body { padding: 0 14px 20px 14px; }
+  .dropzone-area { padding: 36px 16px; }
 }

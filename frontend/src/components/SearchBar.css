@@ -5,9 +5,10 @@
   height: 56px;
   padding: 0 20px;
   gap: 14px;
-  border: 1px solid #34383c;
+  border: 1px solid var(--results-border);
   border-radius: 10px;
   background: #fff;
+  box-shadow: var(--results-shadow);
 }
 .searchIcon { flex: none; width: 22px; height: 22px; color: #34383c; }
 .searchBar input {
