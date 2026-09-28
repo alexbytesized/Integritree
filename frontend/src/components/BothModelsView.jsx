@@ -75,7 +75,7 @@ const ExpandedCard = ({ label, riskScore, prediction, interpretation, shapSummar
     `The transaction was classified as ${prediction} primarily because of its ` +
     `high transaction amount, CASH_OUT transaction type, large decrease in the sender's balance, ` +
     `and unusual change in the recipient's balance. These factors increased the model's fraud ` +
-    `prediction, resulting in a High Risk score of ${riskScore}/100.`
+    `prediction, resulting in a ${riskLevel} score of ${riskScore}/100.`
 
   return (
     <div className="bmv-expanded-card">

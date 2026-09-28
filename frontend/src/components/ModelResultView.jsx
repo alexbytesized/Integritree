@@ -1,4 +1,5 @@
 import "./ModelResultView.css"
+import RiskThresholdTooltip from "./RiskThresholdTooltip"
 
 const RISK_LABELS = ["Minimal Risk", "Low Risk", "Moderate Risk", "High Risk", "Critical Risk"]
 
@@ -12,6 +13,10 @@ const getRiskLevel = (score) => {
 
 const RiskGauge = ({ score }) => (
   <div className="mrv-gauge-wrapper">
+    <div className="mrv-gauge-header">
+      <span className="mrv-gauge-title">Risk Level</span>
+      <RiskThresholdTooltip position="bottom" />
+    </div>
     <div className="mrv-gauge-track">
       <div
         className="mrv-gauge-thumb"

@@ -6,6 +6,7 @@ import ResearcherUploadPage from "./pages/ResearcherUploadPage"
 import ResearcherResultsPage from "./pages/ResearcherResultsPage"
 import TransactionDetailsPage from "./pages/TransactionDetailsPage"
 import UploadDetails from "./pages/UploadDetails"
+import UserResultsPage from "./pages/UserResultsPage"
 
 const App = () => {
   return (
@@ -17,6 +18,7 @@ const App = () => {
         <Route path="/researcher" element={<ResearcherResultsPage />} />
         <Route path="/researcher/transaction/:id" element={<TransactionDetailsPage />} />
         <Route path="/results" element={<UploadDetails />} />
+        <Route path="/user-results" element={<UserResultsPage />} />
       </Routes>
     </div>
   )

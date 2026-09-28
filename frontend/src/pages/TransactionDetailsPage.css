@@ -41,24 +41,28 @@
 }
 
 .td-card-header {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  padding: 16px 36px;
-  border-radius: 20px 20px 0 0;
+  height: 92px;
+  padding: 0 36px 25px;
+  border-radius: 28px 28px 0 0;
   background: var(--results-blue);
   color: #FFFFFF;
   font-family: 'SF Pro Display', sans-serif;
-  font-size: clamp(14px, 1.4vw, 20px);
+  font-size: 22px;
   font-weight: 600;
 }
 
 .td-card-body {
-  padding: 28px 36px;
+  position: relative;
+  z-index: 1;
+  margin-top: -28px;
+  padding: 36px 36px 32px;
   border: 1px solid var(--results-border);
-  border-top: none;
-  border-radius: 0 0 20px 20px;
+  border-radius: 28px;
   background: #fff;
   box-shadow: var(--results-shadow);
   display: flex;
@@ -96,8 +100,8 @@
 /* Responsive Adjustments */
 @media (max-width: 760px) {
   .td-tab { font-size: 13px; padding: 12px 8px; }
-  .td-card-header { padding: 14px 20px; font-size: 14px; }
-  .td-card-body { padding: 20px; gap: 12px; }
+  .td-card-header { height: 82px; padding: 0 20px 22px; font-size: 18px; border-radius: 22px 22px 0 0; }
+  .td-card-body { margin-top: -22px; padding: 24px 20px; gap: 12px; border-radius: 22px; }
   .td-field-row { grid-template-columns: minmax(140px, 200px) 1fr; gap: 12px; }
   .td-field-value { padding: 8px 14px; }
   .td-content-section { margin-top: 32px; }
@@ -110,6 +114,6 @@
   .td-field-row { grid-template-columns: 1fr; gap: 4px; }
   .td-field-label { font-size: 12px; }
   .td-field-value { border-radius: 10px; }
-  .td-card-header { border-radius: 14px 14px 0 0; }
-  .td-card-body { border-radius: 0 0 14px 14px; }
+  .td-card-header { height: 72px; padding: 0 16px 18px; font-size: 16px; border-radius: 18px 18px 0 0; }
+  .td-card-body { margin-top: -18px; padding: 20px 16px; border-radius: 18px; }
 }

@@ -15,26 +15,26 @@
 
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 14px;
 
   width: 100%;
-  height: 92px;
+  height: 94px;
 
-  padding: 0 44px 25px;
+  padding: 0 38px 25px;
 
   background: #086dc1;
   color: #ffffff;
 
-  font-size: clamp(0.9rem, 1.2vw, 1.2rem);
+  font-size: 22px;
 
-  border-radius: 30px 30px 0 0;
+  border-radius: 28px 28px 0 0;
 }
 
-.screenshot-preview-header span:first-child {
-  font-weight: 500;
+.screenshot-preview-header b {
+  font-weight: 700;
 }
 
-.screenshot-preview-header span:last-child {
+.screenshot-preview-header span {
   font-weight: 400;
 }
 
@@ -132,11 +132,11 @@
   .screenshot-preview-header {
     gap: 12px;
 
-    height: 76px;
+    height: 82px;
 
-    padding: 0 24px 20px;
+    padding: 0 25px 22px;
 
-    font-size: 14px;
+    font-size: 18px;
 
     border-radius: 22px 22px 0 0;
   }

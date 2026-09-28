@@ -5,7 +5,7 @@ import "./TransactionDetails.css"
 const TransactionDetails = ({ initialData = {}, onChange }) => {
   const [transaction, setTransaction] = useState({
     transactionId: initialData.transactionId ?? "12345678",
-    amount: initialData.amount ?? "₱5,000.00",
+    amount: initialData.amount ?? "5000.00",
     transactionType: initialData.transactionType ?? "Transfer",
     transactionDate: initialData.transactionDate ?? "September 14, 2026",
     transactionTime: initialData.transactionTime ?? "3:15 AM",

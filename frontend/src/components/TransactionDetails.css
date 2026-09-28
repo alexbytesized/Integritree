@@ -30,8 +30,8 @@
 .transaction-title h2 {
   margin: 0;
 
-  font-size: clamp(0.9rem, 1.2vw, 1.3rem);
-  font-weight: 500;
+  font-size: 22px;
+  font-weight: 600;
 }
 
 .transaction-details-input-container {
@@ -40,7 +40,7 @@
 
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 18px;
 
   width: 100%;
 
@@ -58,20 +58,17 @@
 
 .details-row {
   display: grid;
-  grid-template-columns: 12rem minmax(0, 1fr);
+  grid-template-columns: minmax(180px, 280px) 1fr;
   align-items: center;
-
-  gap: 2rem;
-
-  width: 100%;
+  gap: 20px;
 }
 
 .details-row label {
-  color: #0075c9;
-
-  font-size: clamp(0.875rem, 1.2vw, 1.125rem);
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: clamp(12px, 1.2vw, 17px);
   font-weight: 600;
-  line-height: 1.2;
+  color: #086dc1;
+  text-align: left;
 }
 
 .details-row input,
@@ -101,6 +98,14 @@
 }
 
 .details-row select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2323272a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1.25rem center;
+  background-size: 16px 16px;
+  padding-right: 2.75rem;
   cursor: pointer;
 }
 
@@ -116,7 +121,7 @@
 
   width: 100%;
 
-  margin-top: 1.5rem;
+  margin-top: 2rem;
 }
 
 .proceed-button {
@@ -132,7 +137,7 @@
   color: #ffffff;
 
   font-family: inherit;
-  font-size: 0.9rem;
+  font-size: 1rem;
   font-weight: 600;
 
   cursor: pointer;
@@ -224,12 +229,17 @@
     font-size: 0.85rem;
   }
 
-  .details-row input,
+  .details-row input {
+    height: 2.5rem;
+    padding: 0 1rem;
+    font-size: 0.85rem;
+  }
+
   .details-row select {
     height: 2.5rem;
-
-    padding: 0 1rem;
-
+    padding-left: 1rem;
+    padding-right: 2.5rem;
+    background-position: right 1rem center;
     font-size: 0.85rem;
   }
 }
@@ -269,10 +279,16 @@
     font-size: 0.8rem;
   }
 
-  .details-row input,
+  .details-row input {
+    height: 2.5rem;
+    font-size: 0.85rem;
+  }
+
   .details-row select {
     height: 2.5rem;
-
+    padding-left: 1rem;
+    padding-right: 2.25rem;
+    background-position: right 0.875rem center;
     font-size: 0.85rem;
   }
 
@@ -292,12 +308,17 @@
     padding: 1.625rem 1rem 1.25rem;
   }
 
-  .details-row input,
+  .details-row input {
+    height: 2.375rem;
+    padding: 0 0.875rem;
+    font-size: 0.8rem;
+  }
+
   .details-row select {
     height: 2.375rem;
-
-    padding: 0 0.875rem;
-
+    padding-left: 0.875rem;
+    padding-right: 2rem;
+    background-position: right 0.75rem center;
     font-size: 0.8rem;
   }
 

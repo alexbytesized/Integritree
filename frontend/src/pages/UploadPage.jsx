@@ -63,7 +63,12 @@ const UploadPage = () => {
 
   const handleAnalyze = () => {
     if (file) {
-      navigate('/results')
+      navigate('/results', {
+        state: {
+          fileName: file.name,
+          imageUrl: URL.createObjectURL(file),
+        },
+      })
     }
   }
 

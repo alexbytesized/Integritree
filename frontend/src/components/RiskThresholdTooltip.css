@@ -1,0 +1,134 @@
+.risk-tooltip-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.risk-tooltip-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--results-border, #dedfe3);
+  border-radius: 50%;
+  background: #ffffff;
+  color: var(--results-blue, #086dc1);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 8%);
+}
+
+.risk-tooltip-trigger:hover,
+.risk-tooltip-trigger:focus-visible {
+  background: var(--results-blue, #086dc1);
+  color: #ffffff;
+  border-color: var(--results-blue, #086dc1);
+  outline: none;
+  box-shadow: 0 2px 6px rgb(8 109 193 / 30%);
+}
+
+.risk-tooltip-popover {
+  position: absolute;
+  z-index: 1000;
+  width: 260px;
+  padding: 16px;
+  background: #ffffff;
+  border: 1px solid var(--results-border, #dedfe3);
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 14%), 0 2px 6px rgb(0 0 0 / 6%);
+  font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #23272a;
+  pointer-events: auto;
+}
+
+.risk-tooltip--bottom {
+  top: calc(100% + 8px);
+  right: 0;
+}
+
+.risk-tooltip--top {
+  bottom: calc(100% + 8px);
+  right: 0;
+}
+
+.risk-tooltip--center {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.risk-tooltip-header {
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f0f0f2;
+}
+
+.risk-tooltip-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--results-blue, #086dc1);
+  text-align: left;
+}
+
+.risk-tooltip-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.risk-tooltip-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.risk-tooltip-badge-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.risk-tooltip-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.risk-tooltip-label {
+  font-weight: 600;
+  color: #23272a;
+  white-space: nowrap;
+}
+
+.risk-tooltip-range {
+  font-weight: 500;
+  color: #555e68;
+  font-size: 12px;
+  background: #f4f6f8;
+  padding: 2px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+@media (max-width: 540px) {
+  .risk-tooltip-popover {
+    width: 240px;
+    padding: 14px;
+  }
+  
+  .risk-tooltip-title {
+    font-size: 13px;
+  }
+
+  .risk-tooltip-item {
+    font-size: 12px;
+  }
+}

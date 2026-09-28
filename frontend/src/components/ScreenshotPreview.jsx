@@ -5,7 +5,7 @@ const ScreenshotPreview = ({ fileName, imageUrl }) => {
   return (
     <div className="screenshot-preview">
       <div className="screenshot-preview-header">
-        <span>Screenshot File Name:</span>
+        <b>Screenshot File Name:</b>
         <span>{fileName}</span>
       </div>
 

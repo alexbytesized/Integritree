@@ -1,8 +1,8 @@
 :root {
-  --results-blue: #086dc1;
-  --smote-blue: #2a9ff0;
-  --benchmark-blue: #0c4777;
-  --results-border: #dedfe3;
+  --results-blue: #086DC1;
+  --smote-blue: #2A9FF0;
+  --benchmark-blue: #0C4777;
+  --results-border: #DEDFE3;
   --results-shadow: 0 3px 2px rgb(0 0 0 / 18%);
 }
 
@@ -63,7 +63,7 @@
   color: var(--results-blue);
   border: 1px solid var(--results-blue);
   border-radius: 5px;
-  background: #fff;
+  background: #FFFFFF;
   font: inherit;
   cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease;
@@ -71,7 +71,7 @@
 
 .viewButton:hover {
   background: var(--results-blue);
-  color: #fff;
+  color: #FFFFFF;
 }
 
 .results-actions { display: flex; justify-content: flex-end; margin-top: 48px; }
@@ -82,7 +82,7 @@
   border: 1px solid var(--results-blue);
   border-radius: 10px;
   background: var(--results-blue);
-  color: #fff;
+  color: #FFFFFF;
   font: inherit;
   font-size: 18px;
   font-weight: 700;
@@ -97,7 +97,7 @@
   height: 92px;
   padding: 0 38px 25px;
   border-radius: 28px 28px 0 0;
-  color: #fff;
+  color: #FFFFFF;
   background: var(--results-blue);
   font-size: 22px;
 }
@@ -114,7 +114,7 @@
   padding: 30px;
   border: 1px solid var(--results-border);
   border-radius: 28px;
-  background: #fff;
+  background: #FFFFFF;
   box-shadow: var(--results-shadow);
 }
 
@@ -163,7 +163,7 @@
   margin: 0 auto;
   padding: 0 38px 25px;
   border-radius: 28px 28px 0 0;
-  color: #fff;
+  color: #FFFFFF;
   background: var(--results-blue);
 }
 
@@ -182,7 +182,7 @@
   padding: 42px 44px;
   border: 1px solid var(--results-border);
   border-radius: 28px;
-  background: #fff;
+  background: #FFFFFF;
   box-shadow: var(--results-shadow);
 }
 
@@ -256,7 +256,7 @@
 .interpretation {
   border: 1px solid var(--results-border);
   border-radius: 15px;
-  background: #fff;
+  background: #FFFFFF;
 }
 
 .pvalue-box {

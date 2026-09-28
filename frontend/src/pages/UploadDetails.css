@@ -1,55 +1,24 @@
 .user-details-page {
   position: relative;
-
+  z-index: 1;
   width: min(1340px, calc(100% - 64px));
   min-height: 100vh;
-
   margin: 0 auto;
   padding: 48px 0 72px;
-
   color: #23272a;
   font-family: 'SF Pro Display', sans-serif;
 }
 
-.user-results-header {
-  width: min(1200px, 100%);
-  margin: 30px auto 0;
-}
-
-.back-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  position: relative;
-  right: 50px;
-
-  padding: 0;
-  border: 0;
-
-  background: transparent;
-
-  cursor: pointer;
-}
-
-.back-button img {
-  display: block;
-
-  width: 60px;
-  height: auto;
-}
+.user-details-page * { box-sizing: border-box; }
 
 .user-results-overview {
-  width: min(1200px, 100%);
-  margin: 18px auto 0;
+  margin-top: 100px;
 }
 
 .user-overview-title {
   display: flex;
   align-items: center;
-
   min-height: 48px;
-
   margin-bottom: 34px;
 }
 
@@ -60,196 +29,37 @@
 
 .user-overview-title h1 {
   margin: 0;
-
-  font-size: clamp(1.5rem, 2.5vw, 2.25rem);
+  font-size: clamp(25px, 2.2vw, 36px);
+  font-weight: 600;
   line-height: 1.2;
-  font-weight: 700;
 }
 
 .user-overview-title img {
   width: 46px;
   height: auto;
-
   margin-left: 6px;
-
   transform: translateY(-14px);
 }
 
-.upload-details-content {
-  width: 100%;
-
-  margin-top: 40px;
+/* Match the desktop density shown at 80% browser zoom without changing smaller layouts. */
+@media (min-width: 1200px) {
+  .user-details-page { zoom: 0.8; }
 }
 
-@media (max-width: 900px) {
-  .user-details-page {
-    width: min(900px, calc(100% - 48px));
-
-    padding: 40px 0 64px;
-  }
-
-  .user-results-header {
-    margin-top: 24px;
-  }
-
-  .back-button {
-    right: 24px;
-  }
-
-  .back-button img {
-    width: 54px;
-  }
-
-  .user-results-overview {
-    margin-top: 16px;
-  }
-
-  .user-overview-title {
-    min-height: 44px;
-
-    margin-bottom: 28px;
-  }
-
-  .user-overview-title img {
-    width: 42px;
-
-    transform: translateY(-12px);
-  }
-
-  .upload-details-content {
-    margin-top: 32px;
-  }
+@media (max-width: 1050px) {
+  .user-details-page { width: min(calc(100% - 48px), 900px); }
 }
 
 @media (max-width: 760px) {
-  .user-details-page {
-    width: calc(100% - 32px);
-
-    padding: 28px 0 48px;
-  }
-
-  .user-results-header {
-    margin-top: 18px;
-  }
-
-  .back-button {
-    right: 8px;
-  }
-
-  .back-button img {
-    width: 48px;
-  }
-
-  .user-results-overview {
-    margin-top: 14px;
-  }
-
-  .user-overview-title {
-    min-height: 40px;
-
-    margin-bottom: 24px;
-  }
-
-  .user-overview-title h1 {
-    font-size: clamp(1.375rem, 4vw, 1.875rem);
-  }
-
-  .user-overview-title img {
-    width: 38px;
-
-    margin-left: 4px;
-
-    transform: translateY(-10px);
-  }
-
-  .upload-details-content {
-    margin-top: 28px;
-  }
+  .user-details-page { width: calc(100% - 32px); padding-top: 22px; }
+  .user-results-overview { margin-top: 100px; }
+  .user-overview-title { min-height: 40px; margin-bottom: 24px; }
+  .user-overview-title img { width: 34px; margin-left: 4px; transform: translateY(-10px); }
+  .upload-details-content { margin-top: 28px; }
 }
+
 @media (max-width: 540px) {
-  .user-details-page {
-    width: calc(100% - 24px);
-
-    padding: 20px 0 40px;
-  }
-
-  .user-results-header {
-    width: 100%;
-
-    margin-top: 12px;
-  }
-
-  .back-button {
-    right: 0;
-  }
-
-  .back-button img {
-    width: 42px;
-  }
-
-  .user-results-overview {
-    width: 100%;
-
-    margin-top: 18px;
-  }
-
-  .user-overview-title {
-    min-height: 36px;
-
-    margin-bottom: 20px;
-  }
-
-  .user-overview-title h1 {
-    font-size: clamp(1.25rem, 6vw, 1.5rem);
-  }
-
-  .user-overview-title img {
-    width: 34px;
-
-    margin-left: 4px;
-
-    transform: translateY(-8px);
-  }
-
-  .upload-details-content {
-    margin-top: 24px;
-  }
-}
-
-@media (max-width: 380px) {
-  .user-details-page {
-    width: calc(100% - 20px);
-
-    padding: 16px 0 32px;
-  }
-
-  .user-results-header {
-    margin-top: 8px;
-  }
-
-  .back-button img {
-    width: 38px;
-  }
-
-  .user-results-overview {
-    margin-top: 14px;
-  }
-
-  .user-overview-title {
-    margin-bottom: 18px;
-  }
-
-  .user-overview-title h1 {
-    font-size: 1.25rem;
-  }
-
-  .user-overview-title img {
-    width: 30px;
-
-    transform: translateY(-7px);
-  }
-
-  .upload-details-content {
-    margin-top: 20px;
-  }
+  .user-results-overview { margin-top: 100px; }
+  .user-overview-title h1 { font-size: clamp(1.25rem, 6vw, 1.5rem); }
+  .upload-details-content { margin-top: 24px; }
 }
