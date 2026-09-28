@@ -9,8 +9,8 @@
    {10, 20}, and minimum leaf size {1, 10, 50}. Select the highest arithmetic mean
    validation AP across benchmark RF and RF-SMOTE. Exact ties prefer shallower
    depth, fewer trees, then larger minimum leaf size.
-3. Freeze the fitted pair. Evaluate the union of both models' distinct validation
-   scores plus 0, 0.50, and 1. Select the highest mean validation F1 across both
+3. Freeze the fitted pair. Evaluate exactly 100 thresholds: 0.01, 0.02, ..., 1.00
+   (1% through 100%; no 0% candidate). Select the highest mean validation F1 across both
    models, breaking exact ties by proximity to 0.50, then higher threshold.
    Prediction is fraud when `score >= threshold`. Thresholds are not rounded.
 
@@ -18,9 +18,10 @@ AP uses Average Precision, not trapezoidal PR-curve area. Classification metrics
 at 0.50 supplement Stages 1 and 2 but do not determine their winners. The threshold
 sweep retains precision, recall, F1, MCC, accuracy, and confusion counts per model
 at every candidate; undefined precision/MCC are blank, not silently zero. Exact
-rational mean F1 and binary-exact threshold distances determine Stage 3. Sorting
+rational mean F1 and integer percentage distances from 50 determine Stage 3. Sorting
 and prefix counts avoid repeated training, prediction, or full-record scans per
-threshold. No assumption is made that larger leaves or a particular ratio help.
+threshold. The selected cutoff is best among the 100 tested whole percentages.
+All 100 candidates appear in the exported tables and plot. No assumption is made that larger leaves or a particular ratio help.
 
 Sequential freezing can miss ratio/forest interactions. Repeated use of one
 validation set, one seed set, and prior inspection of validation results must
@@ -89,25 +90,30 @@ Run software checks before full-data training:
 & ./.venv/Scripts/python.exe -m pip check
 ```
 
-The active run completed Stage 1 and froze 1:100. Resume it into **Stage 2 only**:
+The active run completed Stages 1 and 2. Resume its authorized **Stage 3** continuation:
 
 ```powershell
-& ./.venv/Scripts/python.exe scripts/select_three_stage.py --prepared data/prepared/paysim_phase2_20260918 --config configs/experiment.yaml --protocol configs/validation_three_stage.yaml --resume artifacts/paysim_three_stage_20260928_172539 --jobs 1 --stop-after-stage 2
+& ./.venv/Scripts/python.exe scripts/select_three_stage.py --prepared data/prepared/paysim_phase2_20260918 --config configs/experiment.yaml --protocol configs/validation_three_stage.yaml --resume artifacts/paysim_three_stage_20260928_172539 --jobs 1 --stop-after-stage 3
 ```
 
 `integritree-select` and `integritree-select-three-stage` invoke the same selector.
 For a separate fresh study, omit `--resume` and use an unused or generated run ID;
-`--stop-after-stage 1` stops at ratio selection. Never change a frozen plan in place.
-The current run reuses the Stage 1 reference pair and trains 11 further paired
-forests at the frozen ratio, retaining all 12 in the comparison.
+`--stop-after-stage 1` stops at ratio selection. Ordinary resume never changes a
+frozen plan. An explicitly authorized Stage 3 reset uses `scripts/reset_stage3.py`
+with `--run artifacts/<run-id>` to amend only the threshold candidate policy, remove
+Stage 3 outputs, and regenerate Stage 1-2 review snapshots. A reset audit records
+the cleanup and preservation hashes; retry that command after an interruption
+before resuming. The current run reuses all fitted candidates without retraining.
 
 Stage 2 ends with `status: awaiting_next_stage`, `completed_stage: 2`, and
 `stage: forest_selected`. Its decision and candidate table are under
 `stages/02_random_forest/`; its fingerprinted export is under
 `reports/<run-id>/stage2_review/`. Both stages' frozen evidence is verified on
 resume. A Stage 2-only run cannot be loaded as a final selected model pair.
-Threshold selection, final testing, and SHAP are outside this execution.
-Only a later authorized `--stop-after-stage 3` continuation selects the threshold.
+The authorized `--stop-after-stage 3` continuation selects the threshold and
+exports validation results. Official test evaluation and SHAP remain separate.
+The protocol was revised after validation inspection; regenerated Stage 1-2
+reviews preserve their candidate decisions but are not original report snapshots.
 
 ### Graceful candidate pause
 
@@ -125,7 +131,7 @@ releasing the run lock. Metadata records the last completed candidate and pause
 time. Wait for that state and process exit before shutting down. If the last
 candidate finishes, the requested stage is frozen normally instead of pausing.
 
-Resume with the same Stage 2 command. The acknowledged request is consumed, and
+Resume with the intended `--stop-after-stage` value. The acknowledged request is consumed, and
 completed models/reports are verified and reused. No parameters, seeds, data, or
 model-training algorithms change. Paused/resumed synthetic runs must match
 uninterrupted scores and decisions. Partial fits from abrupt interruptions are not

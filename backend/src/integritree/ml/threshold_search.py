@@ -1,4 +1,4 @@
-"""Exact shared-F1 selection at all distinct validation score boundaries."""
+"""Exact shared-F1 comparison on the 1% through 100% threshold grid."""
 from fractions import Fraction
 
 import numpy as np
@@ -7,14 +7,15 @@ import pandas as pd
 from integritree.ml.evaluation import binary_labels, score_vector
 
 
-def all_score_thresholds(labels, rf_scores, smote_scores):
+def percent_grid_thresholds(labels, rf_scores, smote_scores):
     """O(N log N) count sweep; no N-by-threshold matrix or repeated predictions."""
     y = binary_labels(labels)
     if set(np.unique(y)) != {0, 1}:
         raise ValueError("Threshold selection requires both classes")
     scores = [score_vector(s, len(y)) for s in (rf_scores, smote_scores)]
-    thresholds = np.unique(np.concatenate([*scores, [0., .5, 1.]]))
-    data = {"threshold": thresholds}
+    percentages = np.arange(1, 101)
+    thresholds = percentages / 100
+    data = {"threshold_percent": percentages, "threshold": thresholds}
     positives = int(y.sum())
     negatives = len(y) - positives
     counts = []
@@ -46,10 +47,9 @@ def all_score_thresholds(labels, rf_scores, smote_scores):
         numerator, denominator = a * d + c * b, b * d
         comparison = numerator * best_den - best_num * denominator
         if comparison == 0:
-            candidate = Fraction(float(thresholds[i]))
-            previous = Fraction(float(thresholds[best_index]))
-            better_tie = (-abs(candidate - Fraction(1, 2)), candidate) > (
-                -abs(previous - Fraction(1, 2)), previous)
+            candidate = int(percentages[i])
+            previous = int(percentages[best_index])
+            better_tie = (-abs(candidate - 50), candidate) > (-abs(previous - 50), previous)
         else:
             better_tie = False
         if comparison > 0 or better_tie:

@@ -4,7 +4,8 @@ The sole selection workflow is [three-stage validation](THREE_STAGE_VALIDATION.m
 SMOTE ratio by RF-SMOTE validation Average Precision, shared forest settings by
 mean validation AP, then a common threshold by exact mean validation F1. Each
 stage freezes before the next. Both models are retained; selection does not pick
-a model winner. Stage 1 froze 1:100; current execution stops after Stage 2. See
+a model winner. Stage 1 froze 1:100; Stage 2 selected 100 trees/depth 10/leaf 1.
+Stage 3 uses exactly 1%, 2%, ..., 100% as threshold candidates. See
 [run status](VALIDATION_RUN_STATUS.md) for measured outcomes.
 
 The mock-up corrections are established in [the decision record](MOCKUP_EVALUATION_DECISIONS.md).
@@ -33,7 +34,7 @@ does not approve an algorithm change or a Chapter 3 rewrite.
 | 1 | Foundation and contracts | Reproducible development setup and validated configuration/data contracts | Complete |
 | 2 | Dataset and preprocessing | Audited, reproducible splits and training-fitted transformations | Complete |
 | 3 | Training and saved inference | Baseline trainer and reloadable paired model bundles | Training code complete; fresh candidates come from the three-stage run |
-| 4 | Research evaluation and SHAP | Verified evaluation reports and model explanations | Code complete; Stage 1 complete; current execution stops after Stage 2 |
+| 4 | Research evaluation and SHAP | Verified evaluation reports and model explanations | Code complete; Stages 1-2 frozen; Stage 3 uses the 1%-100% grid |
 | 5 | Application services and API | Research and individual structured-record workflows | Not started |
 | 6 | GCash receipt demonstration | Image extraction, confirmation, mapping, and prediction | Not started |
 | 7 | Integration and reproducibility | Backend handoff validated against the frontend workflows | Not started |
@@ -194,7 +195,7 @@ Work:
   status No discordant pairs. Do not silently substitute exact testing.
 
 - Use the sole three-stage selector: eight SMOTE ratios by RF-SMOTE AP, 12 shared
-  forests by mean AP, then an exact all-score common threshold by mean F1.
+  forests by mean AP, then a common threshold from the 1%-100% grid by mean F1.
   Follow [the protocol](THREE_STAGE_VALIDATION.md) for settings and tie rules.
   Keep preprocessing and seeds fixed. Completed schema-2 selected bundles record
   immutable candidate references and frozen evidence; ordinary fitted pairs retain

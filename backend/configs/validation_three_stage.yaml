@@ -11,6 +11,6 @@ forest_objective: mean_average_precision
 threshold_objective: mean_f1
 ratio_ties: smaller_ratio
 forest_ties: shallower_fewer_trees_larger_leaf
-threshold_candidates: distinct_scores_plus_0_half_1
+threshold_candidates: percent_grid_1_to_100
 threshold_ties: closest_to_half_then_higher
 selection_split: validation

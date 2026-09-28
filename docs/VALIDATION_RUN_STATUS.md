@@ -1,118 +1,74 @@
 # Validation run status
 
-## Reset record
-
-On 2026-09-28 the researchers requested a clean restart: prior trained models,
-validation results, and explanation caches were permanently removed. Raw data,
-prepared partitions, preparation verification, and Word reference documents were
-retained. This reset does not make the protocol historically preregistered or
-remove the limitation of prior inspection of the same validation set.
-
-Cleanup removed 37 generated run/output entries. Preservation hashes are recorded
-in `backend/runtime/validation/reset_verification.json`. All 16 retained files
-passed unchanged SHA-256 checks after cleanup, including both Word documents.
-Local Markdown links and Git whitespace checks passed.
-The revised suite passed **169 tests** with five upstream deprecation warnings;
-`pip check` found no broken requirements.
-
-## Superseded five-ratio attempt
-
-Run: `paysim_three_stage_20260928_084238`.
-Started 2026-09-28 at 08:42 Manila time. **Stopped at RAM preflight**, before
-any model was fitted: 2.20 GiB available versus 3.15 GiB estimated working
-arrays for the first 1:10 candidate, excluding additional model/runtime memory.
-Metadata records `status: failed`, `MemoryError`; no ratio is selected.
-The frozen plan compares the original five ratios with 100 trees/depth 10/leaf 1,
-one worker, and `--stop-after-stage 1`. The frozen reuse inventory has zero models and zero reports.
-
-Live evidence:
-
-- `backend/artifacts/paysim_three_stage_20260928_084238/metadata.json`
-- `backend/artifacts/paysim_three_stage_20260928_084238/search_plan.json`
-- `backend/runtime/validation/paysim_three_stage_20260928_084238.stderr.log`
-- `backend/runtime/validation/paysim_three_stage_20260928_084238.stdout.log`
-
-Stage 2, Stage 3, final test evaluation, and SHAP are outside this execution.
-No result is inferred before the frozen Stage 1 decision and review are verified.
-
-## Current eight-ratio protocol
-
-Stage 1 now evaluates 1:100, 1:50, 1:20, 1:10, 1:5, 1:3, 1:2, and 1:1 in that
-order. Reference forest, objectives, seeds, and later-stage grids are unchanged.
-The failed five-ratio plan above remains intact as a superseded attempt; do not
-resume it with the updated protocol. A fresh uniquely named run is required.
-
-The expanded suite passed **172 tests** with five upstream deprecation warnings;
-`pip check` found no broken requirements. Tests cover all eight resampling counts,
-exact AP ties, eight-candidate Stage 1 completion, benchmark reuse, memory release,
-held-out guards, and rejection of protocol changes on resume. Retained data, Word
-documents, and all files of the superseded attempt passed unchanged-hash checks.
-
-## Completed Stage 1
+## Current status: Stage 3 complete
 
 Run: `paysim_three_stage_20260928_172539`.
-Stage 1 ran from **17:25 to 18:59 Manila time on 2026-09-28** and froze
-**1:100**. All eight candidates completed. RF-SMOTE AP was **0.38119617175331205**
-for the selected ratio; benchmark RF AP was **0.3915279330994021**.
-The frozen plan, decision, candidate table, and exported review passed integrity
-checks. No threshold or final model configuration was selected by this stage.
 
-Review: `backend/reports/paysim_three_stage_20260928_172539/stage1_review/`.
-The original review remains an unchanged snapshot of Stage 1 completion; its
-selection-metadata hash refers to that export time, before later execution history.
-The scientific search plan remains unchanged, SHA-256:
-`1df14b38aa3fa5305649f228b4740d10e1e74c870e01b254d0f9b6ea98a89b25`.
+The authorized Stage 3 rerun completed on **2026-09-29**,
+from **04:05:56 to 04:07:02 Manila time**
+(66 seconds; process exit code 0). No models were retrained.
 
-## Stage 2 continuation
+**Selected shared fraud threshold: 43% (0.43).**
+Both models classify a transaction as fraud when its score is at least this cutoff.
 
-Continue the same run at 1:100 across trees {100, 200}, depths {10, 20}, and
-minimum leaf sizes {1, 10, 50}. Reuse the completed reference pair and train
-11 further pairs. Select the highest mean validation AP; exact ties prefer
-shallower depth, fewer trees, then larger leaves.
+Stage 3 evaluated exactly **100 thresholds: 1%, 2%, ..., 100%**, maximizing
+mean validation F1 across RF and RF-SMOTE. Exact ties favor proximity to 50%,
+then the higher percentage. The result is optimal among these tested percentages.
 
-The full backend suite passed **181 tests** with five upstream deprecation warnings;
-`pip check` found no broken requirements. A final control-lock refinement passed
-all **9 targeted pause tests**. Paused/resumed and uninterrupted synthetic runs
-produced identical scores, candidate metrics, and the selected forest. Requests
-during the last candidate correctly completed Stage 2 rather than pausing.
+| Validation metric | RF | RF-SMOTE |
+|---|---:|---:|
+| Precision | 0.837209 | 0.427471 |
+| Recall | 0.306569 | 0.405109 |
+| F1 | 0.448798 | 0.415990 |
+| MCC | 0.506284 | 0.415405 |
+| Average Precision | 0.391528 | 0.381196 |
 
-Stage 2 resumed at **22:35 Manila time on 2026-09-28**, worker PID
-**22300**, with `--stop-after-stage 2`. The initial observation confirmed:
+Mean F1: **0.432393935**, exactly `777411/1797923`.
+Evaluation used **636,262 validation transactions**, including 822 fraud records.
+The manifest records `status: complete`, `stage: validation_selected`,
+`completed_stage: 3`, and `test_used: false`. Official test evaluation and SHAP
+have not run on this selected pair.
 
-- All Stage 1 evidence reverified; frozen plan, decision/table, and original review unchanged.
-- The 100-tree/depth-10/leaf-1 reference pair reused: **1 of 12 Stage 2 candidates complete**.
-- The first new pair, **100 trees/depth 10/leaf 10**, is training its benchmark RF
-  on 5,090,096 original rows. No new forest winner exists yet.
-- Candidate RAM preflight passed: **6.25 GiB available**, versus **3.00 GiB**
-  estimated working arrays, excluding additional model/runtime memory.
+## Preserved Stages 1 and 2
 
-This is a dated running-status observation. Live evidence:
+Stage 1 completed all eight ratios on 2026-09-28 and selected **1:100**.
+Stage 2 completed all 12 shared forest configurations at 03:06 Manila time on
+2026-09-29 and selected **100 trees, depth 10, minimum leaf size 1**.
 
-- `backend/artifacts/paysim_three_stage_20260928_172539/metadata.json`
-- `backend/artifacts/paysim_three_stage_20260928_172539/search_progress.json`
-- `backend/runtime/validation/stage2_20260928_223521.stderr.log`
-- `backend/runtime/validation/stage2_20260928_223521.stdout.log`
+All **351 preserved files** passed unchanged SHA-256 checks, covering fitted
+models, candidate validation evidence, candidate tables, decisions, and the
+progress checkpoint. The final validation scores exactly match the saved scores
+for the selected pair.
 
-Stage 3, official test evaluation, and SHAP remain outside this execution.
+## Protocol revision and verification
 
-## Pause and resume
+The threshold protocol was revised after validation inspection. Its implementation,
+configuration, tests, and documentation now support only the 1%-100% grid. Prior
+Stage 3 results and logs were removed; no result archive was retained. Stage 1-2
+review snapshots and checksums were regenerated under the revised protocol and
+are explicitly labeled as regenerated. A reset audit records cleanup actions and
+preservation hashes. Existing Git and conversation history were not rewritten.
 
-Request a pause from `backend/` while the selection worker is running:
+The superseded preflight-failed run remains a failure record; its unused Stage 3
+declarations were removed, and it must not be resumed. Prepared data and original
+Word reference documents were not modified.
 
-```powershell
-& ./.venv/Scripts/python.exe scripts/pause_selection.py --run artifacts/paysim_three_stage_20260928_172539
-```
+Verification passed: selected-bundle loading, exhaustive direct comparison of all
+100 thresholds, exported metric/statistical recomputation, report fingerprints,
+and unchanged candidate scores. All 100 rows are saved and plotted. The backend
+suite passed **186 tests** (five upstream deprecation warnings); **17 focused
+checks** passed after the final table/plot formatting change. `pip check` passed.
 
-`pause_requested` is an acknowledgement, not a stopped worker. Wait for `paused`
-in metadata and worker exit: the current pair and validation finish first.
-Resume the same run after the worker exits:
+## Results and evidence
 
-```powershell
-& ./.venv/Scripts/python.exe scripts/select_three_stage.py --prepared data/prepared/paysim_phase2_20260918 --config configs/experiment.yaml --protocol configs/validation_three_stage.yaml --resume artifacts/paysim_three_stage_20260928_172539 --jobs 1 --stop-after-stage 2
-```
-
-Successful Stage 2 ends with `awaiting_next_stage`, `completed_stage: 2`, and
-`stage: forest_selected`. Its review is exported to
-`backend/reports/paysim_three_stage_20260928_172539/stage2_review/`.
-Check live `metadata.json`, `search_progress.json`, and the current execution logs
-for updates. Do not resume the superseded five-ratio attempt.
+- [Validation summary](../backend/reports/paysim_three_stage_20260928_172539/SUMMARY.md)
+- [Final metrics](../backend/reports/paysim_three_stage_20260928_172539/final_validation/metrics.json)
+- [Threshold table](../backend/reports/paysim_three_stage_20260928_172539/stages/03_threshold/thresholds.csv)
+- [Threshold plot](../backend/reports/paysim_three_stage_20260928_172539/stages/03_threshold/thresholds.svg)
+- [Stage 1 review](../backend/reports/paysim_three_stage_20260928_172539/stage1_review/SUMMARY.md)
+- [Stage 2 review](../backend/reports/paysim_three_stage_20260928_172539/stage2_review/SUMMARY.md)
+- [Reset audit](../backend/runtime/validation/paysim_three_stage_20260928_172539_percent_grid_reset.json)
+- [Preservation preflight](../backend/runtime/validation/percent_grid_preflight.json)
+- [Verification record](../backend/runtime/validation/percent_grid_verification.json)
+- [Execution log](../backend/runtime/validation/percent_grid_stage3_20260929_040556.stderr.log)
+- [Completion record](../backend/runtime/validation/percent_grid_stage3_20260929_040556.completion.json)

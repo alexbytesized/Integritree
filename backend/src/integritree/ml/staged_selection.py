@@ -25,7 +25,7 @@ from integritree.ml.evaluation import metrics, validate_policy
 from integritree.ml.features import FEATURE_COLUMNS
 from integritree.ml.research import evaluate_run, load_report, new_run
 from integritree.ml.selection_utils import exact_mean_f1, release_candidate_memory
-from integritree.ml.threshold_search import all_score_thresholds
+from integritree.ml.threshold_search import percent_grid_thresholds
 from integritree.ml.training import forest_parameters, train_models, validate_training_config
 from integritree.settings import load_settings
 
@@ -46,7 +46,7 @@ class SelectionProtocol(BaseModel):
     threshold_objective: Literal["mean_f1"] = "mean_f1"
     ratio_ties: Literal["smaller_ratio"] = "smaller_ratio"
     forest_ties: Literal["shallower_fewer_trees_larger_leaf"] = "shallower_fewer_trees_larger_leaf"
-    threshold_candidates: Literal["distinct_scores_plus_0_half_1"] = "distinct_scores_plus_0_half_1"
+    threshold_candidates: Literal["percent_grid_1_to_100"] = "percent_grid_1_to_100"
     threshold_ties: Literal["closest_to_half_then_higher"] = "closest_to_half_then_higher"
     selection_split: Literal["validation"] = "validation"
 
@@ -328,6 +328,9 @@ def select_three_stage(prepared, config, protocol, output_root, run_id=None, job
         raise ValueError("Training class counts cannot support every declared SMOTE ratio")
     output = resume.resolve() if resume else new_run(output_root, "three_stage", run_id)
     with run_lock(output):
+        reset_audit = output.parent.parent / "runtime/validation" / f"{output.name}_percent_grid_reset.json"
+        if reset_audit.exists() and read_json(reset_audit).get("status") != "complete":
+            raise ValueError("Stage 3 reset is incomplete; finish the reset before resuming")
         plan_core = {"protocol": protocol.model_dump(mode="json"), "configuration": config.model_dump(),
                      "prepared_metadata_sha256": prepared_hash, "jobs": jobs}
         if resume:
@@ -358,6 +361,8 @@ def select_three_stage(prepared, config, protocol, output_root, run_id=None, job
                         "created_at": datetime.now(timezone.utc).isoformat(),
                         "search_plan_sha256": file_sha256(output / "search_plan.json"),
                         "test_used": False, "stage": "three_stage_search"}
+        if manifest.get("status") == "resetting_stage3":
+            raise ValueError("Stage 3 reset is incomplete; finish the reset before resuming")
         with run_lock(output, ".control.lock"):
             # Resume explicitly acknowledges any request from the previous execution.
             (output / "pause_request.json").unlink(missing_ok=True)
@@ -522,7 +527,7 @@ def select_three_stage(prepared, config, protocol, output_root, run_id=None, job
             pause_if_requested(next_stage=3)
             predictions = verify_report(resolve_reference(winner["report"], output),
                                         resolve_reference(winner["model"], output), config, prepared_hash)
-            threshold, curve = all_score_thresholds(predictions.actual_label, predictions.rf_risk_score,
+            threshold, curve = percent_grid_thresholds(predictions.actual_label, predictions.rf_risk_score,
                                                      predictions.rf_smote_risk_score)
             direct = exact_mean_f1(predictions.actual_label, predictions.rf_risk_score,
                                    predictions.rf_smote_risk_score, threshold["threshold"])
@@ -549,7 +554,7 @@ def select_three_stage(prepared, config, protocol, output_root, run_id=None, job
             del predictions, curve, identity
             release_candidate_memory()
             load_staged_selected(output)
-            progress(f"Three-stage selection frozen: ratio={selection['ratio']:.17g}, forest={selection['forest']}, threshold={selection['threshold']:.17g}")
+            progress(f"Three-stage selection frozen: ratio={selection['ratio']:.17g}, forest={selection['forest']}, threshold={selection['threshold']:.2f} ({selection['threshold']:.0%})")
             return output
         except _SelectionPaused:
             progress("Selection paused after a saved candidate checkpoint; resume the same run to continue")
@@ -567,15 +572,12 @@ def save_threshold_figure(curve, decision, path):
     import matplotlib
     matplotlib.use("Agg")
     from matplotlib import pyplot as plt
-    indices = np.unique(np.r_[np.linspace(0, len(curve) - 1, min(3000, len(curve))).astype(int),
-                              np.flatnonzero(curve.threshold == decision["threshold"])])
-    sample = curve.iloc[indices]
     fig, ax = plt.subplots(figsize=(8, 5))
     for name in ("rf_f1", "rf_smote_f1", "mean_f1"):
-        ax.plot(sample.threshold, sample[name], label=name)
-    ax.axvline(decision["threshold"], color="black", linestyle="--", label="Selected cutoff")
-    ax.set(xlabel="Shared fraud threshold", ylabel="Validation F1",
-           title="Exact threshold selection (plot points sampled; full table retained)")
+        ax.plot(curve.threshold_percent, curve[name], label=name)
+    ax.axvline(round(decision["threshold"] * 100), color="black", linestyle="--", label="Selected cutoff")
+    ax.set(xlabel="Shared fraud threshold (%)", ylabel="Validation F1",
+           title="Whole-percentage threshold selection (all 100 candidates)")
     ax.legend()
     fig.tight_layout()
     fig.savefig(path)
@@ -586,7 +588,8 @@ def write_summary(output, ratio, forest, threshold):
     lines = ["# Three-stage validation selection", "", "Validation only; no held-out test evaluation.", "",
              f"- Stage 1: ratio {ratio['ratio']:.17g}; RF-SMOTE AP {ratio['rf_smote']['pr_auc']:.6f}.",
              f"- Stage 2: trees/depth/minimum leaf {forest['forest']}; mean AP {forest['mean_ap']:.6f}.",
-             f"- Stage 3: common threshold {threshold['threshold']:.17g}; mean F1 {float(Fraction(threshold['mean_f1_fraction'])):.6f}.",
+             f"- Stage 3: common threshold {threshold['threshold']:.0%} ({threshold['threshold']:.2f}); mean F1 {float(Fraction(threshold['mean_f1_fraction'])):.6f}.",
+             "", "Stage 3 tests exactly 1%, 2%, ..., 100%; the selected threshold is best among these candidates.",
              "", "The protocol was revised after earlier validation experiments. Ratio selection uses a fixed",
              "reference forest; interactions with subsequently selected forest settings may be missed.",
              "Both models are retained. Settings were selected on one validation split and one set of seeds.",
@@ -657,7 +660,7 @@ def load_staged_selected(path):
             or selection["candidate_key"] != winner["key"] or selection["model"] != winner["model"]
             or selection["validation_report"] != winner["report"] or selected_predictions is None):
         raise ValueError("Final selection differs from stage decisions")
-    threshold, curve = all_score_thresholds(selected_predictions.actual_label, selected_predictions.rf_risk_score,
+    threshold, curve = percent_grid_thresholds(selected_predictions.actual_label, selected_predictions.rf_risk_score,
                                            selected_predictions.rf_smote_risk_score)
     if (read_json(path / "stages" / STAGES[2] / "decision.json") != threshold
             or any(selection.get(k) != v for k, v in threshold.items())):
@@ -829,12 +832,13 @@ def export_ratio_stage(selection_path, reports_root):
               "This report does not select a forest configuration, final threshold, or model winner.",
               "Sequential selection can miss ratio/forest interactions; validation is development evidence.", ""]
     (root / "SUMMARY.md").write_text("\n".join(lines), encoding="utf-8")
+    shutil.copyfile(selection_path / "metadata.json", root / "selection_metadata.json")
     atomic_json(root / "metadata.json", {"status": "complete", "kind": "stage1_ratio_review",
                  "test_used": False, "selection_run": str(selection_path),
-                 "selection_metadata_sha256": file_sha256(selection_path / "metadata.json"),
+                 "selection_metadata_sha256": file_sha256(root / "selection_metadata.json"),
                  "selected_ratio": winner["ratio"],
                  "files": {name: file_sha256(root / name) for name in
-                           ("decision.json", "candidates.csv", "search_plan.json", "SUMMARY.md")}})
+                           ("decision.json", "candidates.csv", "search_plan.json", "selection_metadata.json", "SUMMARY.md")}})
     return root
 
 

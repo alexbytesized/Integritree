@@ -14,7 +14,7 @@ from integritree.ml.data import RAW_COLUMNS, file_sha256
 from integritree.ml.features import FEATURE_COLUMNS
 from integritree.ml.preparation import prepare_dataset
 from integritree.ml.selection_utils import exact_mean_f1
-from integritree.ml.threshold_search import all_score_thresholds
+from integritree.ml.threshold_search import percent_grid_thresholds
 from integritree.ml.training import resample_training, memory_preflight
 
 
@@ -34,45 +34,56 @@ def test_declared_protocol_and_ties():
     forests[0]["mean_ap"] = .9
     assert staged.choose_forest(forests) is forests[0]
     for change in ({"ratios": []}, {"ratios": [float("nan")]}, {"ratios": [0]},
-                   {"leaves": [1, 1]}, {"selection_split": "test"}, {"trees": [0]}):
+                   {"leaves": [1, 1]}, {"selection_split": "test"}, {"trees": [0]},
+                   {"threshold_candidates": "unsupported_policy"}):
         with pytest.raises(ValueError):
             staged.SelectionProtocol.model_validate(protocol.model_dump() | change)
 
 
 @pytest.mark.parametrize("seed", range(10))
-def test_exact_threshold_sweep_matches_exhaustive(seed):
+def test_percent_grid_matches_exhaustive(seed):
     rng = np.random.default_rng(seed)
     labels = np.r_[0, 1, rng.integers(0, 2, size=28)]
     scores = rng.choice([0, .125, .25, .5, .75, .96, .9876543210987654, 1.], size=(2, 30))
-    best, curve = all_score_thresholds(labels, *scores)
-    candidates = sorted(set(np.r_[scores.ravel(), 0, .5, 1]))
+    best, curve = percent_grid_thresholds(labels, *scores)
+    candidates = [k / 100 for k in range(1, 101)]
     expected = max(candidates, key=lambda t: (exact_mean_f1(labels, *scores, t),
-                                             -abs(Fraction(float(t)) - Fraction(1, 2)), t))
+                                             -abs(round(t * 100) - 50), t))
     assert best["threshold"] == expected
     assert Fraction(best["mean_f1_fraction"]) == exact_mean_f1(labels, *scores, expected)
     assert best["candidate_count"] == len(candidates)
     assert list(curve.threshold) == candidates
+    assert list(curve.threshold_percent) == list(range(1, 101))
+    assert best["candidate_count"] == 100 and 0 not in candidates
     for row in curve.to_dict("records"):
         for name, values in zip(("rf", "rf_smote"), scores):
             predicted = values >= row["threshold"]
             for field, actual, prediction in (("tp", 1, True), ("fp", 0, True),
                                                ("tn", 0, False), ("fn", 1, False)):
                 assert row[f"{name}_{field}"] == np.count_nonzero((labels == actual) & (predicted == prediction))
-    repeated, same = all_score_thresholds(labels, *scores)
+    repeated, same = percent_grid_thresholds(labels, *scores)
     assert repeated == best
     pd.testing.assert_frame_equal(curve, same, check_exact=True)
 
 
 def test_high_threshold_and_closest_half_ties():
     scores = [.96, .97, .9876543210987654, .99]
-    best, _ = all_score_thresholds([0, 0, 1, 1], scores, scores)
-    assert best["threshold"] == scores[2] > .95
-    assert all_score_thresholds([0, 1], [0, 1], [0, 1])[0]["threshold"] == .5
-    # Equidistant binary-exact cutoffs: prefer the higher one.
-    best, _ = all_score_thresholds([0, 0, 1, 1], [.5, .5, .25, .75], [.5, .5, .25, .75])
-    assert best["threshold"] == .75
+    best, _ = percent_grid_thresholds([0, 0, 1, 1], scores, scores)
+    assert best["threshold"] == .98
+    assert percent_grid_thresholds([0, 1], [0, 1], [0, 1])[0]["threshold"] == .5
+    # Equidistant decimal cutoffs .49 and .51 must prefer .51.
+    best, _ = percent_grid_thresholds([1, 0, 0, 1], [.49, .50, .50, .51], [.49, .50, .50, .51])
+    assert best["threshold"] == .51
     with pytest.raises(ValueError, match="both"):
-        all_score_thresholds([0, 0], [0, 1], [0, 1])
+        percent_grid_thresholds([0, 0], [0, 1], [0, 1])
+
+
+@pytest.mark.parametrize("scores, expected", [([0., .01], .01), ([.99, 1.], 1.)])
+def test_percent_grid_endpoints_and_equality(scores, expected):
+    best, curve = percent_grid_thresholds([0, 1], scores, scores)
+    assert best["threshold"] == expected
+    row = curve.loc[curve.threshold == expected].iloc[0]
+    assert row.rf_tp == 1 and row.rf_fp == 0
 
 
 @pytest.mark.parametrize("ratio", [.01, .02, .05, .1, .2, 1 / 3, .5, 1.])
@@ -249,7 +260,7 @@ def test_stage_one_only_stops_and_can_resume_without_refitting(sparse_experiment
     def forbidden(*args, **kwargs):
         raise AssertionError("Later-stage selection must not run")
     monkeypatch.setattr(staged, "choose_forest", forbidden)
-    monkeypatch.setattr(staged, "all_score_thresholds", forbidden)
+    monkeypatch.setattr(staged, "percent_grid_thresholds", forbidden)
     output = staged.select_three_stage(prepared, config, protocol, tmp_path / "selection",
                          "stage_one", stop_after_stage=1, progress=lambda _: None)
     assert fitted == protocol.ratios
@@ -365,7 +376,7 @@ def test_stage_two_pause_resume_matches_uninterrupted(control_experiment, tmp_pa
     monkeypatch.setattr(research, "load_prepared_split", validation_only)
     def forbidden(*args, **kwargs):
         raise AssertionError("Stage 2 must not enter threshold selection")
-    monkeypatch.setattr(staged, "all_score_thresholds", forbidden)
+    monkeypatch.setattr(staged, "percent_grid_thresholds", forbidden)
     output = staged.select_three_stage(prepared, config, protocol, tmp_path / "runs", "paused_run",
                                       stop_after_stage=1, progress=lambda _: None)
     preserved = {p: file_sha256(p) for p in [output / "search_plan.json",
@@ -516,3 +527,98 @@ def test_pause_script_requests_without_reporting_paused(tmp_path):
                             "--run", str(tmp_path)], capture_output=True, text=True, check=False)
     assert stale.returncode == 2
     assert "inactive" in json.loads(stale.stderr)["error"]
+
+
+@pytest.mark.parametrize("interrupt", [False, True])
+def test_stage3_reset_preserves_evidence_and_recovers(control_experiment, tmp_path, monkeypatch, interrupt):
+    from integritree.ml import stage3_reset as reset
+    import integritree.ml.research as research
+    prepared, config, protocol = control_experiment
+    run = staged.select_three_stage(prepared, config, protocol, tmp_path / "artifacts", "reset_run",
+                                     progress=lambda _: None)
+    staged.export_ratio_stage(run, tmp_path / "reports")
+    staged.export_forest_stage(run, tmp_path / "reports")
+    review = staged.export_validation(run, prepared, config, tmp_path / "reports", progress=lambda _: None)
+    preserved = {p: file_sha256(p) for folder in ("candidates", "validation", "stages/01_smote_ratio", "stages/02_random_forest")
+                 for p in (run / folder).rglob("*") if p.is_file()}
+    preserved[run / "search_progress.json"] = file_sha256(run / "search_progress.json")
+    # Simulate a completed selection whose declared threshold policy is no longer supported.
+    plan = staged.read_json(run / "search_plan.json")
+    plan["protocol"]["threshold_candidates"] = "retired_policy"
+    staged.atomic_json(run / "search_plan.json", plan)
+    meta = staged.read_json(run / "metadata.json")
+    meta["search_plan_sha256"] = meta["files"]["search_plan.json"] = file_sha256(run / "search_plan.json")
+    staged.atomic_json(run / "metadata.json", meta)
+    with pytest.raises(ValueError):
+        load_bundle(run)
+    with staged.run_lock(run):
+        with pytest.raises(staged.RunLockedError):
+            reset.reset_stage3(run, tmp_path, protocol)
+    with pytest.raises(ValueError, match="Only the threshold"):
+        reset.reset_stage3(run, tmp_path, protocol.model_copy(update={"leaves": [1]}))
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Reset and resume must not fit models")
+    monkeypatch.setattr(staged, "train_models", forbidden)
+    real_loader = research.load_prepared_split
+    def validation_only(path, split):
+        assert split == "validation"
+        return real_loader(path, split)
+    monkeypatch.setattr(research, "load_prepared_split", validation_only)
+    actual_delete = reset._delete_file
+    calls = []
+    if interrupt:
+        def interrupted(*args):
+            calls.append(1)
+            if len(calls) == 2:
+                raise OSError("synthetic cleanup interruption")
+            return actual_delete(*args)
+        monkeypatch.setattr(reset, "_delete_file", interrupted)
+        with pytest.raises(OSError, match="synthetic"):
+            reset.reset_stage3(run, tmp_path, protocol)
+        with pytest.raises(ValueError, match="reset is incomplete"):
+            staged.select_three_stage(prepared, config, protocol, run.parent, resume=run)
+        monkeypatch.setattr(reset, "_delete_file", actual_delete)
+    journal = reset.reset_stage3(run, tmp_path, protocol)
+    assert staged.read_json(journal)["status"] == "complete"
+    assert staged.read_json(run / "metadata.json")["completed_stage"] == 2
+    assert not (run / "selection.json").exists()
+    assert not (run / "stages/03_threshold").exists()
+    assert not (review / "final_validation").exists()
+    for stage in ("stage1_review", "stage2_review"):
+        folder = review / stage
+        snapshot = staged.read_json(folder / "search_plan.json")
+        assert snapshot["protocol"]["threshold_candidates"] == "percent_grid_1_to_100"
+        assert "regenerated" in (folder / "SUMMARY.md").read_text()
+        for name, digest in staged.read_json(folder / "metadata.json")["files"].items():
+            assert file_sha256(folder / name) == digest
+    assert all(file_sha256(p) == digest for p, digest in preserved.items())
+    staged.select_three_stage(prepared, config, protocol, run.parent, resume=run, progress=lambda _: None)
+    staged.export_validation(run, prepared, config, tmp_path / "reports", progress=lambda _: None)
+    selected = staged.read_json(run / "selection.json")
+    assert selected["candidate_count"] == 100
+    assert selected["threshold"] in [k / 100 for k in range(1, 101)]
+    assert load_bundle(run).config.scoring.threshold == selected["threshold"]
+    assert all(file_sha256(p) == digest for p, digest in preserved.items())
+    # Replaying an already completed reset must not delete the new result.
+    result_hash = file_sha256(run / "selection.json")
+    reset.reset_stage3(run, tmp_path, protocol)
+    assert file_sha256(run / "selection.json") == result_hash
+
+
+def test_stage3_reset_cleanup_boundaries_and_changed_files(tmp_path):
+    from integritree.ml import stage3_reset as reset
+    inside = tmp_path / "workspace"
+    inside.mkdir()
+    outside = tmp_path / "outside.txt"
+    outside.write_text("keep")
+    with pytest.raises(ValueError, match="escapes"):
+        reset._delete_file(inside, "../outside.txt", file_sha256(outside))
+    with pytest.raises(ValueError, match="escapes"):
+        reset.contained(inside, inside)
+    target = inside / "output.txt"
+    target.write_text("old")
+    expected = file_sha256(target)
+    target.write_text("changed")
+    with pytest.raises(ValueError, match="changed"):
+        reset._delete_file(inside, "output.txt", expected)
+    assert outside.read_text() == "keep" and target.read_text() == "changed"

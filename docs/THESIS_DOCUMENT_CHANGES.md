@@ -7,7 +7,8 @@ The sole selection workflow is [three-stage validation](THREE_STAGE_VALIDATION.m
 SMOTE ratio by RF-SMOTE validation Average Precision, shared forest settings by
 mean validation AP, then a common threshold by exact mean validation F1. Each
 stage freezes before the next. Both models are retained; selection does not pick
-a model winner. Stage 1 froze 1:100; current execution stops after Stage 2. See
+a model winner. Stage 1 froze 1:100; Stage 2 selected 100 trees/depth 10/leaf 1.
+Stage 3 uses exactly 1%, 2%, ..., 100% as threshold candidates. See
 [run status](VALIDATION_RUN_STATUS.md) for measured outcomes.
 
 ## A. Align descriptions with implemented behavior
@@ -38,7 +39,7 @@ a model winner. Stage 1 froze 1:100; current execution stops after Stage 2. See
   smaller-ratio tie rule for Stage 1.
 - [ ] State the 12 matched forests, mean AP objective, and shallower/fewer-trees/
   larger-leaf tie order for Stage 2.
-- [ ] State Stage 3's union of distinct paired scores plus 0, 0.50, and 1; maximize
+- [ ] State Stage 3's 100 thresholds (1%, 2%, ..., 100%); maximize
   exact mean F1, breaking ties by proximity to 0.50 and then the higher threshold.
 - [ ] Freeze each stage before the next. Keep both models, shared settings, and one
   cutoff. Classification metrics at 0.50 supplement Stages 1 and 2 only.

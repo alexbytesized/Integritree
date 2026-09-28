@@ -179,9 +179,12 @@ Phase 5 services to call:
   comparisons, McNemar, figures, and provenance. Validation is the default;
   `split="test"` requires a frozen validation-selected bundle.
 - `ml.staged_selection.select_three_stage(...)`: sequential ratio/AP, forest/AP,
-  threshold/F1 selection, with frozen stage evidence and resume support.
+  threshold/F1 selection on exactly 1%, 2%, ..., 100%, with frozen stage evidence and resume support.
   `stop_after_stage=1` freezes the ratio, 2 freezes the forest, and default 3
   executes all stages. Graceful pauses return a run with `status: paused`.
+- `ml.stage3_reset.reset_stage3(run, backend, protocol)`: explicitly clears Stage 3
+  outputs, preserves Stage 1-2 candidate evidence, and regenerates review snapshots;
+  its journal supports interrupted-reset recovery.
 - `ml.staged_selection.request_pause(path)`: asks an active selection worker to
   stop after its current candidate checkpoint; returns `pause_requested`.
 - `ml.staged_selection.export_forest_stage(...)`: verifies and exports a completed

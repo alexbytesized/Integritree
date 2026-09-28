@@ -3,9 +3,10 @@
 A Random Forest-Based Fraud Pattern Detection and Risk Scoring System for E-Wallet Transactions using SMOTE and SHAP Explainability.
 
 Validation proceeds in three stages: **SMOTE ratio -> shared tree configuration ->
-common threshold**. Stage 1 selected **1:100** from eight ratios. Current execution
-compares the 12 shared forest configurations in Stage 2 and stops before threshold
-selection. Graceful pausing saves the current paired candidate before exiting.
+common threshold**. Stage 1 selected **1:100** from eight ratios; Stage 2 selected
+**100 trees/depth 10/minimum leaf 1** from 12 configurations. Stage 3 selects a
+shared cutoff from exactly **1%, 2%, ..., 100%** by mean validation F1.
+See the current run status for measured results.
 
 Preparation, training, saved inference, evaluation, selection, and SHAP code are
 implemented. Application prediction APIs, frontend integration, and the
