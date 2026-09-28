@@ -8,15 +8,17 @@ cutoff by exact mean validation F1 over all distinct scores. It retains both
 models and never evaluates test data. Historical selectors/artifacts remain intact.
 See [protocol, outputs, and resume instructions](../docs/THREE_STAGE_VALIDATION.md).
 
-Current execution status: all 169 backend tests passed. The 2026-09-27 full-data
-attempt stopped before its first fit because available RAM was below preflight.
-The plan is saved; use the resume command in the protocol after freeing memory.
-See [run status](../docs/VALIDATION_RUN_STATUS.md). No new selection is claimed.
+Current execution status: all 172 backend tests passed. Original Stage 1 completed
+and froze 1:10. The separately authorized [revision-2 extension](../docs/STAGE1_RATIO_EXTENSION_V2.md)
+adds 1:20, 1:50, and 1:100 and selects across all eight ratios. It started at
+00:53 Manila time on 2026-09-28; the original five candidates were reused and
+1:20 began training. The new job stops before Stage 2 or threshold selection.
+Check [run status and logs](../docs/VALIDATION_RUN_STATUS.md) for current evidence.
 
-From `backend/`, after the complete backend suite passes:
+The revision-2 job has already started. If interrupted, resume it from `backend/`:
 
 ```powershell
-& ./.venv/Scripts/python.exe scripts/select_three_stage.py --prepared data/prepared/paysim_phase2_20260918 --config configs/experiment.yaml --protocol configs/validation_three_stage.yaml --run-id paysim_three_stage_validation_20260927 --jobs 1
+& ./.venv/Scripts/python.exe scripts/select_three_stage.py --prepared data/prepared/paysim_phase2_20260918 --config configs/experiment.yaml --protocol configs/validation_three_stage_v2.yaml --resume artifacts/paysim_stage1_ratio_extension_v2_20260928 --jobs 1 --stop-after-stage 1
 ```
 
 The sections below document historical workflows; their test commands require a

@@ -35,6 +35,8 @@ class SelectionProtocol(BaseModel):
     model_config = ConfigDict(extra="forbid")
     schema_version: Literal[1] = 1
     name: Literal["sequential_ratio_forest_threshold"] = "sequential_ratio_forest_threshold"
+    revision: Literal[1, 2] = 1
+    amendment_note: str | None = None
     ratios: list[float] = [.1, .2, 1 / 3, .5, 1.]
     reference_forest: tuple[int, int, int] = (100, 10, 1)
     trees: list[int] = [100, 200]
@@ -51,6 +53,8 @@ class SelectionProtocol(BaseModel):
 
     @model_validator(mode="after")
     def valid_grid(self):
+        if self.revision == 2 and not (self.amendment_note and self.amendment_note.strip()):
+            raise ValueError("Protocol revision 2 requires an amendment disclosure")
         if not self.ratios or any(not np.isfinite(r) or not 0 < r <= 1 for r in self.ratios):
             raise ValueError("Ratios must be finite minority/majority values in (0, 1]")
         for values in (self.ratios, self.trees, self.depths, self.leaves):
@@ -249,7 +253,9 @@ def candidate_key(ratio, forest):
 
 
 def select_three_stage(prepared, config, protocol, output_root, run_id=None, jobs=1,
-                       resume=None, reuse_roots=(), progress=print):
+                       resume=None, reuse_roots=(), progress=print, stop_after_stage=3):
+    if stop_after_stage not in (1, 3):
+        raise ValueError("stop_after_stage must be 1 or 3")
     config.require_ready("evaluate")
     validate_training_config(config)
     validate_policy(config.evaluation)
@@ -280,8 +286,13 @@ def select_three_stage(prepared, config, protocol, output_root, run_id=None, job
             if file_sha256(output / "search_plan.json") != manifest["search_plan_sha256"]:
                 raise ValueError("Frozen search plan fingerprint mismatch")
             plan = read_json(output / "search_plan.json")
-            if any(plan.get(k) != v for k, v in plan_core.items()):
+            # Revision-1 plans written before explicit revision fields stay readable.
+            comparable_plan = plan | {"protocol": SelectionProtocol.model_validate(plan["protocol"]).model_dump(mode="json")}
+            if any(comparable_plan.get(k) != v for k, v in plan_core.items()):
                 raise ValueError("Resume configuration differs from frozen search plan")
+            for name, digest in manifest.get("frozen_stage_files", {}).items():
+                if file_sha256(output / name) != digest:
+                    raise ValueError("Frozen stage fingerprint mismatch")
             if manifest.get("status") == "complete":
                 load_staged_selected(output)
                 return output
@@ -297,6 +308,10 @@ def select_three_stage(prepared, config, protocol, output_root, run_id=None, job
                         "search_plan_sha256": file_sha256(output / "search_plan.json"),
                         "test_used": False, "stage": "three_stage_search"}
         manifest.update(status="running", worker_pid=os.getpid())
+        manifest.setdefault("execution_history", []).append({
+            "started_at": datetime.now(timezone.utc).isoformat(), "worker_pid": os.getpid(),
+            "stop_after_stage": stop_after_stage,
+            "selector_sha256": file_sha256(Path(__file__))})
         manifest.pop("failure", None)
         atomic_json(output / "metadata.json", manifest)
         completed = {}
@@ -387,6 +402,15 @@ def select_three_stage(prepared, config, protocol, output_root, run_id=None, job
             ratio_winner = choose_ratio(ratios)
             freeze_stage(output / "stages" / STAGES[0], ratios, ratio_winner, protocol.ratio_objective)
             progress(f"Stage 1 frozen: SMOTE ratio {ratio_winner['ratio']:.17g}")
+            stage_names = [f"stages/{STAGES[0]}/{name}" for name in ("decision.json", "candidates.csv")]
+            manifest["frozen_stage_files"] = {name: file_sha256(output / name) for name in stage_names}
+            if stop_after_stage == 1:
+                manifest.update(status="awaiting_next_stage", stage="ratio_selected", completed_stage=1,
+                                stopped_at=datetime.now(timezone.utc).isoformat())
+                atomic_json(output / "metadata.json", manifest)
+                progress("Stage 1 complete; Stage 2, threshold selection, and test evaluation were not started")
+                return output
+            atomic_json(output / "metadata.json", manifest)
             forests = [candidate(ratio_winner["ratio"], forest) for forest in protocol.forests()]
             winner = choose_forest(forests)
             freeze_stage(output / "stages" / STAGES[1], forests, winner, protocol.forest_objective)
@@ -579,6 +603,50 @@ def export_validation(selection_path, prepared, config, reports_root, progress=p
     return root
 
 
+def export_ratio_stage(selection_path, reports_root):
+    """Publish the frozen ratio comparison without claiming a final selection."""
+    import shutil
+    manifest = read_json(selection_path / "metadata.json")
+    for name, digest in manifest.get("frozen_stage_files", {}).items():
+        if file_sha256(selection_path / name) != digest:
+            raise ValueError("Frozen stage fingerprint mismatch")
+    source = selection_path / "stages" / STAGES[0]
+    decision = read_json(source / "decision.json")
+    plan = read_json(selection_path / "search_plan.json")
+    if file_sha256(selection_path / "search_plan.json") != manifest["search_plan_sha256"]:
+        raise ValueError("Frozen search plan fingerprint mismatch")
+    winner = choose_ratio(decision["candidates"])
+    if not decision["frozen"] or winner["key"] != decision["chosen_key"]:
+        raise ValueError("Invalid ratio stage decision")
+    root = reports_root / selection_path.name / "stage1_review"
+    root.mkdir(parents=True, exist_ok=True)
+    for name in ("decision.json", "candidates.csv"):
+        shutil.copyfile(source / name, root / name)
+    shutil.copyfile(selection_path / "search_plan.json", root / "search_plan.json")
+    lines = ["# Stage 1: SMOTE ratio validation", "", "Validation only; held-out test unused.", "",
+             f"Protocol revision: {plan['protocol'].get('revision', 1)}.",
+             *([plan['protocol']['amendment_note'], ""] if plan['protocol'].get('amendment_note') else []),
+             f"Reference forest (trees/depth/minimum leaf): {plan['protocol']['reference_forest']}.",
+             "Selection: highest RF-SMOTE Average Precision; exact ties prefer the smaller ratio.", "",
+             "| Fraud/legitimate ratio | Benchmark RF AP | RF-SMOTE AP | Selected |",
+             "|---|---:|---:|---|"]
+    for row in decision["candidates"]:
+        lines.append(f"| {row['ratio']:.17g} | {row['rf']['pr_auc']:.9f} | {row['rf_smote']['pr_auc']:.9f} | "
+                     f"{'Yes' if row['key'] == winner['key'] else ''} |")
+    lines += ["", f"Frozen ratio: {winner['ratio']:.17g}.",
+              "Supplementary classification metrics in candidates.csv use 0.50; this is not a selected cutoff.",
+              "This report does not select a forest configuration, final threshold, or model winner.",
+              "The protocol was revised after earlier validation results; sequential selection can miss interactions.", ""]
+    (root / "SUMMARY.md").write_text("\n".join(lines), encoding="utf-8")
+    atomic_json(root / "metadata.json", {"status": "complete", "kind": "stage1_ratio_review",
+                 "test_used": False, "selection_run": str(selection_path),
+                 "selection_metadata_sha256": file_sha256(selection_path / "metadata.json"),
+                 "selected_ratio": winner["ratio"],
+                 "files": {name: file_sha256(root / name) for name in
+                           ("decision.json", "candidates.csv", "search_plan.json", "SUMMARY.md")}})
+    return root
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--prepared", type=Path, required=True)
@@ -587,6 +655,8 @@ def main():
     parser.add_argument("--run-id")
     parser.add_argument("--resume", type=Path)
     parser.add_argument("--jobs", type=int, default=1)
+    parser.add_argument("--stop-after-stage", type=int, choices=(1, 3), default=3,
+                        help="Use 1 to freeze only the SMOTE ratio and stop before forest tuning")
     args = parser.parse_args()
     try:
         settings = load_settings()
@@ -596,8 +666,10 @@ def main():
         progress = lambda message: print(message, file=sys.stderr, flush=True)
         selected = select_three_stage(prepared, config, load_protocol(resolve(args.protocol)), settings.artifacts_dir,
                                       args.run_id, args.jobs, resolve(args.resume) if args.resume else None,
-                                      (settings.artifacts_dir, settings.reports_dir), progress)
-        report = export_validation(selected, prepared, config, settings.reports_dir, progress)
+                                      (settings.artifacts_dir, settings.reports_dir), progress,
+                                      stop_after_stage=args.stop_after_stage)
+        report = (export_ratio_stage(selected, settings.reports_dir) if args.stop_after_stage == 1 else
+                  export_validation(selected, prepared, config, settings.reports_dir, progress))
     except (ValueError, OSError, MemoryError) as exc:
         print(json.dumps({"success": False, "error": str(exc)}), file=sys.stderr)
         return 2

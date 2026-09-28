@@ -1,5 +1,15 @@
 # Thesis manuscript alignment checklist
 
+## 2026-09-28 ratio-search extension
+
+Disclose the [revision-2 amendment](STAGE1_RATIO_EXTENSION_V2.md), authorized after
+the original five-ratio study selected 1:10. Report the eight-candidate comparison
+separately from the original frozen study. Added candidates are 1:20, 1:50, and
+1:100; selection remains RF-SMOTE validation AP at 100 trees/depth 10/leaf 1.
+This is adaptive development on the same validation set, not independent evidence.
+Do not populate its conclusions until the new run completes. The manuscript has
+not been edited; Stage 2, threshold selection, and the official test remain pending.
+
 Last reviewed: 2026-09-27
 
 ## New protocol amendment for manuscript review

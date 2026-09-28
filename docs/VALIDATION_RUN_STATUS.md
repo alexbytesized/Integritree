@@ -1,5 +1,82 @@
 # Full validation run started 2026-09-24
 
+## Revision-2 Stage 1 extension started 2026-09-28
+
+The original Stage 1 completed at **23:29 Manila time on 2026-09-27**, selecting
+1:10 (RF-SMOTE AP 0.3674764766459544). That study is no longer running; its
+metadata, frozen decision, reports, and model artifacts remain unchanged.
+
+The researchers authorized the [bounded revision-2 extension](STAGE1_RATIO_EXTENSION_V2.md)
+after reviewing those results: add 1:20, 1:50, and 1:100, compare all eight ratios
+by the unchanged RF-SMOTE AP rule, and stop after Stage 1. This is a new experiment,
+not a modification of the original frozen plan. All **172 backend tests passed**
+(five upstream deprecation warnings); `pip check` reported no broken requirements.
+Tests cover original-artifact preservation, reuse of the original five models and
+reports, the new resampling counts, and backward compatibility with revision-1 plans.
+
+The new run **paysim_stage1_ratio_extension_v2_20260928** started at **00:53 Manila
+time**, worker PID **24696**. At the initial running-status check, all five original
+candidates had been verified and reused without new fits. The new **1:20 RF-SMOTE**
+model was training on **5,337,702 rows**, with the benchmark RF reused and verified.
+Reference forest remains 100 trees/depth 10/leaf 1, one worker. Memory checks remain
+enabled. No amended winner exists yet at this observation.
+
+Live evidence:
+
+- `backend/artifacts/paysim_stage1_ratio_extension_v2_20260928/metadata.json`
+- `backend/artifacts/paysim_stage1_ratio_extension_v2_20260928/search_progress.json`
+- `backend/runtime/validation/20260928_005315_stage1_v2.stderr.log`
+- `backend/runtime/validation/20260928_005315_stage1_v2.stdout.log`
+
+Frozen amended plan SHA-256:
+`cb33676c8905d717287992ad376c2bd6a65e49268b39fcae5d8034c1a00dd59d`.
+Read the live evidence for completion or failure; this entry records the initial
+running state. The process stops before Stage 2, threshold selection, or test use.
+On completion, its review is under
+`backend/reports/paysim_stage1_ratio_extension_v2_20260928/stage1_review/`.
+Use the new protocol and new run ID in the amendment's resume command if interrupted.
+
+Earlier entries below are historical observations.
+
+## Stage 1-only execution resumed 2026-09-27
+
+The researchers authorized **Stage 1 only**. The selector now supports
+`--stop-after-stage 1`; a regression test forbids entry to forest and threshold
+selection. All **170 backend tests passed**, with five upstream deprecation
+warnings; dependency checks passed.
+
+The saved run resumed at **22:45 Manila time** (14:45 UTC), worker PID **24944**.
+Its execution history records the Stage 1 boundary and current selector hash;
+the frozen research plan and its SHA-256 remain unchanged. The first 1:10
+candidate passed preflight with 5,687,021,568 available bytes versus 3,379,235,264
+estimated working-array bytes. It reused the verified 100-tree/depth-10/leaf-1
+benchmark RF and began fitting RF-SMOTE on 5,591,878 training rows.
+
+This is a running-status observation, not a completed Stage 1 result. Check live
+metadata and logs for completion or failure. No ratio is frozen yet at this
+observation; Stage 2, Stage 3, and test evaluation are outside this authorization.
+The process will stop after freezing Stage 1, with `status: awaiting_next_stage`.
+
+Live evidence:
+
+- `backend/artifacts/paysim_three_stage_validation_20260927/metadata.json`
+- `backend/artifacts/paysim_three_stage_validation_20260927/search_progress.json`
+  (created when the first candidate finishes validation)
+- `backend/runtime/validation/20260927_224553_stage1.stderr.log`
+- `backend/runtime/validation/20260927_224553_stage1.stdout.log`
+
+On success, candidate metrics and the frozen ratio decision are under
+`stages/01_smote_ratio/` in that artifact run; its readable, fingerprinted review
+is under `backend/reports/paysim_three_stage_validation_20260927/stage1_review/`.
+Supplementary classification metrics use .50; no final fraud threshold is selected.
+If interrupted, resume **Stage 1 only** from `backend/`:
+
+```powershell
+& ./.venv/Scripts/python.exe scripts/select_three_stage.py --prepared data/prepared/paysim_phase2_20260918 --config configs/experiment.yaml --protocol configs/validation_three_stage.yaml --resume artifacts/paysim_three_stage_validation_20260927 --jobs 1 --stop-after-stage 1
+```
+
+The earlier failed attempt below is retained as history, not the current status.
+
 ## Three-stage revision authorized 2026-09-27
 
 The new [protocol](THREE_STAGE_VALIDATION.md) adds five-ratio AP selection,
@@ -17,10 +94,10 @@ bundles and recorded seven validation reports for candidate-specific checks.
 The first candidate, 1:10 at 100 trees/depth 10/leaf 1, stopped at RAM preflight:
 **3.10 GiB available versus 3.15 GiB estimated working arrays**, excluding
 additional tree/runtime memory. No candidate was newly fitted and no stage froze.
-The run is not active; its metadata records `status: failed`, `MemoryError`.
+At that observation the run was inactive, with `status: failed`, `MemoryError`.
 
 Implementation and synthetic verification are complete; full-data execution and
-verification of the final frozen result remain blocked by available RAM. Free
+verification of the final frozen result were blocked by available RAM. Free
 memory before resuming; later ratios may require larger working arrays (up to
 about 4.65 GiB for 1:1, plus trees/runtime). The guard was not reduced or bypassed,
 and unrelated applications were not closed. Historical artifacts and the held-out

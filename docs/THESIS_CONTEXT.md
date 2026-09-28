@@ -1,6 +1,12 @@
 # Integritree — Thesis Context and Confirmed Requirements
 
-Last reviewed: 2026-09-27
+Last reviewed: 2026-09-28
+
+The researchers approved a [bounded Stage 1 extension](STAGE1_RATIO_EXTENSION_V2.md)
+after seeing the original 1:10 winner. New revision 2 adds 1:20, 1:50, and 1:100
+and compares all eight ratios under the unchanged reference forest/AP rule.
+It uses a separate run; original decisions are immutable. Only Stage 1 is
+authorized, and no further ratio expansion is assumed.
 
 ## Current validation amendment
 

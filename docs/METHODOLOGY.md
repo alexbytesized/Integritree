@@ -1,5 +1,16 @@
 # Methodology decision record
 
+## 2026-09-28: bounded ratio-search amendment
+
+After the original five-ratio Stage 1 selected 1:10, the researchers authorized
+[protocol revision 2](STAGE1_RATIO_EXTENSION_V2.md): add 1:20, 1:50, and 1:100 in a
+separate experiment, retaining all five prior candidates in the eight-ratio AP
+comparison. Reference forest, seeds, split, preprocessing, and tie rules are
+unchanged. Original frozen artifacts are preserved. The amended ratio may inform
+Stage 2 only after this comparison completes and continuation is authorized.
+The revision is explicitly post-validation and exploratory; no repeated open-ended
+ratio expansion, forest tuning, threshold selection, or test evaluation is authorized.
+
 Last updated: 2026-09-27
 
 ## Current validation amendment (2026-09-27)

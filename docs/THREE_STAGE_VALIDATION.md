@@ -1,5 +1,10 @@
 # Three-stage validation protocol (revision 1)
 
+**2026-09-28 amendment:** the original Stage 1 completed and froze 1:10. A separate
+[revision-2 extension](STAGE1_RATIO_EXTENSION_V2.md) now adds 1:20, 1:50, and 1:100,
+selecting across eight ratios. This document retains revision 1 as history;
+do not resume its run with the amended protocol or overwrite its results.
+
 This protocol was authorized after the earlier 1:1 validation search and the
 descriptive 1:3 sensitivity study had been reviewed. It is a revised, sequential
 development study, not an independent confirmation of those results. Historical
@@ -89,10 +94,29 @@ RAM preflight; passing it is not a peak-memory guarantee.
 
 ## Execution (from `backend/`)
 
-The 2026-09-27 implementation passed 169 backend tests and the dependency check.
-The named full-data attempt below already exists but stopped at its first RAM
-preflight, before fitting. Use **resume**, after freeing memory; see
-[current run status](VALIDATION_RUN_STATUS.md). No frozen full-data result exists yet.
+### Stage 1 only (authorized 2026-09-27)
+
+To compare the five ratios and stop immediately after freezing their AP decision:
+
+```powershell
+& ./.venv/Scripts/python.exe scripts/select_three_stage.py --prepared data/prepared/paysim_phase2_20260918 --config configs/experiment.yaml --protocol configs/validation_three_stage.yaml --resume artifacts/paysim_three_stage_validation_20260927 --jobs 1 --stop-after-stage 1
+```
+
+This execution does not enter forest tuning, threshold selection, or test
+evaluation. The run ends with `status: awaiting_next_stage`, not a completed
+final selection. Its ratio candidate table and decision are in
+`stages/01_smote_ratio/`; a fingerprinted review is exported to
+`reports/<run-id>/stage1_review/`. The 0.50 classification metrics are supplementary,
+not a selected threshold. Execution history records the selector implementation
+hash without changing the frozen research plan. Later stages need authorization.
+
+### Full workflow commands (do not use for Stage 1-only execution)
+
+The Stage 1-only extension passed 170 backend tests and the dependency check.
+The named run below already exists and resumed with `--stop-after-stage 1` at
+22:45 Manila time on 2026-09-27 after its earlier RAM stop. See
+[current run status](VALIDATION_RUN_STATUS.md). The full-workflow commands below
+are reference instructions only; the current authorization ends after Stage 1.
 
 Run the complete backend suite before full-data training:
 

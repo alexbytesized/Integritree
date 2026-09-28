@@ -205,3 +205,119 @@ def test_reuse_rejects_dependency_parameters_and_fingerprints(experiment, tmp_pa
         handle.write(b"corruption")
     with pytest.raises(ValueError, match="fingerprint"):
         staged.inspect_model(model, prepared_hash)
+
+
+def test_stage_one_only_stops_and_can_resume_without_refitting(experiment, tmp_path, monkeypatch):
+    prepared, config, protocol = experiment
+    actual_train = staged.train_models
+    fitted = []
+    def reference_only(path, requested, *args, **kwargs):
+        assert (requested.random_forest.n_estimators, requested.random_forest.max_depth,
+                requested.random_forest.min_samples_leaf) == protocol.reference_forest
+        fitted.append(requested.smote.sampling_ratio)
+        return actual_train(path, requested, *args, **kwargs)
+    monkeypatch.setattr(staged, "train_models", reference_only)
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Later-stage selection must not run")
+    monkeypatch.setattr(staged, "choose_forest", forbidden)
+    monkeypatch.setattr(staged, "all_score_thresholds", forbidden)
+    output = staged.select_three_stage(prepared, config, protocol, tmp_path / "selection",
+                         "stage_one", stop_after_stage=1, progress=lambda _: None)
+    assert fitted == protocol.ratios
+    manifest = staged.read_json(output / "metadata.json")
+    assert manifest["status"] == "awaiting_next_stage"
+    assert manifest["completed_stage"] == 1
+    assert manifest["stage"] == "ratio_selected"
+    assert manifest["execution_history"][-1]["stop_after_stage"] == 1
+    assert not (output / "selection.json").exists()
+    assert not (output / "stages/02_random_forest").exists()
+    assert not (output / "stages/03_threshold").exists()
+    with pytest.raises(ValueError, match="incomplete"):
+        load_bundle(output)
+    # Emulate an immutable revision-1 plan from before explicit revision fields.
+    old_plan = staged.read_json(output / "search_plan.json")
+    old_plan["protocol"].pop("revision")
+    old_plan["protocol"].pop("amendment_note")
+    staged.atomic_json(output / "search_plan.json", old_plan)
+    manifest["search_plan_sha256"] = file_sha256(output / "search_plan.json")
+    staged.atomic_json(output / "metadata.json", manifest)
+    plan_hash = file_sha256(output / "search_plan.json")
+    decision_hash = file_sha256(output / "stages/01_smote_ratio/decision.json")
+    staged.select_three_stage(prepared, config, protocol, output.parent, resume=output,
+                              stop_after_stage=1, progress=lambda _: None)
+    assert fitted == protocol.ratios
+    assert file_sha256(output / "search_plan.json") == plan_hash
+    assert file_sha256(output / "stages/01_smote_ratio/decision.json") == decision_hash
+    report = staged.export_ratio_stage(output, tmp_path / "reports")
+    assert staged.read_json(report / "metadata.json")["test_used"] is False
+    assert file_sha256(report / "decision.json") == decision_hash
+    with (output / "stages/01_smote_ratio/decision.json").open("a") as handle:
+        handle.write(" ")
+    with pytest.raises(ValueError, match="fingerprint"):
+        staged.select_three_stage(prepared, config, protocol, output.parent, resume=output,
+                                  stop_after_stage=1, progress=lambda _: None)
+
+
+def test_revision_two_changes_only_ratios_and_disclosure():
+    original = staged.load_protocol(BACKEND_ROOT / "configs/validation_three_stage.yaml")
+    extended = staged.load_protocol(BACKEND_ROOT / "configs/validation_three_stage_v2.yaml")
+    assert extended.revision == 2 and extended.amendment_note
+    assert extended.ratios == original.ratios + [.05, .02, .01]
+    assert extended.reference_forest == (100, 10, 1)
+    assert len(extended.forests()) == 12
+    exclude = {"revision", "amendment_note", "ratios"}
+    assert extended.model_dump(exclude=exclude) == original.model_dump(exclude=exclude)
+    with pytest.raises(ValueError, match="disclosure"):
+        staged.SelectionProtocol(revision=2)
+
+
+def test_extended_stage_reuses_original_five_and_preserves_frozen_study(tmp_path, raw_record, monkeypatch):
+    frame = pd.DataFrame([raw_record | {"step": i + 1, "amount": float(i + 1),
+              "nameOrig": f"C_{i}", "isFraud": int(i % 400 == 0)} for i in range(4000)]).loc[:, RAW_COLUMNS]
+    source = tmp_path / "rare_fraud.csv"
+    frame.to_csv(source, index=False)
+    config = load_experiment(BACKEND_ROOT / "configs/experiment.yaml").model_copy(deep=True)
+    config.dataset = config.dataset.model_copy(update={"filename": source.name,
+                 "sha256": file_sha256(source), "row_count": len(frame)})
+    prepared = prepare_dataset(source, config, tmp_path / "prepared", "rare", progress=lambda _: None)
+    original = staged.SelectionProtocol(trees=[3], depths=[2], leaves=[1], reference_forest=(3, 2, 1))
+    import integritree.ml.research as research
+    real_loader = research.load_prepared_split
+    def validation_only(path, split):
+        assert split == "validation"
+        return real_loader(path, split)
+    monkeypatch.setattr(research, "load_prepared_split", validation_only)
+    first = staged.select_three_stage(prepared, config, original, tmp_path / "runs", "original",
+                                      stop_after_stage=1, progress=lambda _: None)
+    original_hashes = {p.relative_to(first): file_sha256(p) for p in first.rglob("*") if p.is_file()}
+    extended = original.model_copy(update={"revision": 2, "amendment_note": "Synthetic bounded extension",
+                                            "ratios": original.ratios + [.05, .02, .01]})
+    real_train = staged.train_models
+    new_ratios = []
+    def only_new(path, requested, *args, **kwargs):
+        assert kwargs.get("reuse_rf_from") is not None
+        new_ratios.append(requested.smote.sampling_ratio)
+        return real_train(path, requested, *args, **kwargs)
+    monkeypatch.setattr(staged, "train_models", only_new)
+    second = staged.select_three_stage(prepared, config, extended, tmp_path / "runs", "extended",
+                              reuse_roots=(first,), stop_after_stage=1, progress=lambda _: None)
+    assert new_ratios == [.05, .02, .01]
+    old_progress = staged.read_json(first / "search_progress.json")["completed_candidates"]
+    new_progress = staged.read_json(second / "search_progress.json")["completed_candidates"]
+    assert len(new_progress) == 8
+    for key, row in old_progress.items():
+        assert new_progress[key]["rf_smote"] == row["rf_smote"]
+        assert staged.resolve_reference(new_progress[key]["model"], second) == staged.resolve_reference(row["model"], first)
+        assert staged.resolve_reference(new_progress[key]["report"], second) == staged.resolve_reference(row["report"], first)
+    for ratio in [.05, .02, .01]:
+        row = new_progress[staged.candidate_key(ratio, extended.reference_forest)]
+        model = staged.resolve_reference(row["model"], second)
+        audit = staged.read_json(model / "training_audit.json")
+        majority = audit["original_class_counts"]["0"]
+        assert audit["class_counts"]["1"] == int(majority * ratio)
+        assert audit["generated_fraud_rows"] == int(majority * ratio) - audit["original_class_counts"]["1"]
+    assert original_hashes == {p.relative_to(first): file_sha256(p) for p in first.rglob("*") if p.is_file()}
+    assert not (second / "stages/02_random_forest").exists()
+    report = staged.export_ratio_stage(second, tmp_path / "reports")
+    assert "Protocol revision: 2" in (report / "SUMMARY.md").read_text()
+    assert "Synthetic bounded extension" in (report / "SUMMARY.md").read_text()
