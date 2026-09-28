@@ -16,6 +16,7 @@ const App = () => {
         <Route path="/researcher-upload" element={<ResearcherUploadPage />} />
         <Route path="/researcher" element={<ResearcherResultsPage />} />
         <Route path="/researcher/transaction/:id" element={<TransactionDetailsPage />} />
+        <Route path="/results" element={<UploadDetails />} />
       </Routes>
     </div>
   )
