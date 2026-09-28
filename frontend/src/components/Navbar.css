@@ -42,6 +42,7 @@
   font-weight: 400;
   text-decoration: none;
   color: #333333;
+  cursor: pointer;
   transition: color 0.2s ease;
 }
 

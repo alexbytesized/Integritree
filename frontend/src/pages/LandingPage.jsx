@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import starsSvg from '../assets/landingpage-stars.svg'
 import feature1Svg from '../assets/feature1.svg'
@@ -20,6 +20,8 @@ import blobsSvg from '../assets/blobs.svg'
 import './LandingPage.css'
 
 const LandingPage = () => {
+  const location = useLocation()
+
   useEffect(() => {
     if (window.particlesJS) {
       window.particlesJS.load('particles-js', '/particles.json', function () {
@@ -38,6 +40,18 @@ const LandingPage = () => {
       }
     }
   }, [])
+
+  useEffect(() => {
+    if (location.state?.scrollToId) {
+      const targetId = location.state.scrollToId
+      const element = document.getElementById(targetId)
+      if (element) {
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }, 120)
+      }
+    }
+  }, [location.state])
 
   return (
     <div className="landing-page-container">

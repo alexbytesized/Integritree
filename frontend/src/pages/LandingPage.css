@@ -144,6 +144,7 @@
 .features-section {
   z-index: 1;
   padding: 0 40px 80px;
+  scroll-margin-top: 80px;
 }
 
 /* Blue banner — extra bottom padding creates room for the white card overlap */
@@ -229,6 +230,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  scroll-margin-top: 80px;
 }
 
 /* White Pill Title */
@@ -331,6 +333,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  scroll-margin-top: 80px;
 }
 
 .meet-team-title {
