@@ -59,6 +59,8 @@ const topics = {
       "Positive: RF-SMOTE has the higher metric value.",
       "Negative: benchmark RF has the higher metric value.",
       "Zero: equal metric values.",
+      "If either MCC is negative, the displayed comparison is RF-SMOTE minus RF in coefficient units, not a percentage.",
+      "Undefined inputs or a zero mean are unavailable; they are not replaced by zero.",
     ],
   },
   "McNemar's Test": {

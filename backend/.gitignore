@@ -21,6 +21,8 @@ dist/
 
 # Data and generated outputs; retain directory markers
 /runtime/matplotlib/
+/runtime/research_sessions/
+/runtime/research_checks/
 /runtime/phase4-model-constraints.txt
 /data/raw/*
 !/data/raw/.gitkeep

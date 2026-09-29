@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import { uploadCsv } from '../researchApi'
 import { useNavigate, Link } from 'react-router-dom'
 import { useDropzone } from 'react-dropzone'
 import { Database, Upload, X, FileText } from 'lucide-react'
@@ -8,6 +9,8 @@ import './UploadPage.css'
 const ResearcherUploadPage = () => {
   const [file, setFile] = useState(null)
   const [error, setError] = useState('')
+  const [progress, setProgress] = useState(null)
+  const [busy, setBusy] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -39,7 +42,7 @@ const ResearcherUploadPage = () => {
       const selectedFile = acceptedFiles[0]
 
       if (selectedFile.size > 500 * 1024 * 1024) {
-        setError('File size exceeds the 500MB limit.')
+        setError('File size exceeds the 500 MiB limit.')
         return
       }
 
@@ -61,10 +64,15 @@ const ResearcherUploadPage = () => {
     setError('')
   }
 
-  const handleAnalyze = () => {
-    if (file) {
-      navigate('/researcher')
-    }
+  const handleAnalyze = async () => {
+    if (!file || busy) return
+    setBusy(true)
+    setError('')
+    try {
+      const result = await uploadCsv(file, setProgress)
+      navigate(`/researcher?analysis=${result.id}`)
+    } catch (err) { setError(err.message) }
+    finally { setBusy(false) }
   }
 
   const formatBytes = (bytes, decimals = 2) => {
@@ -77,7 +85,7 @@ const ResearcherUploadPage = () => {
   }
 
   return (
-    <div className="upload-page-container">
+    <div className="upload-page-container researcher-upload">
       <div id="particles-js"></div>
 
       {/* Back Button */}
@@ -99,6 +107,7 @@ const ResearcherUploadPage = () => {
 
       {/* Upload Card */}
       <div className="upload-card">
+        {new URLSearchParams(window.location.search).has('expired') && <p role="alert">Your backend session expired. Upload the CSV again to start a new analysis.</p>}
 
         {/* Card Header */}
         <div className="upload-card-header">
@@ -123,12 +132,12 @@ const ResearcherUploadPage = () => {
                   <div className="file-name">{file.name}</div>
                   <div className="file-size">{formatBytes(file.size)}</div>
                 </div>
-                <button onClick={removeFile} className="btn-remove-file" title="Remove File">
+                <button disabled={busy} onClick={removeFile} className="btn-remove-file" title="Remove File">
                   <X size={16} />
                 </button>
               </div>
 
-              <button onClick={handleAnalyze} className="btn-analyze-submit">
+              <button disabled={busy} onClick={handleAnalyze} className="btn-analyze-submit">
                 <span>▶</span> ANALYZE FILE
               </button>
             </div>
@@ -140,12 +149,17 @@ const ResearcherUploadPage = () => {
               <input {...getInputProps()} />
               <Upload size={36} className="dropzone-icon" />
               <h3 className="dropzone-title">Choose a file or drag and drop it here</h3>
-              <p className="dropzone-desc">CSV format only, up to 500MB</p>
+              <p className="dropzone-desc">CSV format only, up to 500 MiB. No fixed record-count limit.</p>
               <div className="btn-browse">Browse File</div>
             </div>
           )}
 
-          {error && <div className="upload-error-msg">{error}</div>}
+          {busy && <p role="status">Uploading: {progress ?? 0}%</p>}
+          {error && <div className="upload-error-msg" role="alert">{error}</div>}
+          <p>Required columns: step, type, amount, nameOrig, nameDest, isFraud (0 or 1). UTF-8 CSV; no duplicate headers.</p>
+          <p>Step must be a positive integer; names must start with C or M. Type: CASH_IN, CASH_OUT, DEBIT, PAYMENT, TRANSFER, or unknown. Missing amount/type use the saved preprocessing rules. Other original PaySim columns are optional and are not predictors.</p>
+          <a href="/api/v1/research/template" download>Download demonstration CSV template</a>
+          <p>Analyses are temporary. Download results before stopping or restarting the backend. Withhold your test set until the whole tool is complete and official evaluation begins.</p>
         </div>
       </div>
     </div>

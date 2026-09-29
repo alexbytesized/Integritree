@@ -167,12 +167,12 @@ def waterfall(explanation, output):
 
 class ExplanationEngine:
     """Cache key includes model/input/reference/policy/code/dependency identity."""
-    def __init__(self,model_path,prepared,policy,cache_root):
+    def __init__(self,model_path,prepared,policy,cache_root, *, bundle=None):
         os.environ.setdefault("MPLCONFIGDIR", str(load_settings().backend_root / "runtime/matplotlib"))
         import shap
         validate_shap_policy(policy)
         self.model_path=Path(model_path)
-        self.bundle=load_bundle(self.model_path)
+        self.bundle=bundle if bundle is not None else load_bundle(self.model_path)
         self.policy=policy
         self.cache_root=Path(cache_root)
         self.background_path,background=create_background(

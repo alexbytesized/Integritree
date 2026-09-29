@@ -11,13 +11,14 @@ const getRiskLevel = (score) => {
   return "Critical Risk"
 }
 
-const RiskGauge = ({ score }) => (
+const RiskGauge = ({ score, threshold }) => (
   <div className="mrv-gauge-wrapper">
     <div className="mrv-gauge-header">
       <span className="mrv-gauge-title">Risk Level</span>
-      <RiskThresholdTooltip position="bottom" />
+      <RiskThresholdTooltip position="bottom" threshold={threshold} />
     </div>
     <div className="mrv-gauge-track">
+      {threshold != null && <span title={`Fraud threshold ${threshold}%`} style={{ position: "absolute", left: `${threshold}%`, height: "100%", borderLeft: "2px solid black" }} />}
       <div
         className="mrv-gauge-thumb"
         style={{ left: `clamp(1%, ${score}%, 99%)` }}
@@ -54,10 +55,11 @@ const InfoCard = ({ header, full, children }) => (
  *   shapLink     – href string for the "See Full SHAP Evaluation" link (optional)
  */
 const ModelResultView = ({
-  prediction = "Fraudulent",
-  riskScore = 75,
-  groundTruth = "Fraudulent",
-  outcome = "True Positive",
+  prediction = "Unavailable",
+  riskScore = 0,
+  threshold,
+  groundTruth = "Unavailable",
+  outcome = "Unavailable",
   interpretation,
   shapSummary,
   shapLink,
@@ -77,16 +79,13 @@ const ModelResultView = ({
     </>
   )
 
-  const defaultShap =
-    `The transaction was classified as ${prediction} primarily because of its ` +
-    `high transaction amount, CASH_OUT transaction type, large decrease in the sender's balance, ` +
-    `and unusual change in the recipient's balance. These factors increased the model's fraud ` +
-    `prediction, resulting in a ${riskLevel} score of ${riskScore}/100.`
+  const defaultShap = 'No explanation has been computed for this record.'
+
 
   return (
     <div className="mrv-root">
       {/* ── Risk gauge ── */}
-      <RiskGauge score={riskScore} />
+      <RiskGauge score={riskScore} threshold={threshold} />
 
       {/* ── 2×2 cards ── */}
       <div className="mrv-cards-grid">

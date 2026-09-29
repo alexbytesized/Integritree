@@ -1,6 +1,9 @@
 # Backend alignment audit against the agreed mock-up review
 
-Updated for the three-stage cleanup on 2026-09-28.
+Historical alignment audit, updated for the three-stage cleanup on 2026-09-28.
+The researcher application integration described as pending below was implemented
+on 2026-09-29; see [current workflow and verification](RESEARCHER_WORKFLOW.md).
+Receipt integration and final evaluation remain pending.
 
 ## Result and scope
 

@@ -6,6 +6,9 @@ import TabBar from "../components/TabBar"
 import ModelResultView from "../components/ModelResultView"
 import BothModelsView from "../components/BothModelsView"
 import { useEffect, useState } from "react"
+import { Link, useParams, useSearchParams } from "react-router-dom"
+import { api, analysisKey, label, outcomeName } from "../researchApi"
+import ResearchExplanation from "../components/ResearchExplanation"
 
 const TABS = [
   { key: "details",   label: "Transaction Details" },
@@ -14,54 +17,42 @@ const TABS = [
   { key: "both",      label: "Both Models" },
 ]
 
-// Placeholder transaction data — replace with API/router state
-const transaction = {
-  id: "12345678",
-  step: 1,
-  type: "Transfer",
-  amount: 9839.64,
-  nameOrig: "C1231006815",
-  oldBalanceOrig: 170136,
-  newBalanceOrig: 160296.36,
-  nameDest: "M1979787155",
-  oldBalanceDest: 0,
-  newBalanceDest: 0,
-  isFraud: true,
-  hourOfDay: 1,
-  dayOfWeek: 0,
-  isCashIn: false,
-  isCashOut: false,
-  isDebit: false,
-  isPayment: true,
-  isTransfer: false,
-  logAmount: 25,
-  amountIsZero: false,
-  origIsMerchant: false,
-  destIsMerchant: true,
-  // Model results — replace with API data
-  rfSmote: {
-    prediction: "Fraudulent",
-    riskScore: 75,
-    groundTruth: "Fraudulent",
-    outcome: "True Positive",
-  },
-  benchmark: {
-    prediction: "Fraudulent",
-    riskScore: 68,
-    groundTruth: "Fraudulent",
-    outcome: "True Positive",
-  },
-}
-
 const Field = ({ label, value }) => (
   <div className="td-field-row">
     <span className="td-field-label">{label}</span>
-    <div className="td-field-value">{String(value)}</div>
+    <div className="td-field-value">{value == null || value === '' ? 'Not supplied' : String(value)}</div>
   </div>
 )
 
 const TransactionDetailsPage = () => {
   const [activeTab, setActiveTab] = useState("details")
+  const { id: number } = useParams()
+  const [params] = useSearchParams()
+  const analysis = params.get('analysis') || sessionStorage.getItem(analysisKey)
+  const back = `/researcher?${params.get('return') || `analysis=${analysis}`}`
+  const [record, setRecord] = useState(null)
+  const [error, setError] = useState('')
+  const [revision, setRevision] = useState(0)
+  useEffect(() => {
+    if (!analysis) return
+    let live = true
+    let timer
+    let requested = false
+    const poll = async () => {
+      try {
+        const data = await api(`/analyses/${analysis}/records/${number}`)
+        if (!live) return
+        setRecord(data)
+        if (!requested && (data.explanation.status === 'not_requested' || (revision > 0 && data.explanation.status === 'failed'))) {
+          requested = true
+          await api(`/analyses/${analysis}/records/${number}/explanation`, { method: 'POST' })
+          if (live) timer = setTimeout(poll, 1200)
+        } else if (data.explanation.status === 'pending') timer = setTimeout(poll, 1200)
+      } catch (err) { if (live) setError(err.message) }
+    }
+    poll()
+    return () => { live = false; clearTimeout(timer) }
+  }, [analysis, number, revision])
 
   useEffect(() => {
     if (window.particlesJS) {
@@ -77,11 +68,31 @@ const TransactionDetailsPage = () => {
     }
   }, [])
 
+  if (!record) return <main className="researcher-results-page"><h1>Transaction details</h1><p role="status">{error || (analysis ? 'Loading...' : 'Session expired. Upload a CSV again.')}</p><Link to="/researcher-upload">Return to upload</Link></main>
+  const modelProps = (name) => ({
+    prediction: label(record[name].predicted_label), riskScore: Number((record[name].score * 100).toFixed(4)),
+    groundTruth: label(record.actual_label), outcome: outcomeName(record[name].predicted_label, record.actual_label),
+    threshold: record.threshold * 100,
+    shapLink: `#waterfall_${name}`,
+    interpretation: `Model fraud score ${(record[name].score * 100).toFixed(4)}%; fraud is predicted at or above ${(record.threshold * 100).toFixed(0)}%. Risk bands describe the score; they are not calibrated real-world probabilities.`,
+    shapSummary: record.explanation.models?.[name]?.narrative || (record.explanation.status === 'failed' ? 'Explanation failed; retry below.' : 'SHAP explanation pending...'),
+  })
+  const original = record.original
+  const derived = record.derived
+  const transaction = { ...original, id: record.transaction_id, isFraud: Boolean(record.actual_label),
+    oldBalanceOrig: original.oldbalanceOrg, newBalanceOrig: original.newbalanceOrig,
+    oldBalanceDest: original.oldbalanceDest, newBalanceDest: original.newbalanceDest,
+    hourOfDay: derived.hour_of_day, dayOfWeek: derived.day_of_week, isCashIn: derived.type_CASH_IN,
+    isCashOut: derived.type_CASH_OUT, isDebit: derived.type_DEBIT, isPayment: derived.type_PAYMENT,
+    isTransfer: derived.type_TRANSFER, logAmount: derived.log_amount, amountIsZero: derived.is_zero_amount,
+    origIsMerchant: derived.is_merchant_origin, destIsMerchant: derived.is_merchant_dest,
+    rfSmote: modelProps('rf_smote'), benchmark: modelProps('rf') }
   return (
     <div className="researcher-results-wrapper">
       <div id="particles-js" className="particles-background" aria-hidden="true" />
-      <ReturnButton to="/researcher" />
+      <ReturnButton to={back} />
       <main className="researcher-results-page">
+        {error && <p role="alert">{error}</p>}
 
         {/* Heading + Tab bar */}
         <section className="results-overview-section">
@@ -145,22 +156,12 @@ const TransactionDetailsPage = () => {
 
           {/* RF-SMOTE tab */}
           {activeTab === "rfSmote" && (
-            <ModelResultView
-              prediction={transaction.rfSmote.prediction}
-              riskScore={transaction.rfSmote.riskScore}
-              groundTruth={transaction.rfSmote.groundTruth}
-              outcome={transaction.rfSmote.outcome}
-            />
+            <ModelResultView {...transaction.rfSmote} />
           )}
 
           {/* Benchmark RF tab */}
           {activeTab === "benchmark" && (
-            <ModelResultView
-              prediction={transaction.benchmark.prediction}
-              riskScore={transaction.benchmark.riskScore}
-              groundTruth={transaction.benchmark.groundTruth}
-              outcome={transaction.benchmark.outcome}
-            />
+            <ModelResultView {...transaction.benchmark} />
           )}
 
           {/* Both Models tab */}
@@ -171,6 +172,8 @@ const TransactionDetailsPage = () => {
             />
           )}
 
+          {(activeTab === 'rfSmote' || activeTab === 'both') && <ResearchExplanation key={`smote-${number}`} explanation={record.explanation} model="rf_smote" onRetry={() => setRevision(v => v + 1)} />}
+          {(activeTab === 'benchmark' || activeTab === 'both') && <ResearchExplanation key={`rf-${number}`} explanation={record.explanation} model="rf" onRetry={() => setRevision(v => v + 1)} />}
         </section>
 
       </main>

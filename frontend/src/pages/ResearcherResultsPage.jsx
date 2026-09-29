@@ -11,6 +11,8 @@ import PercentageDifferenceCard from "../components/PercentageDifference"
 import ConfusionMatrix from "../components/ConfusionMatrix"
 import InfoButton from "../components/InfoButton"
 import InfoModal from "../components/InfoModal"
+import { Link, useSearchParams } from "react-router-dom"
+import { api, analysisKey, downloadAnalysis, metric } from "../researchApi"
 
 const modelOptions = [
   { value: "both", label: "Both Models" },
@@ -25,17 +27,6 @@ const outcomeOptions = [
   { value: "tn", label: "True Negative" },
   { value: "fn", label: "False Negative" },
 ]
-
-const smoteMetrics = { precision: 98.5, recall: 99.0, f1: 98.7, mcc: 0.987, auc: 99.1 }
-const benchmarkMetrics = { precision: 87.8, recall: 75.2, f1: 81.0, mcc: 0.805, auc: 82.4 }
-const metricDifference = (key) => {
-  const smote = smoteMetrics[key]
-  const benchmark = benchmarkMetrics[key]
-  const mean = (smote + benchmark) / 2
-  if (mean === 0) return "N/A"
-  const difference = 100 * (smote - benchmark) / mean
-  return `${difference >= 0 ? "+" : ""}${difference.toFixed(2)}%`
-}
 
 const ResearcherResultsPage = () => {
   useEffect(() => {
@@ -57,30 +48,72 @@ const ResearcherResultsPage = () => {
     }
   }, [])
 
-  const [searchTerm, setSearchTerm] = useState("")
-  const [model, setModel] = useState("both")
-  const [outcome, setOutcome] = useState("all")
-  const [currentPage, setCurrentPage] = useState(1)
+  const [params, setParams] = useSearchParams()
+  const id = params.get('analysis') || sessionStorage.getItem(analysisKey)
+  const searchTerm = params.get('search') || ''
+  const model = params.get('model') || 'both'
+  const outcome = params.get('outcome') || 'all'
+  const currentPage = Math.max(1, Number(params.get('page')) || 1)
+  const [job, setJob] = useState(null)
+  const [error, setError] = useState('')
+  const [downloading, setDownloading] = useState(false)
   const [activeInfoTopic, setActiveInfoTopic] = useState(null)
   const closeInfo = useCallback(() => setActiveInfoTopic(null), [])
-
-  const handleModelChange = (event) => {
-    const nextModel = event.target.value
-    setModel(nextModel)
-    setOutcome("all")
-    setCurrentPage(1)
+  const change = (values) => setParams({ analysis: id, search: searchTerm, model, outcome, page: currentPage, ...values }, { replace: true })
+  const handleModelChange = (event) => change({ model: event.target.value, outcome: 'all', page: 1 })
+  const handleOutcomeChange = (event) => change({ outcome: event.target.value, page: 1 })
+  const handleSearchChange = (event) => change({ search: event.target.value, page: 1 })
+  const setCurrentPage = (page) => change({ page })
+  useEffect(() => {
+    if (!id) return
+    let live = true
+    let timer
+    const poll = async () => {
+      try {
+        const data = await api(`/analyses/${id}`)
+        if (!live) return
+        setJob(data)
+        if (!['complete', 'failed'].includes(data.status)) timer = setTimeout(poll, 1000)
+      } catch (err) { if (live) setError(err.message) }
+    }
+    poll()
+    return () => { live = false; clearTimeout(timer) }
+  }, [id])
+  const download = async () => {
+    setDownloading(true)
+    setError('')
+    try { await downloadAnalysis(id) } catch (err) { setError(err.message) }
+    finally { setDownloading(false) }
   }
-
-  const handleOutcomeChange = (event) => {
-    setOutcome(event.target.value)
-    setCurrentPage(1)
+  const clear = async () => {
+    try {
+      await api(`/analyses/${id}`, { method: 'DELETE' })
+      sessionStorage.removeItem(analysisKey)
+      window.location.assign('/researcher-upload')
+    } catch (err) { setError(err.message) }
   }
-
-  const handleSearchChange = (event) => {
-    setSearchTerm(event.target.value)
-    setCurrentPage(1)
+  if (!id || job?.status !== 'complete') return <main className="researcher-results-page">
+    <h1>CSV analysis</h1>
+    {error && <p role="alert">{error}</p>}
+    {job?.status === 'failed' ? <><p role="alert">{job.error}</p><pre>{job.issues && JSON.stringify(job.issues, null, 2)}</pre></>
+      : id && !error ? <p role="status">{{ uploading: 'Uploading', queued: 'Waiting for the analysis worker', loading_models: 'Verifying saved models', processing: 'Analyzing records', evaluating: 'Calculating full-file metrics' }[job?.status] || 'Connecting'} — {(job?.rows_processed || 0).toLocaleString()} records processed</p>
+      : <p>Upload a CSV to start a new analysis.</p>}
+    <Link to="/researcher-upload">Return to upload / retry</Link>
+    {job?.status === 'failed' && <button onClick={clear}>Clear failed analysis</button>}
+  </main>
+  const evaluation = job.evaluation
+  const sm = evaluation.models.rf_smote
+  const rf = evaluation.models.rf
+  const stats = (model) => ({ precision: metric(model.metrics.precision), recall: metric(model.metrics.recall),
+    f1: metric(model.metrics.f1), mcc: metric(model.metrics.mcc, true), auc: metric(model.metrics.pr_auc) })
+  const smoteMetrics = stats(sm)
+  const benchmarkMetrics = stats(rf)
+  const metricDifference = (key) => {
+    const item = evaluation.descriptive_comparisons[key === 'auc' ? 'pr_auc' : key]
+    return item.value == null ? `N/A (${item.reason})` : `${item.value >= 0 ? '+' : ''}${item.value.toFixed(3)}${item.units === 'percent' ? '%' : ' coefficient'}`
   }
-
+  const test = evaluation.statistical_test
+  const rate = (count) => 100 * count / job.rows_processed
   return (
     <div className="researcher-results-wrapper">
       <div id="particles-js" className="particles-background" aria-hidden="true" />
@@ -94,16 +127,16 @@ const ResearcherResultsPage = () => {
 
         <div className="file-name-container">
           <b>CSV File Name:</b>
-          <span>dataset.csv</span>
+          <span>{job.filename}</span>
         </div>
 
         <div className="system-results-container">
           <div className="model-result-container">
             <SystemResults
               title="RF-SMOTE"
-              legitimateRecords="6308787"
-              fraudulentRecords="59872"
-              fraudRate={5.6}
+              legitimateRecords={sm.confusion_matrix.tn + sm.confusion_matrix.fn}
+              fraudulentRecords={sm.confusion_matrix.tp + sm.confusion_matrix.fp}
+              fraudRate={rate(sm.confusion_matrix.tp + sm.confusion_matrix.fp)}
               titleClass="rf-smote-title"
               donutClass="rf-smote-donut"
             />
@@ -112,9 +145,9 @@ const ResearcherResultsPage = () => {
 
             <SystemResults
               title="Benchmark RF"
-              legitimateRecords="6012120"
-              fraudulentRecords="356539"
-              fraudRate={0.94}
+              legitimateRecords={rf.confusion_matrix.tn + rf.confusion_matrix.fn}
+              fraudulentRecords={rf.confusion_matrix.tp + rf.confusion_matrix.fp}
+              fraudRate={rate(rf.confusion_matrix.tp + rf.confusion_matrix.fp)}
               titleClass="benchmark-title"
               donutClass="benchmark-donut"
             />
@@ -122,9 +155,9 @@ const ResearcherResultsPage = () => {
           <div className="ground-truth-container">
             <SystemResults
               title="Ground Truth"
-              legitimateRecords="6354407"
-              fraudulentRecords="8213"
-              fraudRate={0.13}
+              legitimateRecords={job.rows_processed - rf.actual_fraud}
+              fraudulentRecords={rf.actual_fraud}
+              fraudRate={rate(rf.actual_fraud)}
               titleClass="ground-truth-title"
               donutClass="ground-truth-donut"
             />
@@ -144,7 +177,7 @@ const ResearcherResultsPage = () => {
           <FilterBar label="Prediction outcome" value={outcome} onChange={handleOutcomeChange} options={outcomeOptions} disabled={model === "both"} />
         </div>
 
-        <TransactionTable searchTerm={searchTerm} model={model} outcome={outcome} currentPage={currentPage} onPageChange={setCurrentPage} />
+        <TransactionTable analysisId={id} returnQuery={params.toString()} searchTerm={searchTerm} model={model} outcome={outcome} currentPage={currentPage} onPageChange={setCurrentPage} />
       </section>
 
       <section className="confusion-matrices-container">
@@ -155,18 +188,18 @@ const ResearcherResultsPage = () => {
 
         <ConfusionMatrix
           title="RF-SMOTE Model"
-          truePositive={400000}
-          falseNegative={400000}
-          falsePositive={400000}
-          trueNegative={400000}
+          truePositive={sm.confusion_matrix.tp}
+          falseNegative={sm.confusion_matrix.fn}
+          falsePositive={sm.confusion_matrix.fp}
+          trueNegative={sm.confusion_matrix.tn}
         />
 
         <ConfusionMatrix
           title="Benchmark RF Model"
-          truePositive={400000}
-          falseNegative={400000}
-          falsePositive={400000}
-          trueNegative={400000}
+          truePositive={rf.confusion_matrix.tp}
+          falseNegative={rf.confusion_matrix.fn}
+          falsePositive={rf.confusion_matrix.fp}
+          trueNegative={rf.confusion_matrix.tn}
         />
       </section>
 
@@ -179,20 +212,20 @@ const ResearcherResultsPage = () => {
         <div className="model-statistics-container">
           <StatisticCard
             title="RF-SMOTE"
-            precision={`${smoteMetrics.precision.toFixed(1)}%`}
-            recall={`${smoteMetrics.recall.toFixed(1)}%`}
-            f1={`${smoteMetrics.f1.toFixed(1)}%`}
-            mcc={smoteMetrics.mcc.toFixed(3)}
-            auc={`${smoteMetrics.auc.toFixed(1)}%`}
+            precision={smoteMetrics.precision}
+            recall={smoteMetrics.recall}
+            f1={smoteMetrics.f1}
+            mcc={smoteMetrics.mcc}
+            auc={smoteMetrics.auc}
             onRequestInfo={setActiveInfoTopic}
           />
           <StatisticCard
             title="Benchmark RF"
-            precision={`${benchmarkMetrics.precision.toFixed(1)}%`}
-            recall={`${benchmarkMetrics.recall.toFixed(1)}%`}
-            f1={`${benchmarkMetrics.f1.toFixed(1)}%`}
-            mcc={benchmarkMetrics.mcc.toFixed(3)}
-            auc={`${benchmarkMetrics.auc.toFixed(1)}%`}
+            precision={benchmarkMetrics.precision}
+            recall={benchmarkMetrics.recall}
+            f1={benchmarkMetrics.f1}
+            mcc={benchmarkMetrics.mcc}
+            auc={benchmarkMetrics.auc}
             onRequestInfo={setActiveInfoTopic}
           />
         </div>
@@ -240,26 +273,28 @@ const ResearcherResultsPage = () => {
                 <div className="table-header">RF-SMOTE Model Incorrect</div>
 
                 <div className="row-header">RF Model Correct</div>
-                <div className="table-value">6005000</div>
-                <div className="table-value">125000</div>
+                <div className="table-value">{test.table.both_correct}</div>
+                <div className="table-value">{test.table.rf_only_correct}</div>
 
                 <div className="row-header">RF Model Incorrect</div>
-                <div className="table-value">345000</div>
-                <div className="table-value">345000</div>
+                <div className="table-value">{test.table.smote_only_correct}</div>
+                <div className="table-value">{test.table.both_incorrect}</div>
               </div>
             </div>
 
             <div className="mcnemar-result">
               <h4 className="mcnemar-label">P-Value:</h4>
               <div className="pvalue-box">
-                <strong>2.600e-100</strong>
+                <strong>{test.p_value.toExponential(6)}</strong>
               </div>
 
               <h4>Interpretation:</h4>
               <div className="interpretation">
                 <p>
-                  Reject the null hypothesis. The models have different classification error rates on this evaluation set.
+                  {test.decision === 'reject_null' ? 'Reject the null hypothesis: paired classification error rates differ.' : 'Fail to reject the null hypothesis: insufficient evidence of different paired error rates.'}
                 </p>
+                <p>{test.status}. Discordant pairs: {test.discordant_pairs}. Statistic: {test.statistic ?? 'N/A'}.</p>
+                {test.supplementary && <p>Small-discordance caution. Supplementary exact p-value: {test.supplementary.p_value.toPrecision(6)}.</p>}
               </div>
             </div>
           </div>
@@ -267,7 +302,11 @@ const ResearcherResultsPage = () => {
       </section>
 
       <footer className="results-actions">
-        <button type="button" className="download-button" aria-disabled="true" title="Results download is not available yet">Download results<span className="visually-hidden">; not available yet</span></button>
+        <p>Shared fraud threshold: {(job.threshold * 100).toFixed(0)}%. Metrics cover all {job.rows_processed.toLocaleString()} uploaded records. Results are temporary; download them before ending the backend session.</p>
+        {error && <p role="alert">{error}</p>}
+        <button type="button" className="download-button" disabled={downloading} onClick={download}>{downloading ? 'Preparing download...' : 'Download results'}</button>
+        <Link to="/researcher-upload">Analyze another CSV</Link>
+        <button type="button" onClick={clear} disabled={downloading}>Clear results</button>
       </footer>
       {activeInfoTopic && <InfoModal topic={activeInfoTopic} onClose={closeInfo} />}
       </main>

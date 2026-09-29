@@ -183,6 +183,13 @@ Ground-truth labels are required for evaluation and must never enter
 the predictor inputs. Official thesis results must use held-out test
 records, not the entire dataset after training.
 
+The researcher withholds and identifies the test CSV; the application uses one
+labeled upload flow without automatic split-membership checks or an official-test
+switch. Complete both researcher and receipt workflows and whole-tool verification
+before explicit authorization and final evaluation through the tool. Download and
+retain the final results: all newly uploaded analyses are temporary, including the
+final experiment. See [the implemented workflow](RESEARCHER_WORKFLOW.md).
+
 PR-AUC requires prediction scores across thresholds, not just one
 confusion matrix or hard predicted labels.
 
@@ -301,19 +308,19 @@ Software:
 - Dependency changes required for future OCR work. Phases 1-4 use
   Python 3.12, FastAPI, NumPy, pandas, PyArrow, scikit-learn, imbalanced-learn,
   joblib, SciPy, Matplotlib, and SHAP 0.52.0 with a versioned lock.
-- Final API contracts and long-running batch handling.
-- Whether persistence beyond local files is needed.
+- Receipt API contracts and receipt-specific long-running work. Research CSV jobs are implemented.
+- Research storage is settled: temporary SQLite/files and downloads-only retention. Receipt retention remains to be finalized.
 
 Do not silently resolve a methodological ambiguity merely to make
 implementation easier.
 
 ## 10. Repository status
 
-The React/Vite frontend includes upload and results screens with mock values;
-these are not experimental results. Python implements preparation, training,
-saved inference, evaluation, three-stage selection, and SHAP. HTTP is health-only;
-prediction routes, frontend integration, general batch exports, and OCR remain
-future work. The raw dataset, completed preparation, and preparation verification
+The React/Vite researcher frontend uses live CSV analysis, saved inference,
+full-upload evaluation, on-demand SHAP, and downloadable ZIP reports. Python
+implements preparation, training, evaluation, three-stage selection, and SHAP.
+Receipt screens still include mock values; receipt/OCR integration and whole-tool
+verification remain future work. Mock values are not experimental results. The raw dataset, completed preparation, and preparation verification
 are retained. Current model/validation execution is recorded in
 [run status](VALIDATION_RUN_STATUS.md).
 

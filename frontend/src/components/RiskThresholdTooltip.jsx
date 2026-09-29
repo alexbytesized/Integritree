@@ -4,13 +4,13 @@ import "./RiskThresholdTooltip.css"
 
 const THRESHOLDS = [
   { label: "Minimal Risk", range: "Below 20", color: "#1DB954" },
-  { label: "Low Risk", range: "20 to 39", color: "#F9C923" },
-  { label: "Moderate Risk", range: "40 to 59", color: "#F47C20" },
-  { label: "High Risk", range: "60 to 79", color: "#D9312B" },
+  { label: "Low Risk", range: "20 to <40", color: "#F9C923" },
+  { label: "Moderate Risk", range: "40 to <60", color: "#F47C20" },
+  { label: "High Risk", range: "60 to <80", color: "#D9312B" },
   { label: "Critical Risk", range: "80 to 100", color: "#7A0000" },
 ]
 
-const RiskThresholdTooltip = ({ position = "bottom" }) => {
+const RiskThresholdTooltip = ({ position = "bottom", threshold }) => {
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef(null)
 
@@ -57,6 +57,7 @@ const RiskThresholdTooltip = ({ position = "bottom" }) => {
             <h4 className="risk-tooltip-title">Risk Thresholds</h4>
           </div>
           <div className="risk-tooltip-list">
+            {threshold != null && <p>Fraud is predicted at or above {threshold}%. These bands describe model scores, not calibrated real-world probabilities.</p>}
             {THRESHOLDS.map(({ label, range, color }) => (
               <div key={label} className="risk-tooltip-item">
                 <div className="risk-tooltip-badge-group">

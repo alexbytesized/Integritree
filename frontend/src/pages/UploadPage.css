@@ -11,6 +11,16 @@
   overflow: hidden;
 }
 
+.upload-page-container.researcher-upload {
+  height: auto;
+  min-height: 100vh;
+  overflow: visible;
+  box-sizing: border-box;
+  padding-top: 100px;
+  padding-bottom: 48px;
+}
+.researcher-upload .upload-card-body > p { line-height: 1.5; }
+
 .upload-page-container #particles-js {
   position: absolute;
   top: 0;

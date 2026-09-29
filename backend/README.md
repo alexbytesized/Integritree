@@ -11,8 +11,10 @@ Stage 3 selects from exactly 1%, 2%, ..., 100%. See
 [run status](../docs/VALIDATION_RUN_STATUS.md) for measured outcomes.
 
 Preparation, paired RF/RF-SMOTE training, saved inference, evaluation, three-stage
-selection, and SHAP are implemented. HTTP currently exposes health; prediction
-APIs, frontend integration, and receipt OCR remain future work.
+selection, SHAP, and the researcher HTTP/frontend workflow are implemented.
+See [researcher operation and retention](../docs/RESEARCHER_WORKFLOW.md).
+Receipt OCR and receipt integration remain future work; final test evaluation waits
+until the complete tool is ready and the researcher explicitly authorizes it.
 
 ## Install on Windows
 
@@ -58,7 +60,8 @@ preserve saved-model dependency versions. OCR libraries remain future work.
 
 Open http://127.0.0.1:8000/api/v1/health for the health response or
 http://127.0.0.1:8000/docs for the generated API documentation. Stop the server
-with Ctrl+C. The frontend is not connected to this backend yet.
+with Ctrl+C. From `frontend`, run `npm.cmd run dev -- --host 127.0.0.1` and open
+`http://127.0.0.1:5173/researcher-upload`. Vite proxies the researcher API to port 8000.
 
 Tests use synthetic records and temporary configuration files. Neither tests
 nor health checks require loading the real dataset or a saved model. The health

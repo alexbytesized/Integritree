@@ -1,6 +1,6 @@
 # Backend interface contracts
 
-Last updated: 2026-09-22. HTTP remains health-only; local preparation, baseline training, and Python inference are implemented.
+Last updated: 2026-09-29. Researcher CSV analysis is connected to the frontend; receipt APIs remain future work.
 
 ## Available HTTP endpoint
 
@@ -15,24 +15,58 @@ Last updated: 2026-09-22. HTTP remains health-only; local preparation, baseline 
 ```
 
 This confirms application availability. Startup validates application settings and
-the experiment draft, but does not load the dataset, create output directories,
-train models, or verify inference readiness. Unresolved draft methodology fields
+the experiment configuration and creates/cleans its isolated temporary research
+session directory. It does not load models or datasets, train, or verify inference readiness. Unresolved draft methodology fields
 are allowed; malformed configuration stops startup with an error.
 
 Run the app using the factory command in [the backend README](../backend/README.md).
 FastAPI provides `/docs`, `/redoc`, and `/openapi.json`.
-Only the health route is registered as an application endpoint.
+Research routes are also registered; models load lazily on the first analysis.
 
-CORS permits GET requests from `http://localhost:5173` and
+CORS permits GET, POST, and DELETE requests with Content-Type and X-Research-Session headers from `http://localhost:5173` and
 `http://127.0.0.1:5173` by default. Configure explicit origins with
 `INTEGRITREE_CORS_ORIGINS` as a JSON array in local settings.
 CORS is browser configuration, not authentication.
+
+## Researcher HTTP routes
+
+See [workflow, inputs, retention, and capacity](RESEARCHER_WORKFLOW.md).
+`POST /api/v1/research/sessions` returns an opaque `token`; send it in
+`X-Research-Session` for every analysis request. Tokens are memory-only and
+browser sessionStorage preserves them across refresh. Missing/expired sessions
+return 410; another session's analysis returns 404.
+
+| Method and path under `/api/v1/research` | Behavior |
+| --- | --- |
+| `GET /template` | Download a six-column demonstration CSV. |
+| `POST /analyses?filename=example.csv` | Stream a raw UTF-8 CSV request body (`Content-Type: text/csv`); return 202 with `id` and status. Not multipart. |
+| `GET /analyses/{id}` | Status, processed rows, byte count, errors/issues, frozen threshold, complete evaluation, and export status. |
+| `GET /analyses/{id}/records` | Ten-row pages; `page`, `search`, `model=both\|rf\|rf_smote`, `outcome=all\|tp\|fp\|tn\|fn`. Outcome requires a single model. |
+| `GET /analyses/{id}/records/{row}` | One-based upload record, original fields, unscaled derived fields, model inputs, paired scores/labels, and explanation state. |
+| `POST /analyses/{id}/records/{row}/explanation` | Queue paired on-demand SHAP; 202. Duplicate pending/computed requests reuse work; failed requests retry. |
+| `GET /analyses/{id}/records/{row}/waterfall/{model}` | Authenticated SVG for `rf` or `rf_smote` after computation. |
+| `POST /analyses/{id}/exports` | Queue complete-upload ZIP; 202. Repeat after completion refreshes explanation coverage. |
+| `GET /analyses/{id}/exports/download` | Download completed ZIP. |
+| `DELETE /analyses/{id}` | Clear an inactive complete/failed analysis; 204. Active work returns 409. |
+
+Analysis states: `uploading`, `queued`, `loading_models`, `processing`,
+`evaluating`, `complete`, `failed`. Explanation states: `not_requested`, `pending`,
+`computed`, `failed`; computed model contributions can report `no_positive_contributor`.
+Export states: `not_requested`, `pending`, `complete`, `failed`.
+
+Records and metrics are unavailable until the entire input passes. Upload errors
+include HTTP 413 for actual bytes over 500 MiB, 429 for a full bounded queue, and
+400/415 for invalid request format. CSV validation failures are asynchronous job
+failures with `error` and row/column `issues`; retry by uploading a corrected file.
+No record-count cap or official-test selector/check exists. Export metadata uses
+`uploaded_dataset` scope and explicitly declares membership unverified. Optional
+PaySim balances/flag are source information, not model features.
 
 ## Shared contracts for later phases
 
 Definitions live in `backend/src/integritree/contracts.py`; the reserved request
 envelope is in `backend/src/integritree/api/schemas.py`.
-There is no prediction, receipt, upload, or research endpoint yet.
+The single-record prediction and receipt endpoints remain reserved. Research endpoints are documented below.
 
 | Contract | Meaning |
 | --- | --- |
@@ -62,7 +96,7 @@ These contracts define data boundaries; they do not prove that arbitrary labeled
 datasets or real GCash transactions are compatible with a PaySim-trained model.
 The engineered feature list and simulation-time convention are now approved in
 [METHODOLOGY.md](METHODOLOGY.md). Scores now use mean-tree fraud probability with
-a shared >=0.50 baseline cutoff. Receipt mapping and prediction endpoint contracts
+the frozen shared >=0.43 cutoff for the current selected researcher bundle. Receipt mapping and prediction endpoint contracts
 remain decisions for their dependent phases.
 
 ## Configuration command
@@ -80,7 +114,7 @@ The preparation readiness check now passes for the approved configuration.
 the completed bundle path (exit 0). Progress is written to stderr; invalid data,
 unapproved settings, and output conflicts fail with exit 2. Baseline training is
 implemented via `python scripts/train_models.py --prepared <bundle>`; see the
-backend README. Evaluation and batch-export scripts remain guarded placeholders.
+backend README. Local evaluation and the researcher HTTP upload/export flow are implemented.
 
 See [the backend README](../backend/README.md#prepare-the-approved-paysim-dataset)
 for bundle file schemas, original-row identity, separate labels, integrity checks,
@@ -95,7 +129,7 @@ five raw predictor attributes and reuse saved preprocessing without refitting.
 The returned DataFrame preserves input order and includes `transaction_id`,
 `run_id`, `rf_risk_score`, `rf_predicted_label`, `rf_smote_risk_score`, and
 `rf_smote_predicted_label`. IDs must be nonempty strings and unique within a batch.
-Ground truth is supplied separately to future evaluation logic, never to the models.
+Ground truth is supplied separately to evaluation, never to the models.
 Scores are 0..1; SHAP explanations and correctness fields are not fabricated.
 
 ## Approved future contract requirements (not available endpoints)
@@ -157,23 +191,22 @@ Active evaluation configuration selects signed_over_mean, with
 `100*(S-B)/((S+B)/2)` for nonnegative metrics with positive mean. Both zero gives
 null/zero_denominator. Either MCC negative uses `S-B`, labeled coefficient units.
 Undefined inputs propagate an unavailable status. Legacy absolute_over_mean remains
-readable and must keep its own method label. Calculation is not implemented yet.
+readable and must keep its own method label. Calculation is implemented and the
+researcher disk adapter is tested against the existing evaluator.
 
 Use a separately recorded evaluation/explainer policy referencing immutable model
 artifacts. Ordinary fitted bundles retain their integrity checks; completed
 three-stage selections use schema 2 and carry the frozen common threshold.
 Do not mutate a saved configuration to pass a gate.
 
-Current GET-only CORS will need the actual methods/headers when upload and prediction
-routes are added. A database is optional; file/job access and retention still need
-an explicit design. Mock-up file-size labels are not implemented server limits.
+Research CORS, session ownership, temporary SQLite storage, and the 500 MiB
+server limit are implemented. See the researcher route table and workflow above.
 
 
 ## Phase 4 Python interfaces (2026-09-23)
 
-HTTP remains health-only. Phase 4 does not add prediction, upload, research-query,
-or export routes. The following reusable Python interfaces are implemented for
-Phase 5 services to call:
+These Phase 4 Python interfaces now underpin the researcher HTTP services. The
+single-record receipt routes remain future work:
 
 - `ml.research.evaluate_run(...)`: paired full-split predictions, metrics, AP,
   comparisons, McNemar, figures, and provenance. Validation is the default;

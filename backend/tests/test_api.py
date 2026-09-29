@@ -16,7 +16,8 @@ def test_health_without_dataset_or_models(settings):
         }
         assert str(settings.backend_root) not in response.text
         schema = client.get("/openapi.json").json()
-        assert set(schema["paths"]) == {"/api/v1/health"}
+        assert "/api/v1/health" in schema["paths"]
+        assert "/api/v1/research/analyses" in schema["paths"]
         assert client.get("/docs").status_code == 200
         assert client.post("/api/v1/predictions", json={}).status_code == 404
     assert not settings.artifacts_dir.exists()

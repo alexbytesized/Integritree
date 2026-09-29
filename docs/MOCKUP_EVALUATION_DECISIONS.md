@@ -373,19 +373,23 @@ Add a Download results button to the researcher results page. Include the follow
 in the exported evaluation report/metadata instead of a new on-screen panel:
 
 - Dataset/file and analysis ID.
-- Evaluation scope: held-out test / validation / exploratory upload.
+- Application evaluation scope: uploaded dataset. The researcher establishes
+  validation/test provenance in the research record, without a manual UI selector.
 - Evaluated record count and actual class distribution.
 - Model run and evaluation timestamp (distinct from training timestamp).
 - Shared decision threshold.
-- Whether same-record pairing and test membership were verified.
+- Same-record pairing is verified; held-out membership is explicitly not verified.
 
 Exported technical details: dataset/split fingerprints, preprocessing version,
 feature schema, RF/SMOTE settings, PR-AUC method, and SHAP configuration/coverage.
 
 This information makes the result interpretable and reproducible. It does not
 require additional manual user inputs or a database. Uploaded filenames and labels
-alone cannot establish held-out status. Unknown provenance means exploratory,
-not verified official thesis evaluation.
+alone cannot establish held-out status. The researcher withholds the test CSV until
+the entire tool is complete and official evaluation is authorized. There is one
+CSV flow with no test-membership check, original-row-ID requirement, or official-test
+switch. All application reports describe the uploaded population. Downloaded files
+are the retained copies; stopping/restarting the backend clears new analyses.
 
 Suggestion only (not implementation plan): an on-screen evaluation-details panel
 could make provenance easier to inspect. The researchers chose export-only placement.

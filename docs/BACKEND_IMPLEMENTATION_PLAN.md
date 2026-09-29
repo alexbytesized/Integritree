@@ -35,14 +35,15 @@ does not approve an algorithm change or a Chapter 3 rewrite.
 | 2 | Dataset and preprocessing | Audited, reproducible splits and training-fitted transformations | Complete |
 | 3 | Training and saved inference | Baseline trainer and reloadable paired model bundles | Training code complete; fresh candidates come from the three-stage run |
 | 4 | Research evaluation and SHAP | Verified evaluation reports and model explanations | Code complete; Stages 1-2 frozen; Stage 3 uses the 1%-100% grid |
-| 5 | Application services and API | Research and individual structured-record workflows | Not started |
+| 5 | Application services and API | Research and individual structured-record workflows | Researcher CSV workflow implemented; receipt prediction remains |
 | 6 | GCash receipt demonstration | Image extraction, confirmation, mapping, and prediction | Not started |
-| 7 | Integration and reproducibility | Backend handoff validated against the frontend workflows | Not started |
+| 7 | Integration and reproducibility | Backend handoff validated against the frontend workflows | Researcher integration checked; receipt and whole-tool verification remain |
 
 The existing foundation is reusable; Phases 1-3 are complete for their stated
 PaySim/baseline scope. Their current contracts are not the complete application
 contract. Extend them in the dependent phases rather than retrofitting receipt
-assumptions into PaySim preparation. Current HTTP is health-only.
+assumptions into PaySim preparation. Researcher HTTP/frontend integration is now
+implemented; see [the workflow and capacity evidence](RESEARCHER_WORKFLOW.md).
 
 ### Decisions that every future phase must preserve
 
@@ -423,6 +424,12 @@ Work:
 - Run one documented, finalized experiment and preserve its artifacts, settings,
   provenance, reports, and interpretation. Use reproducibility checks to verify
   the recorded run, not to tune repeatedly against the test set.
+  Complete both researcher and receipt workflows first; then obtain explicit
+  authorization and conduct the final evaluation through the tool. The researcher
+  withholds and identifies the test CSV. The application does not verify membership
+  or expose an official-test mode. Retain the downloaded ZIP and research record;
+  all new application analyses are temporary. Existing training/validation evidence
+  remains permanent. See [researcher workflow](RESEARCHER_WORKFLOW.md).
 - Record measured memory/runtime constraints and practical batch/SHAP limits.
   Computational optimization remains outside the thesis objectives.
 - Finish installation/run instructions, the methodology decision record, API

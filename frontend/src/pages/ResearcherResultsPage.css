@@ -74,7 +74,13 @@
   color: #FFFFFF;
 }
 
-.results-actions { display: flex; justify-content: flex-end; margin-top: 48px; }
+.results-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 16px; margin-top: 48px; }
+.results-actions > p { flex-basis: 100%; line-height: 1.5; }
+.results-actions > a, .results-actions > button:not(.download-button) {
+  padding: 14px 20px; border: 1px solid var(--results-border); border-radius: 8px;
+  background: white; color: var(--results-blue); font: inherit; text-decoration: none; cursor: pointer;
+}
+.results-actions .download-button { flex-shrink: 0; }
 
 .download-button {
   min-height: 54px;

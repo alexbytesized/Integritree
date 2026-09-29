@@ -117,3 +117,5 @@
   .td-card-header { height: 72px; padding: 0 16px 18px; font-size: 16px; border-radius: 18px 18px 0 0; }
   .td-card-body { margin-top: -18px; padding: 20px 16px; border-radius: 18px; }
 }
+
+.td-record-id { overflow-wrap: anywhere; }

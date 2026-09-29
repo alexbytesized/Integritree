@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useLocation, useNavigate } from "react-router-dom"
+import { useLocation } from "react-router-dom"
 
 import stars from "../assets/stars.png"
 import ReturnButton from "../components/ReturnButton"
@@ -26,7 +26,6 @@ const Field = ({ label, value }) => (
 
 const UserResultsPage = () => {
   const location = useLocation()
-  const navigate = useNavigate()
 
   const {
     fileName = "screenshot.png",

@@ -1,6 +1,5 @@
 import "./BothModelsView.css"
 
-const RISK_LABELS = ["Minimal Risk", "Low Risk", "Moderate Risk", "High Risk", "Critical Risk"]
 
 const getRiskLevel = (score) => {
   if (score < 20) return "Minimal Risk"
@@ -11,9 +10,10 @@ const getRiskLevel = (score) => {
 }
 
 /* Compact inline gauge used inside the side-by-side cards */
-const MiniGauge = ({ score }) => (
+const MiniGauge = ({ score, threshold }) => (
   <div className="bmv-gauge-wrapper">
     <div className="bmv-gauge-track">
+      {threshold != null && <span title={`Fraud threshold ${threshold}%`} style={{ position: "absolute", left: `${threshold}%`, height: "100%", borderLeft: "2px solid black" }} />}
       <div
         className="bmv-gauge-thumb"
         style={{ left: `clamp(1%, ${score}%, 99%)` }}
@@ -33,14 +33,14 @@ const StackedCard = ({ header, children }) => (
 )
 
 /* The left/right compact model summary */
-const ModelColumn = ({ label, prediction, riskScore, groundTruth, outcome }) => {
+const ModelColumn = ({ label, prediction, riskScore, groundTruth, outcome, threshold }) => {
   const isFraudPred = prediction  === "Fraudulent" || prediction  === "Fraud"
   const isFraudGT   = groundTruth === "Fraudulent" || groundTruth === "Fraud"
   return (
     <div className="bmv-model-col">
       <div className="bmv-model-col-header">{label}</div>
       <div className="bmv-model-col-body">
-        <MiniGauge score={riskScore} />
+        <MiniGauge score={riskScore} threshold={threshold} />
         <StackedCard header="Prediction">
           <span className={isFraudPred ? "bmv-fraud" : "bmv-legit"}>{prediction}</span>
         </StackedCard>
@@ -61,21 +61,17 @@ const ModelColumn = ({ label, prediction, riskScore, groundTruth, outcome }) => 
 /* Full-width expanded card with interpretation + SHAP */
 const ExpandedCard = ({ label, riskScore, prediction, interpretation, shapSummary, shapLink }) => {
   const riskLevel   = getRiskLevel(riskScore)
-  const isFraudPred = prediction === "Fraudulent" || prediction === "Fraud"
 
   const defaultInterpretation = (
     <>
       Your transaction is at{" "}
       <span className="bmv-highlight-risk">{riskLevel}</span>{" "}
-      of being fraudulent and was classified as potentially fraudulent.
+      and was classified as {prediction}.
     </>
   )
 
-  const defaultShap =
-    `The transaction was classified as ${prediction} primarily because of its ` +
-    `high transaction amount, CASH_OUT transaction type, large decrease in the sender's balance, ` +
-    `and unusual change in the recipient's balance. These factors increased the model's fraud ` +
-    `prediction, resulting in a ${riskLevel} score of ${riskScore}/100.`
+  const defaultShap = 'No explanation has been computed for this record.'
+
 
   return (
     <div className="bmv-expanded-card">
@@ -108,6 +104,7 @@ const BothModelsView = ({ rfSmote, benchmark }) => (
         riskScore={rfSmote.riskScore}
         groundTruth={rfSmote.groundTruth}
         outcome={rfSmote.outcome}
+        threshold={rfSmote.threshold}
       />
       <ModelColumn
         label="Benchmark RF"
@@ -115,6 +112,7 @@ const BothModelsView = ({ rfSmote, benchmark }) => (
         riskScore={benchmark.riskScore}
         groundTruth={benchmark.groundTruth}
         outcome={benchmark.outcome}
+        threshold={benchmark.threshold}
       />
     </div>
 
