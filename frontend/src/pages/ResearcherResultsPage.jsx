@@ -11,6 +11,7 @@ import PercentageDifferenceCard from "../components/PercentageDifference"
 import ConfusionMatrix from "../components/ConfusionMatrix"
 import InfoButton from "../components/InfoButton"
 import InfoModal from "../components/InfoModal"
+import ResearchAnalysisLoading from "../components/ResearchAnalysisLoading"
 import { Link, useSearchParams } from "react-router-dom"
 import { api, analysisKey, downloadAnalysis, metric } from "../researchApi"
 
@@ -92,11 +93,13 @@ const ResearcherResultsPage = () => {
       window.location.assign('/researcher-upload')
     } catch (err) { setError(err.message) }
   }
+  if (id && !error && !['complete', 'failed'].includes(job?.status)) {
+    return <ResearchAnalysisLoading status={job?.status} rowsProcessed={job?.rows_processed ?? 0} />
+  }
   if (!id || job?.status !== 'complete') return <main className="researcher-results-page">
     <h1>CSV analysis</h1>
     {error && <p role="alert">{error}</p>}
     {job?.status === 'failed' ? <><p role="alert">{job.error}</p><pre>{job.issues && JSON.stringify(job.issues, null, 2)}</pre></>
-      : id && !error ? <p role="status">{{ uploading: 'Uploading', queued: 'Waiting for the analysis worker', loading_models: 'Verifying saved models', processing: 'Analyzing records', evaluating: 'Calculating full-file metrics' }[job?.status] || 'Connecting'} — {(job?.rows_processed || 0).toLocaleString()} records processed</p>
       : <p>Upload a CSV to start a new analysis.</p>}
     <Link to="/researcher-upload">Return to upload / retry</Link>
     {job?.status === 'failed' && <button onClick={clear}>Clear failed analysis</button>}
