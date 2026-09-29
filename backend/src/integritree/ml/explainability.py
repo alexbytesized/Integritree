@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import threading
 import time
 import numpy as np
 import pandas as pd
@@ -131,7 +132,16 @@ def summarize(values, readable, tolerance):
     return top," ".join(parts)
 
 
-def waterfall(explanation, output):
+_WATERFALL_LOCK = threading.Lock()
+
+
+def waterfall(explanation, output, *, display_label=None):
+    # HTTP display rendering and the explanation worker share Matplotlib state.
+    with _WATERFALL_LOCK:
+        _render_waterfall(explanation, output, display_label=display_label)
+
+
+def _render_waterfall(explanation, output, *, display_label=None):
     import matplotlib
     matplotlib.use("Agg")
     from matplotlib import pyplot as plt
@@ -156,11 +166,13 @@ def waterfall(explanation, output):
     span=max(max(endpoints)-min(endpoints),1.0)
     ax.set_xlim(min(endpoints)-.08*span,max(endpoints)+.25*span)
     ax.set_xlabel("Model fraud score (%) — contributions in percentage points")
-    record_label=explanation['transaction_id']
+    record_label=explanation['transaction_id'] if display_label is None else display_label
     if len(record_label)>35:
         record_label=record_label[:12]+"..."+record_label[-16:]
-    ax.set_title(f"{explanation['model']} | {record_label}\n"
-                 f"Reference {explanation['base_value']*100:.4g}% → output {explanation['output_value']*100:.4g}%")
+    model_label=explanation['model'] if display_label is None else {"rf":"Benchmark RF", "rf_smote":"RF-SMOTE"}[explanation['model']]
+    precision=".4g" if display_label is None else ".2f"
+    ax.set_title(f"{model_label} | {record_label}\n"
+                 f"Reference {explanation['base_value']*100:{precision}}% → output {explanation['output_value']*100:{precision}}%")
     ax.legend()
     fig.tight_layout(); fig.savefig(output,format=Path(output).suffix.lstrip(".")); plt.close(fig)
 

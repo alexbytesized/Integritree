@@ -49,50 +49,6 @@
   box-shadow: var(--results-shadow);
 }
 
-/* Mini gauge */
-.bmv-gauge-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  margin-bottom: 4px;
-}
-
-.bmv-gauge-track {
-  position: relative;
-  height: 20px;
-  border-radius: 999px;
-  background: linear-gradient(
-    to right,
-    #1DB954 0%,    #1DB954 20%,
-    #F9C923 20%,   #F9C923 40%,
-    #F47C20 40%,   #F47C20 60%,
-    #D9312B 60%,   #D9312B 80%,
-    #7A0000 80%,   #7A0000 100%
-  );
-}
-
-.bmv-gauge-thumb {
-  position: absolute;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #FFFFFF;
-  border: 2.5px solid #BBBBBB;
-  box-shadow: 0 1px 5px rgb(0 0 0 / 25%);
-  z-index: 1;
-}
-
-.bmv-gauge-label {
-  margin: 0;
-  text-align: center;
-  font-family: 'SF Pro Display', sans-serif;
-  font-size: clamp(12px, 1.1vw, 14px);
-  font-weight: 700;
-  color: #23272A;
-}
-
 /* Stacked card */
 .bmv-stacked-card {
   display: flex;
@@ -230,8 +186,6 @@
   .bmv-columns { gap: 16px; }
   .bmv-model-col-header { width: min(78%, 260px); height: 68px; padding: 0 18px 18px; font-size: 17px; border-radius: 20px 20px 0 0; }
   .bmv-model-col-body { margin-top: -18px; padding: 20px 16px; gap: 16px; border-radius: 20px; }
-  .bmv-gauge-track { height: 14px; }
-  .bmv-gauge-thumb { width: 18px; height: 18px; }
   .bmv-expanded-header { width: min(75%, 420px); height: 68px; padding: 0 18px 18px; font-size: 17px; border-radius: 20px 20px 0 0; }
   .bmv-expanded-body { margin-top: -18px; padding: 24px 20px; border-radius: 20px; }
   .bmv-section-heading { font-size: 12px; }
@@ -245,3 +199,5 @@
   .bmv-expanded-header { width: min(85%, 340px); height: 62px; padding: 0 14px 16px; font-size: 15px; border-radius: 16px 16px 0 0; }
   .bmv-expanded-body { margin-top: -16px; padding: 20px 16px; border-radius: 18px; }
 }
+
+button.bmv-shap-link { background: none; border: 0; padding: 0; font: inherit; font-size: 15px; cursor: pointer; }

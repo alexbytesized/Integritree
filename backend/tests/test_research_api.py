@@ -150,6 +150,13 @@ def test_pagination_search_missing_values(client):
     assert page["total"] == 23 and len(page["records"]) == 3
     search = client.get(path+"?search=:23", headers=owner).json()
     assert search["total"] == 1 and search["records"][0]["row_number"] == 23
+    search = client.get(path+"?search=23&search_field=row_number", headers=owner).json()
+    assert search["total"] == 1 and search["records"][0]["row_number"] == 23
+    fingerprint = page["records"][0]["transaction_id"].split(":")[0]
+    assert client.get(path, params={"search": fingerprint}, headers=owner).json()["total"] == 23
+    assert client.get(path, params={"search": fingerprint, "search_field": "row_number"}, headers=owner).json()["total"] == 0
+    assert client.get(path+"?search=2&search_field=row_number", headers=owner).json()["total"] == 6
+    assert client.get(path+"?search_field=unknown", headers=owner).status_code == 422
     assert client.get(path+"?outcome=tp", headers=owner).status_code == 400
 
 
@@ -243,6 +250,8 @@ def test_explanation_failure_retry_cache_and_export_coverage(client, tmp_path):
                 chart = tmp_path / f"{model}.svg"
                 chart.write_text('<svg xmlns="http://www.w3.org/2000/svg"></svg>')
                 outputs.append({"model": model, "waterfall_path": str(chart), "narrative": "Synthetic explanation",
+                    "transaction_id": identities[0],
+                    "features": [{"feature": "hour_of_day", "readable_value": "Simulation hour = 0", "contribution": 0}],
                     "base_value": .43, "output_value": .43, "additivity_error": 0,
                     "top_positive_contributor": {"status": "no_positive_contributor", "feature": None}})
             return outputs
@@ -257,11 +266,27 @@ def test_explanation_failure_retry_cache_and_export_coverage(client, tmp_path):
     assert record["explanation"]["models"]["rf"]["top_positive_contributor"]["status"] == "no_positive_contributor"
     assert "waterfall_path" not in record["explanation"]["models"]["rf"]
     assert client.get(path+"/records/1/waterfall/rf", headers=owner).status_code == 200
+    original = client.get(path+"/records/1/waterfall/rf", headers=owner).content
+    display = client.get(path+"/records/1/waterfall/rf?presentation=row_number", headers=owner)
+    assert display.status_code == 200
+    assert "Benchmark RF | 1" in display.text and "output 43.00%" in display.text
+    fingerprint = hashlib.sha256(CSV.encode()).hexdigest()
+    assert fingerprint not in display.text and fingerprint[:12] not in display.text
+    assert client.get(path+"/records/1/waterfall/rf", headers=owner).content == original
+    chart_path = service.jobs[identifier]["folder"] / "1_rf_display_v1.svg"
+    rendered_at = chart_path.stat().st_mtime_ns
+    assert client.get(path+"/records/1/waterfall/rf?presentation=row_number", headers=owner).content == display.content
+    assert chart_path.stat().st_mtime_ns == rendered_at
+    assert client.get(path+"/records/1/waterfall/rf?presentation=row_number", headers=session(client)).status_code == 404
     assert client.post(path+"/records/1/explanation", headers=owner).json()["status"] == "computed"
     assert engine.calls == 2
     client.post(path+"/exports", headers=owner)
     exported = wait_for(lambda: client.get(path, headers=owner).json(), lambda j: j["export"]["status"] == "complete")
     assert exported["export"]["metadata"]["shap_coverage"]["computed_records"] == 1
+    exported_zip = client.get(path+"/exports/download", headers=owner)
+    with zipfile.ZipFile(io.BytesIO(exported_zip.content)) as archive:
+        rows = list(csv.DictReader(io.StringIO(archive.read("results.csv").decode())))
+        assert rows[0]["transaction_id"] == fingerprint + ":1"
 
 
 def test_offline_html_escapes_filename_and_optional_source_text(client):

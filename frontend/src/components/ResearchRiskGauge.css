@@ -1,0 +1,25 @@
+.research-gauge { position: relative; margin-bottom: 44px; padding-bottom: 28px; }
+.research-gauge-header { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-bottom: 12px; color: #555e68; font-size: 14px; font-weight: 600; }
+.research-gauge-track { position: relative; height: 28px; border-radius: 999px; margin-inline: 16px; }
+.research-gauge-marker { position: absolute; padding: 0; cursor: pointer; transform: translateX(-50%); }
+.research-gauge-score { top: 50%; transform: translate(-50%, -50%); width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 3px solid #bbb; box-shadow: 0 2px 8px #0004; z-index: 2; }
+/* The line extends below the circle so both targets remain reachable at equal scores. */
+.research-gauge-threshold { top: 0; bottom: -14px; width: 20px; border: 0; border-radius: 0; background: transparent; z-index: 1; }
+.research-gauge-threshold::after { content: ''; position: absolute; top: 0; bottom: 0; left: 9px; width: 2px; background: #fff; box-shadow: 0 0 2px #0009; }
+.research-gauge-marker:focus-visible { outline: 3px solid #086dc1; outline-offset: 3px; }
+.research-gauge-tooltip { position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 20; max-width: 100%; padding: 7px 10px; border-radius: 7px; background: #23272a; color: #fff; font-size: 13px; line-height: 1.4; box-shadow: 0 2px 8px #0003; pointer-events: none; }
+.research-gauge-tooltip--threshold { bottom: auto; top: calc(100% + 17px); }
+.research-gauge-labels { display: flex; justify-content: space-between; gap: 8px; margin-top: 20px; font-size: clamp(10px, 1.1vw, 14px); font-weight: 600; }
+.research-gauge-level { margin: 20px 0 0; text-align: center; font-size: 14px; font-weight: 700; }
+.research-gauge--compact { margin-bottom: 4px; padding-bottom: 0; }
+.research-gauge--compact .research-gauge-track { height: 20px; }
+.research-gauge--compact .research-gauge-score { width: 24px; height: 24px; }
+@media (max-width: 760px) {
+  .research-gauge-track { height: 20px; }
+  .research-gauge-score { width: 24px; height: 24px; }
+  .research-gauge { margin-bottom: 32px; padding-bottom: 22px; }
+  .research-gauge--compact { margin-bottom: 4px; padding-bottom: 0; }
+}
+@media (max-width: 540px) {
+  .research-gauge-labels { flex-wrap: wrap; justify-content: center; }
+}

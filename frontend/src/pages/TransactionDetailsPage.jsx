@@ -8,7 +8,8 @@ import BothModelsView from "../components/BothModelsView"
 import { useEffect, useState } from "react"
 import { Link, useParams, useSearchParams } from "react-router-dom"
 import { api, analysisKey, label, outcomeName } from "../researchApi"
-import ResearchExplanation from "../components/ResearchExplanation"
+import ShapModal from '../components/ShapModal'
+import { MODEL_NAMES, booleanText, weekdayText, shapSummary } from '../researchDisplay'
 
 const TABS = [
   { key: "details",   label: "Transaction Details" },
@@ -25,11 +26,16 @@ const Field = ({ label, value }) => (
 )
 
 const TransactionDetailsPage = () => {
-  const [activeTab, setActiveTab] = useState("details")
   const { id: number } = useParams()
   const [params] = useSearchParams()
   const analysis = params.get('analysis') || sessionStorage.getItem(analysisKey)
-  const back = `/researcher?${params.get('return') || `analysis=${analysis}`}`
+  return <TransactionRecord key={`${analysis}-${number}`} analysis={analysis} number={number} returnQuery={params.get('return')} />
+}
+
+const TransactionRecord = ({ analysis, number, returnQuery }) => {
+  const [activeTab, setActiveTab] = useState('details')
+  const [shapModel, setShapModel] = useState(null)
+  const back = `/researcher?${returnQuery || `analysis=${analysis}`}`
   const [record, setRecord] = useState(null)
   const [error, setError] = useState('')
   const [revision, setRevision] = useState(0)
@@ -70,16 +76,16 @@ const TransactionDetailsPage = () => {
 
   if (!record) return <main className="researcher-results-page"><h1>Transaction details</h1><p role="status">{error || (analysis ? 'Loading...' : 'Session expired. Upload a CSV again.')}</p><Link to="/researcher-upload">Return to upload</Link></main>
   const modelProps = (name) => ({
-    prediction: label(record[name].predicted_label), riskScore: Number((record[name].score * 100).toFixed(4)),
+    prediction: label(record[name].predicted_label), riskScore: record[name].score * 100,
     groundTruth: label(record.actual_label), outcome: outcomeName(record[name].predicted_label, record.actual_label),
     threshold: record.threshold * 100,
-    shapLink: `#waterfall_${name}`,
-    interpretation: `Model fraud score ${(record[name].score * 100).toFixed(4)}%; fraud is predicted at or above ${(record.threshold * 100).toFixed(0)}%. Risk bands describe the score; they are not calibrated real-world probabilities.`,
-    shapSummary: record.explanation.models?.[name]?.narrative || (record.explanation.status === 'failed' ? 'Explanation failed; retry below.' : 'SHAP explanation pending...'),
+    modelName: MODEL_NAMES[name],
+    onOpenShap: () => setShapModel(name),
+    shapSummary: shapSummary(record.explanation, name, record.derived),
   })
   const original = record.original
   const derived = record.derived
-  const transaction = { ...original, id: record.transaction_id, isFraud: Boolean(record.actual_label),
+  const transaction = { ...original, id: record.row_number, isFraud: record.actual_label,
     oldBalanceOrig: original.oldbalanceOrg, newBalanceOrig: original.newbalanceOrig,
     oldBalanceDest: original.oldbalanceDest, newBalanceDest: original.newbalanceDest,
     hourOfDay: derived.hour_of_day, dayOfWeek: derived.day_of_week, isCashIn: derived.type_CASH_IN,
@@ -102,7 +108,7 @@ const TransactionDetailsPage = () => {
               <img src={stars} alt="" />
             </div>
           </div>
-          <TabBar tabs={TABS} active={activeTab} onChange={setActiveTab} />
+          <TabBar tabs={TABS} active={activeTab} onChange={tab => { setShapModel(null); setActiveTab(tab) }} />
         </section>
 
         {/* Tab content */}
@@ -131,24 +137,25 @@ const TransactionDetailsPage = () => {
                   <Field label="Destination Name:"          value={transaction.nameDest} />
                   <Field label="Destination Old Balance:"   value={transaction.oldBalanceDest} />
                   <Field label="Destination New Balance:"   value={transaction.newBalanceDest} />
-                  <Field label="Transaction is Fraudulent:" value={transaction.isFraud} />
+                  <Field label="Transaction is Fraudulent:" value={booleanText(transaction.isFraud)} />
                 </div>
               </div>
 
               <div className="td-card">
                 <div className="td-card-header">Derived Inputs</div>
                 <div className="td-card-body">
+                  <p className="td-weekday-note">Weekday names use a Monday-based display convention for the simulated day index.</p>
                   <Field label="Hour of the Day"            value={transaction.hourOfDay} />
-                  <Field label="Day of the Week"            value={transaction.dayOfWeek} />
-                  <Field label="Transaction is Cash In:"    value={transaction.isCashIn} />
-                  <Field label="Transaction is Cash Out:"   value={transaction.isCashOut} />
-                  <Field label="Transaction is Debit:"      value={transaction.isDebit} />
-                  <Field label="Transaction is Payment:"    value={transaction.isPayment} />
-                  <Field label="Transaction is Transfer:"   value={transaction.isTransfer} />
+                  <Field label="Day of the Week"            value={weekdayText(transaction.dayOfWeek)} />
+                  <Field label="Transaction is Cash In:"    value={booleanText(transaction.isCashIn)} />
+                  <Field label="Transaction is Cash Out:"   value={booleanText(transaction.isCashOut)} />
+                  <Field label="Transaction is Debit:"      value={booleanText(transaction.isDebit)} />
+                  <Field label="Transaction is Payment:"    value={booleanText(transaction.isPayment)} />
+                  <Field label="Transaction is Transfer:"   value={booleanText(transaction.isTransfer)} />
                   <Field label="Transaction Log Amount:"    value={transaction.logAmount} />
-                  <Field label="Transaction Amount is 0:"   value={transaction.amountIsZero} />
-                  <Field label="Origin is Merchant"         value={transaction.origIsMerchant} />
-                  <Field label="Destination is Merchant:"   value={transaction.destIsMerchant} />
+                  <Field label="Transaction Amount is 0:"   value={booleanText(transaction.amountIsZero)} />
+                  <Field label="Origin is Merchant"         value={booleanText(transaction.origIsMerchant)} />
+                  <Field label="Destination is Merchant:"   value={booleanText(transaction.destIsMerchant)} />
                 </div>
               </div>
             </>
@@ -172,8 +179,9 @@ const TransactionDetailsPage = () => {
             />
           )}
 
-          {(activeTab === 'rfSmote' || activeTab === 'both') && <ResearchExplanation key={`smote-${number}`} explanation={record.explanation} model="rf_smote" onRetry={() => setRevision(v => v + 1)} />}
-          {(activeTab === 'benchmark' || activeTab === 'both') && <ResearchExplanation key={`rf-${number}`} explanation={record.explanation} model="rf" onRetry={() => setRevision(v => v + 1)} />}
+          {shapModel && <ShapModal model={shapModel} number={record.row_number} explanation={record.explanation}
+            onRetry={() => setRevision(v => v + 1)} onClose={() => setShapModel(null)} />}
+
         </section>
 
       </main>

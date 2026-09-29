@@ -239,9 +239,12 @@ class ResearchService:
             result["threshold"] = job["threshold"]
         return result
 
-    def records(self, token, identifier, page=1, search="", model="both", outcome="all"):
+    def records(self, token, identifier, page=1, search="", model="both", outcome="all", search_field="transaction_id"):
         job = self.owned(token, identifier, True)
-        where, args = "instr(transaction_id, ?) > 0", [search.strip()]
+        if search_field not in ("transaction_id", "row_number"):
+            raise ResearchError("Unknown transaction search field.")
+        column = "CAST(row_number AS TEXT)" if search_field == "row_number" else "transaction_id"
+        where, args = f"instr({column}, ?) > 0", [search.strip()]
         if outcome != "all":
             if model not in ("rf", "rf_smote"):
                 raise ResearchError("Choose a model before an outcome filter.")
@@ -253,6 +256,19 @@ class ResearchService:
             page = min(page, max(1, (total+9)//10))
             rows = db.execute("SELECT * FROM records WHERE " + where + " ORDER BY row_number LIMIT 10 OFFSET ?", args + [(page-1)*10]).fetchall()
         return {"records": [self._record(job, r) for r in rows], "total": total, "page": page, "page_size": 10}
+
+    def display_waterfall(self, job, number, model, explanation):
+        """Cache a presentation-only chart; keep canonical IDs and artifacts intact."""
+        from integritree.ml.explainability import waterfall
+        target = job["folder"] / f"{number}_{model}_display_v1.svg"
+        if not target.exists():
+            temporary = job["folder"] / f"{uuid.uuid4().hex}.svg"
+            try:
+                waterfall(explanation, temporary, display_label=str(number))
+                temporary.replace(target)
+            finally:
+                temporary.unlink(missing_ok=True)
+        return target
 
     def record(self, token, identifier, number):
         job = self.owned(token, identifier, True)

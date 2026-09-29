@@ -22,7 +22,7 @@
 .tableWrapper::-webkit-scrollbar-thumb { background: #7a8791; border-radius: 8px; }
 .transactionTable {
   width: 100%;
-  min-width: 1650px;
+  min-width: 1690px;
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
@@ -48,7 +48,7 @@
 }
 .transactionTable thead th:first-child,
 .transactionTable tbody th { width: 160px; }
-.transactionTable thead th:nth-last-child(3) { width: 190px; }
+.transactionTable thead th:nth-last-child(3) { width: 230px; }
 .transactionTable thead th:nth-last-child(2) { width: 410px; }
 .transactionTable thead th:last-child { width: 135px; }
 .transactionTable tbody tr:last-child > * { border-bottom: 0; }
@@ -77,7 +77,7 @@
   line-height: 1.2;
   font-weight: 400;
 }
-.riskBadge { min-width: 62px; font-size: 18px; }
+.riskBadge { min-width: 92px; flex-shrink: 0; font-size: 18px; }
 .featureBadge { min-width: 165px; font-size: 16px; }
 .blueBadge, .blueFeature { background: var(--smote-blue); }
 .darkBadge, .darkFeature { background: var(--benchmark-blue); }
@@ -138,7 +138,7 @@
 .pageJump input:focus { border-color: var(--results-blue); }
 @media (max-width: 760px) {
   .tableContainer { padding: 18px; }
-  .transactionTable { min-width: 1430px; font-size: 15px; }
+  .transactionTable { min-width: 1470px; font-size: 15px; }
   .transactionTable th, .transactionTable td { padding: 8px 10px; }
   .transactionTable thead th:first-child, .transactionTable tbody th { width: 125px; }
   .transactionTable thead th:nth-last-child(2) { width: 360px; }
@@ -150,7 +150,7 @@
 }
 @media (max-width: 540px) {
   .tableContainer { padding: 12px; border-radius: 20px; }
-  .transactionTable { min-width: 1300px; font-size: 14px; }
+  .transactionTable { min-width: 1340px; font-size: 14px; }
   .paginationControls { width: 100%; justify-content: center; gap: 8px; }
   .pageJump { min-width: 0; max-width: calc(100% - 80px); padding-inline: 10px; font-size: 14px; }
   .pageJump input { min-width: 40px; max-width: min(40vw, 260px); }

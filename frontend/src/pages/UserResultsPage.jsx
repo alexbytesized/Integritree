@@ -134,6 +134,7 @@ const UserResultsPage = () => {
 
               {activeTab === "benchmark" && (
                 <ModelResultView
+                  modelName="Benchmark RF"
                   prediction={modelResults.benchmark.prediction}
                   riskScore={modelResults.benchmark.riskScore}
                   groundTruth={modelResults.benchmark.groundTruth}

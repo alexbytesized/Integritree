@@ -118,6 +118,8 @@
   white-space: nowrap;
 }
 
+.risk-tooltip-note { margin: 16px 0 0; font-size: 12px; line-height: 1.5; color: #555e68; }
+
 @media (max-width: 540px) {
   .risk-tooltip-popover {
     width: 240px;

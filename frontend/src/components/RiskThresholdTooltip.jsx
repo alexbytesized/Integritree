@@ -1,14 +1,7 @@
 import { useState, useRef, useEffect } from "react"
 import { Info } from "lucide-react"
 import "./RiskThresholdTooltip.css"
-
-const THRESHOLDS = [
-  { label: "Minimal Risk", range: "Below 20", color: "#1DB954" },
-  { label: "Low Risk", range: "20 to <40", color: "#F9C923" },
-  { label: "Moderate Risk", range: "40 to <60", color: "#F47C20" },
-  { label: "High Risk", range: "60 to <80", color: "#D9312B" },
-  { label: "Critical Risk", range: "80 to 100", color: "#7A0000" },
-]
+import { RISK_BANDS, scoreText } from '../researchDisplay'
 
 const RiskThresholdTooltip = ({ position = "bottom", threshold }) => {
   const [isOpen, setIsOpen] = useState(false)
@@ -44,7 +37,7 @@ const RiskThresholdTooltip = ({ position = "bottom", threshold }) => {
       <button
         type="button"
         className="risk-tooltip-trigger"
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={() => setIsOpen(true)}
         aria-label="View risk classification thresholds"
         aria-expanded={isOpen}
       >
@@ -57,8 +50,8 @@ const RiskThresholdTooltip = ({ position = "bottom", threshold }) => {
             <h4 className="risk-tooltip-title">Risk Thresholds</h4>
           </div>
           <div className="risk-tooltip-list">
-            {threshold != null && <p>Fraud is predicted at or above {threshold}%. These bands describe model scores, not calibrated real-world probabilities.</p>}
-            {THRESHOLDS.map(({ label, range, color }) => (
+            {threshold != null && <p>Fraud is predicted at or above {scoreText(threshold)}%.</p>}
+            {RISK_BANDS.map(({ label, range, color }) => (
               <div key={label} className="risk-tooltip-item">
                 <div className="risk-tooltip-badge-group">
                   <span className="risk-tooltip-dot" style={{ backgroundColor: color }} />
@@ -68,6 +61,7 @@ const RiskThresholdTooltip = ({ position = "bottom", threshold }) => {
               </div>
             ))}
           </div>
+          <p className="risk-tooltip-note">Note: The following bands describe model scores, not calibrated real-world probabilities.</p>
         </div>
       )}
     </div>

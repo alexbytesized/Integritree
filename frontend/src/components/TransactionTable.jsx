@@ -59,7 +59,7 @@ const TransactionTable = ({ analysisId, returnQuery, searchTerm, model, outcome,
     const requested = new Set()
     const poll = async () => {
       try {
-        const query = new URLSearchParams({ search: searchTerm, model: model === 'rfSmote' ? 'rf_smote' : model === 'benchmark' ? 'rf' : 'both', outcome, page: currentPage })
+        const query = new URLSearchParams({ search: searchTerm, search_field: 'row_number', model: model === 'rfSmote' ? 'rf_smote' : model === 'benchmark' ? 'rf' : 'both', outcome, page: currentPage })
         const result = await api(`/analyses/${analysisId}/records?${query}`)
         if (!live) return
         setData(result)
@@ -112,7 +112,7 @@ const TransactionTable = ({ analysisId, returnQuery, searchTerm, model, outcome,
           <tbody>
             {currentRows.map((transaction) => (
               <tr key={transaction.id}>
-                <th scope="row" className="idColumn">{transaction.number}<small title={transaction.id}> · {transaction.id.slice(0, 8)}</small></th>
+                <th scope="row" className="idColumn">{transaction.number}</th>
                 {showSmote && <td><Prediction value={transaction.rfSmote} /></td>}
                 {showBenchmark && <td><Prediction value={transaction.benchmark} /></td>}
                 <td><Prediction value={transaction.groundTruth} /></td>
@@ -129,7 +129,7 @@ const TransactionTable = ({ analysisId, returnQuery, searchTerm, model, outcome,
                   </div>
                 </td>
                 <td>
-                  <button type="button" className="viewButton" onClick={() => navigate(`/researcher/transaction/${transaction.number}?analysis=${analysisId}&return=${encodeURIComponent(returnQuery)}`)} aria-label={`View transaction ${transaction.id}`}>View</button>
+                  <button type="button" className="viewButton" onClick={() => navigate(`/researcher/transaction/${transaction.number}?analysis=${analysisId}&return=${encodeURIComponent(returnQuery)}`)} aria-label={`View transaction ${transaction.number}`}>View</button>
                 </td>
               </tr>
             ))}

@@ -1,5 +1,14 @@
 import { test, expect } from '@playwright/test'
 
+// Allows validation against an isolated backend without restarting an active session.
+test.beforeEach(async ({ page }) => {
+  if (process.env.RESEARCH_API_BASE_URL) await page.route('**/api/v1/research/**', async route => {
+    const url = new URL(route.request().url())
+    const response = await route.fetch({ url: `${process.env.RESEARCH_API_BASE_URL}${url.pathname}${url.search}` })
+    await route.fulfill({ response })
+  })
+})
+
 const csv = 'step,type,amount,nameOrig,nameDest,isFraud\n' + Array.from({ length: 23 }, (_, i) =>
   `${i + 1},${i % 2 ? 'PAYMENT' : 'TRANSFER'},${100 + i * 1000},C_DEMO_${i},${i % 2 ? 'M' : 'C'}_DEMO,${i % 3 === 0 ? 1 : 0}\n`).join('')
 
@@ -25,20 +34,26 @@ test('upload, refresh, search, pagination, details, real SHAP, download and clea
   await expect(page.getByRole('heading', { name: 'Results Overview' })).toBeVisible()
   await page.getByRole('button', { name: 'Next page' }).click()
   await expect(page.locator('.paginationRecords')).toContainText('11–20 of 23')
-  await page.getByPlaceholder('Search Transaction ID').fill(':23')
+  await page.getByPlaceholder('Search Transaction ID').fill('23')
   await expect(page.locator('.transactionTable tbody tr')).toHaveCount(1)
   await expect(page.locator('.paginationRecords')).toContainText('1–1 of 1')
   await page.getByRole('button', { name: /^View transaction/ }).click()
   await expect(page.getByRole('heading', { name: 'Transaction Record', exact: true })).toBeVisible()
   await expect(page.locator('.td-field-value').filter({ hasText: /^C_DEMO_22$/ })).toBeVisible()
   await page.getByRole('tab', { name: 'RF-SMOTE', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'SHAP waterfall' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'See Full SHAP Evaluation' }).click()
   await expect(page.getByRole('heading', { name: 'SHAP waterfall' })).toBeVisible()
   await expect(page.locator('img[alt*="waterfall from"]')).toBeVisible()
   await expect(page.getByText(/Reconstruction error:/)).toBeVisible()
   await page.locator('img[alt*="waterfall from"]').scrollIntoViewIfNeeded()
   await page.screenshot({ path: testInfo.outputPath('details.png') })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: testInfo.outputPath('real-shap-mobile.png') })
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.getByRole('button', { name: 'Close SHAP evaluation' }).click()
   await page.getByRole('link', { name: 'Return', exact: true }).click()
-  await expect(page.getByPlaceholder('Search Transaction ID')).toHaveValue(':23')
+  await expect(page.getByPlaceholder('Search Transaction ID')).toHaveValue('23')
   const downloadPromise = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download results', exact: true }).click()
   const download = await downloadPromise

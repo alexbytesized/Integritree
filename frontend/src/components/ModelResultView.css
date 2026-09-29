@@ -1,71 +1,3 @@
-/* Risk Gauge */
-.mrv-gauge-wrapper {
-  position: relative;
-  margin-bottom: 44px;
-  padding-bottom: 28px;
-}
-
-.mrv-gauge-header {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.mrv-gauge-title {
-  font-family: 'SF Pro Display', sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  color: #555e68;
-}
-
-.mrv-gauge-track {
-  position: relative;
-  height: 28px;
-  border-radius: 999px;
-  background: linear-gradient(
-    to right,
-    #1DB954 0%,    #1DB954 20%,
-    #F9C923 20%,   #F9C923 40%,
-    #F47C20 40%,   #F47C20 60%,
-    #D9312B 60%,   #D9312B 80%,
-    #7A0000 80%,   #7A0000 100%
-  );
-}
-
-.mrv-gauge-thumb {
-  position: absolute;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #FFFFFF;
-  border: 3px solid #BBBBBB;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 28%);
-  z-index: 1;
-}
-
-.mrv-gauge-labels {
-  position: relative;
-  height: 22px;
-  margin-top: 10px;
-}
-
-.mrv-gauge-label {
-  position: absolute;
-  transform: translateX(-50%);
-  font-family: 'SF Pro Display', sans-serif;
-  font-size: clamp(11px, 1.1vw, 14px);
-  font-weight: 600;
-  color: #23272A;
-  white-space: nowrap;
-}
-
-.mrv-gauge-label:first-child { transform: translateX(0); }
-.mrv-gauge-label:last-child  { transform: translateX(-100%); }
-
 /* 2×2 Info card grid */
 .mrv-cards-grid {
   display: grid;
@@ -197,10 +129,6 @@
 
 /* Responsive Adjustments */
 @media (max-width: 760px) {
-  .mrv-gauge-track { height: 20px; }
-  .mrv-gauge-thumb { width: 24px; height: 24px; }
-  .mrv-gauge-label { font-size: 10px; }
-  .mrv-gauge-wrapper { margin-bottom: 32px; padding-bottom: 22px; }
   .mrv-cards-grid { gap: 16px; }
   .mrv-info-card-header { width: min(78%, 240px); height: 58px; padding: 0 14px 16px; font-size: 14px; border-radius: 16px 16px 0 0; }
   .mrv-info-card-body { margin-top: -16px; min-height: 64px; padding: 14px 18px; border-radius: 18px; }
@@ -210,10 +138,10 @@
 
 @media (max-width: 540px) {
   .mrv-cards-grid { grid-template-columns: 1fr; }
-  .mrv-gauge-labels { display: none; }
-  .mrv-gauge-wrapper { margin-bottom: 20px; padding-bottom: 0; }
   .mrv-info-card-header { width: min(85%, 260px); height: 52px; padding: 0 12px 14px; font-size: 13px; border-radius: 14px 14px 0 0; }
   .mrv-info-card-body { margin-top: -14px; padding: 14px 14px; border-radius: 16px; }
   .mrv-info-card--full .mrv-info-card-header { width: min(85%, 340px); height: 62px; padding: 0 14px 16px; font-size: 15px; border-radius: 16px 16px 0 0; }
   .mrv-info-card--full .mrv-info-card-body { margin-top: -16px; padding: 20px 16px; border-radius: 18px; }
 }
+
+button.mrv-shap-link { background: none; border: 0; padding: 0; font: inherit; font-size: 15px; cursor: pointer; }

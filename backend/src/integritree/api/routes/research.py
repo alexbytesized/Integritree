@@ -57,8 +57,9 @@ def status(request: Request, identifier: str, x_session: Session = None):
 @router.get("/analyses/{identifier}/records")
 def records(request: Request, identifier: str, x_session: Session = None, page: int = Query(1, ge=1),
             search: str = Query("", max_length=200), model: Literal["both", "rf", "rf_smote"] = "both",
-            outcome: Literal["all", "tp", "fp", "tn", "fn"] = "all"):
-    return request.app.state.research.records(x_session, identifier, page, search, model, outcome)
+            outcome: Literal["all", "tp", "fp", "tn", "fn"] = "all",
+            search_field: Literal["transaction_id", "row_number"] = "transaction_id"):
+    return request.app.state.research.records(x_session, identifier, page, search, model, outcome, search_field)
 
 
 @router.get("/analyses/{identifier}/records/{number}")
@@ -72,13 +73,16 @@ def explain(request: Request, identifier: str, number: int, x_session: Session =
 
 
 @router.get("/analyses/{identifier}/records/{number}/waterfall/{model}")
-def waterfall(request: Request, identifier: str, number: int, model: Literal["rf", "rf_smote"], x_session: Session = None):
+def waterfall(request: Request, identifier: str, number: int, model: Literal["rf", "rf_smote"], x_session: Session = None,
+              presentation: Literal["original", "row_number"] = "original"):
     service = request.app.state.research
     job = service.owned(x_session, identifier, True)
     item = service.record(x_session, identifier, number)
     path = job["folder"] / f"{number}_{model}.svg"
     if item["explanation"]["status"] != "computed" or not path.exists():
         raise ResearchError("Waterfall is not ready.", 409)
+    if presentation == "row_number":
+        path = service.display_waterfall(job, number, model, item["explanation"]["models"][model])
     return FileResponse(path, media_type="image/svg+xml", headers={"Cache-Control": "no-store"})
 
 

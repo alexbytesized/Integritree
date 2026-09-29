@@ -1,28 +1,9 @@
 import "./BothModelsView.css"
 
 
-const getRiskLevel = (score) => {
-  if (score < 20) return "Minimal Risk"
-  if (score < 40) return "Low Risk"
-  if (score < 60) return "Moderate Risk"
-  if (score < 80) return "High Risk"
-  return "Critical Risk"
-}
-
-/* Compact inline gauge used inside the side-by-side cards */
-const MiniGauge = ({ score, threshold }) => (
-  <div className="bmv-gauge-wrapper">
-    <div className="bmv-gauge-track">
-      {threshold != null && <span title={`Fraud threshold ${threshold}%`} style={{ position: "absolute", left: `${threshold}%`, height: "100%", borderLeft: "2px solid black" }} />}
-      <div
-        className="bmv-gauge-thumb"
-        style={{ left: `clamp(1%, ${score}%, 99%)` }}
-        aria-label={`Risk score ${score}/100`}
-      />
-    </div>
-    <p className="bmv-gauge-label">{getRiskLevel(score)}</p>
-  </div>
-)
+import ResearchRiskGauge from './ResearchRiskGauge'
+import ModelInterpretation from './ModelInterpretation'
+import { scoreText } from '../researchDisplay'
 
 /* One stacked info card: blue pill header + white body */
 const StackedCard = ({ header, children }) => (
@@ -40,12 +21,12 @@ const ModelColumn = ({ label, prediction, riskScore, groundTruth, outcome, thres
     <div className="bmv-model-col">
       <div className="bmv-model-col-header">{label}</div>
       <div className="bmv-model-col-body">
-        <MiniGauge score={riskScore} threshold={threshold} />
+        <ResearchRiskGauge compact score={riskScore} threshold={threshold} />
         <StackedCard header="Prediction">
           <span className={isFraudPred ? "bmv-fraud" : "bmv-legit"}>{prediction}</span>
         </StackedCard>
         <StackedCard header="Risk Score">
-          <span className="bmv-value"><strong>{riskScore}</strong> out of <strong>100</strong></span>
+          <span className="bmv-value"><strong>{scoreText(riskScore)}</strong> out of <strong>100</strong></span>
         </StackedCard>
         <StackedCard header="Ground Truth">
           <span className={isFraudGT ? "bmv-fraud" : "bmv-legit"}>{groundTruth}</span>
@@ -59,35 +40,22 @@ const ModelColumn = ({ label, prediction, riskScore, groundTruth, outcome, thres
 }
 
 /* Full-width expanded card with interpretation + SHAP */
-const ExpandedCard = ({ label, riskScore, prediction, interpretation, shapSummary, shapLink }) => {
-  const riskLevel   = getRiskLevel(riskScore)
-
-  const defaultInterpretation = (
-    <>
-      Your transaction is at{" "}
-      <span className="bmv-highlight-risk">{riskLevel}</span>{" "}
-      and was classified as {prediction}.
-    </>
-  )
-
+const ExpandedCard = ({ modelName, riskScore, prediction, shapSummary, onOpenShap }) => {
   const defaultShap = 'No explanation has been computed for this record.'
 
 
   return (
     <div className="bmv-expanded-card">
-      <div className="bmv-expanded-header">{label}</div>
+      <div className="bmv-expanded-header">{modelName}</div>
       <div className="bmv-expanded-body">
         <h4 className="bmv-section-heading">INTERPRETATION</h4>
-        <p className="bmv-section-text">{interpretation ?? defaultInterpretation}</p>
+        <p className="bmv-section-text"><ModelInterpretation modelName={modelName} prediction={prediction} riskScore={riskScore} /></p>
 
         <h4 className="bmv-section-heading">SHAP EXPLANATION</h4>
         <p className="bmv-section-text">{shapSummary ?? defaultShap}</p>
 
         <div className="bmv-shap-link-row">
-          {shapLink
-            ? <a href={shapLink} className="bmv-shap-link">See Full SHAP Evaluation →</a>
-            : <span className="bmv-shap-link bmv-shap-link--placeholder">See Full SHAP Evaluation →</span>
-          }
+          <button type="button" disabled={!onOpenShap} onClick={onOpenShap} className="bmv-shap-link">See Full SHAP Evaluation &rarr;</button>
         </div>
       </div>
     </div>
@@ -116,25 +84,8 @@ const BothModelsView = ({ rfSmote, benchmark }) => (
       />
     </div>
 
-    {/* Full-width RF-SMOTE interpretation + SHAP */}
-    <ExpandedCard
-      label="RF-SMOTE"
-      riskScore={rfSmote.riskScore}
-      prediction={rfSmote.prediction}
-      interpretation={rfSmote.interpretation}
-      shapSummary={rfSmote.shapSummary}
-      shapLink={rfSmote.shapLink}
-    />
-
-    {/* Full-width Benchmark RF interpretation + SHAP */}
-    <ExpandedCard
-      label="Benchmark RF"
-      riskScore={benchmark.riskScore}
-      prediction={benchmark.prediction}
-      interpretation={benchmark.interpretation}
-      shapSummary={benchmark.shapSummary}
-      shapLink={benchmark.shapLink}
-    />
+    <ExpandedCard modelName="RF-SMOTE" {...rfSmote} />
+    <ExpandedCard modelName="Benchmark RF" {...benchmark} />
   </div>
 )
 

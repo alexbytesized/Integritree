@@ -1,0 +1,7 @@
+.shap-modal.info-modal-dialog { width: min(1100px, 100%); --info-modal-max-height: calc(100dvh - 32px); zoom: 1; }
+.shap-modal .info-modal-scroll { padding: 40px 28px 28px; }
+.shap-modal h3 { color: #086dc1; }
+.shap-modal p { line-height: 1.5; }
+.shap-modal .shap-chart-scroll { overflow-x: auto; }
+.shap-modal .shap-chart-scroll img { display: block; width: 100%; min-width: 620px; height: auto; }
+@media (max-width: 540px) { .shap-modal .info-modal-scroll { padding: 40px 16px 20px; } }

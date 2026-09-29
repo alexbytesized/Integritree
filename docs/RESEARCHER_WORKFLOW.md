@@ -56,6 +56,18 @@ and exports on disk. Full-upload metrics are independent of table filters.
 SHAP is requested for displayed records and opened details, including legitimate
 predictions; it is not automatically computed for an entire large upload.
 
+The interface displays Transaction IDs as one-based row numbers scoped to the
+current upload. Its search matches those row numbers. Internal and exported IDs
+remain `<upload SHA-256>:<row number>`. The records API defaults to full-ID search;
+`search_field=row_number` selects the interface behavior. The waterfall endpoint
+accepts `presentation=row_number` for a separately cached display chart without
+changing the original chart or recomputing SHAP. Full charts open only through
+the model's “See Full SHAP Evaluation” modal.
+
+Weekday names use Monday=0 through Sunday=6 as a display convention for the
+simulation cycle, not verified calendar dates. Display scores use two decimal
+places; classification and risk-band selection use unrounded scores.
+
 ## Temporary storage and downloads
 
 Each browser tab receives an opaque session token stored in sessionStorage and
