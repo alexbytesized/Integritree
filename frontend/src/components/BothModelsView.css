@@ -156,6 +156,11 @@
 
 .bmv-section-text:last-of-type { margin-bottom: 0; }
 
+.researcher-results-page .bmv-section-text:first-of-type { margin-bottom: 40px; }
+@media (max-width: 760px) {
+  .researcher-results-page .bmv-section-text:first-of-type { margin-bottom: 32px; }
+}
+
 .bmv-highlight-risk { color: #c0392b; font-weight: 700; }
 
 .bmv-shap-link-row {

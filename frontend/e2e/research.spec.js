@@ -12,7 +12,7 @@ test.beforeEach(async ({ page }) => {
 const csv = 'step,type,amount,nameOrig,nameDest,isFraud\n' + Array.from({ length: 23 }, (_, i) =>
   `${i + 1},${i % 2 ? 'PAYMENT' : 'TRANSFER'},${100 + i * 1000},C_DEMO_${i},${i % 2 ? 'M' : 'C'}_DEMO,${i % 3 === 0 ? 1 : 0}\n`).join('')
 
-test('upload, refresh, search, pagination, details, real SHAP, download and clear', async ({ page }, testInfo) => {
+test('upload, refresh, search, pagination, details, real SHAP, download and analyze another CSV', async ({ page }, testInfo) => {
   const errors = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('/researcher-upload')
@@ -28,7 +28,7 @@ test('upload, refresh, search, pagination, details, real SHAP, download and clea
   await page.getByRole('combobox', { name: 'Model', exact: true }).selectOption('rfSmote')
   await page.getByRole('combobox', { name: 'Prediction outcome' }).selectOption('fp')
   await expect(page.locator('.transactionTable thead')).not.toContainText('Benchmark RF')
-  await expect(page.getByText('Metrics cover all 23 uploaded records.', { exact: false })).toBeVisible()
+  await expect(page.getByText('Shared fraud threshold:', { exact: false })).toHaveCount(0)
   await page.getByRole('combobox', { name: 'Model', exact: true }).selectOption('both')
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Results Overview' })).toBeVisible()
@@ -43,11 +43,14 @@ test('upload, refresh, search, pagination, details, real SHAP, download and clea
   await page.getByRole('tab', { name: 'RF-SMOTE', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'SHAP waterfall' })).toHaveCount(0)
   await page.getByRole('button', { name: 'See Full SHAP Evaluation' }).click()
-  await expect(page.getByRole('heading', { name: 'SHAP waterfall' })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'RF-SMOTE — SHAP Evaluation' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'SHAP waterfall' })).toHaveCount(0)
   await expect(page.locator('img[alt*="waterfall from"]')).toBeVisible()
   await expect(page.getByText(/Reconstruction error:/)).toBeVisible()
   await page.locator('img[alt*="waterfall from"]').scrollIntoViewIfNeeded()
   await page.screenshot({ path: testInfo.outputPath('details.png') })
+  await page.locator('.shap-top-contributor').scrollIntoViewIfNeeded()
+  await page.screenshot({ path: testInfo.outputPath('shap-footer.png') })
   await page.setViewportSize({ width: 390, height: 844 })
   await page.screenshot({ path: testInfo.outputPath('real-shap-mobile.png') })
   await page.setViewportSize({ width: 1440, height: 1000 })
@@ -55,18 +58,27 @@ test('upload, refresh, search, pagination, details, real SHAP, download and clea
   await page.getByRole('link', { name: 'Return', exact: true }).click()
   await expect(page.getByPlaceholder('Search Transaction ID')).toHaveValue('23')
   const downloadPromise = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Download results', exact: true }).click()
+  await page.getByRole('button', { name: 'Download Results', exact: true }).click()
   const download = await downloadPromise
   expect(download.suggestedFilename()).toBe('integritree_results.zip')
   await download.saveAs(testInfo.outputPath('results.zip'))
   await page.getByRole('heading', { name: 'Results Overview' }).scrollIntoViewIfNeeded()
   await page.screenshot({ path: testInfo.outputPath('results.png') })
   await page.setViewportSize({ width: 390, height: 844 })
-  await expect(page.getByRole('button', { name: 'Download results', exact: true })).toBeEnabled()
-  await page.getByRole('button', { name: 'Download results', exact: true }).scrollIntoViewIfNeeded()
+  await expect(page.getByRole('button', { name: 'Download Results', exact: true })).toBeEnabled()
+  await page.getByRole('button', { name: 'Download Results', exact: true }).scrollIntoViewIfNeeded()
   await page.screenshot({ path: testInfo.outputPath('mobile.png') })
-  await page.getByRole('button', { name: 'Clear results', exact: true }).click()
+  const analysisId = new URL(page.url()).searchParams.get('analysis')
+  await expect(page.getByRole('button', { name: 'Clear results', exact: true })).toHaveCount(0)
+  await page.getByRole('link', { name: 'Analyze Another CSV', exact: true }).click()
   await expect(page).toHaveURL(/researcher-upload$/)
+  // Clean up only this test's analysis, independently of the removed results action.
+  await page.evaluate(async id => {
+    const { api } = await import('/src/researchApi.js')
+    const analysis = await api(`/analyses/${id}`)
+    if (analysis.status !== 'complete') throw new Error('Navigation must retain the completed analysis')
+    await api(`/analyses/${id}`, { method: 'DELETE' })
+  }, analysisId)
   expect(errors).toEqual([])
 })
 

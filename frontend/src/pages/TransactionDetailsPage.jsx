@@ -144,7 +144,6 @@ const TransactionRecord = ({ analysis, number, returnQuery }) => {
               <div className="td-card">
                 <div className="td-card-header">Derived Inputs</div>
                 <div className="td-card-body">
-                  <p className="td-weekday-note">Weekday names use a Monday-based display convention for the simulated day index.</p>
                   <Field label="Hour of the Day"            value={transaction.hourOfDay} />
                   <Field label="Day of the Week"            value={weekdayText(transaction.dayOfWeek)} />
                   <Field label="Transaction is Cash In:"    value={booleanText(transaction.isCashIn)} />
@@ -179,7 +178,7 @@ const TransactionRecord = ({ analysis, number, returnQuery }) => {
             />
           )}
 
-          {shapModel && <ShapModal model={shapModel} number={record.row_number} explanation={record.explanation}
+          {shapModel && <ShapModal model={shapModel} explanation={record.explanation}
             onRetry={() => setRevision(v => v + 1)} onClose={() => setShapModel(null)} />}
 
         </section>

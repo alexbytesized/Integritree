@@ -305,11 +305,9 @@ const ResearcherResultsPage = () => {
       </section>
 
       <footer className="results-actions">
-        <p>Shared fraud threshold: {(job.threshold * 100).toFixed(0)}%. Metrics cover all {job.rows_processed.toLocaleString()} uploaded records. Results are temporary; download them before ending the backend session.</p>
         {error && <p role="alert">{error}</p>}
-        <button type="button" className="download-button" disabled={downloading} onClick={download}>{downloading ? 'Preparing download...' : 'Download results'}</button>
-        <Link to="/researcher-upload">Analyze another CSV</Link>
-        <button type="button" onClick={clear} disabled={downloading}>Clear results</button>
+        <button type="button" className="results-action download-button" disabled={downloading} onClick={download}>{downloading ? 'Preparing download...' : 'Download Results'}</button>
+        <Link className="results-action analyze-button" to="/researcher-upload">Analyze Another CSV</Link>
       </footer>
       {activeInfoTopic && <InfoModal topic={activeInfoTopic} onClose={closeInfo} />}
       </main>

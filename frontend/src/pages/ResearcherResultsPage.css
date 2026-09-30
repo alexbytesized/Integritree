@@ -76,13 +76,12 @@
 
 .results-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 16px; margin-top: 48px; }
 .results-actions > p { flex-basis: 100%; line-height: 1.5; }
-.results-actions > a, .results-actions > button:not(.download-button) {
-  padding: 14px 20px; border: 1px solid var(--results-border); border-radius: 8px;
-  background: white; color: var(--results-blue); font: inherit; text-decoration: none; cursor: pointer;
-}
-.results-actions .download-button { flex-shrink: 0; }
-
-.download-button {
+.results-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
   min-height: 54px;
   padding: 12px 28px;
   border: 1px solid var(--results-blue);
@@ -92,8 +91,13 @@
   font: inherit;
   font-size: 18px;
   font-weight: 700;
-  cursor: not-allowed;
+  text-decoration: none;
+  cursor: pointer;
 }
+.results-action.analyze-button { background: #FFFFFF; color: var(--results-blue); }
+.results-action.download-button:not(:disabled):hover { background: #FFFFFF; color: var(--results-blue); }
+.results-action.analyze-button:hover { background: var(--results-blue); color: #FFFFFF; }
+.results-action:disabled { cursor: progress; }
 
 .file-name-container {
   display: flex;
@@ -294,7 +298,7 @@
 .percentage-statistics-title-container .info-button:hover,
 .mcnemar-statistics-title-container .info-button:hover { background: rgb(255 255 255 / 20%); }
 .info-button:focus-visible,
-.download-button:focus-visible,
+.results-action:focus-visible { outline: 3px solid #f5a524; outline-offset: 3px; }
 
 .visually-hidden {
   position: absolute;
@@ -358,5 +362,5 @@
   .difference-card:nth-child(n) { grid-column: auto; width: 100%; }
   .mcnemar-table { min-width: 480px; grid-template-columns: 120px repeat(2, 170px); }
   .table-header, .row-header { font-size: 13px; }
-  .download-button { width: 100%; }
+  .results-action { width: 100%; }
 }

@@ -10,9 +10,16 @@
   width: var(--size);
   height: var(--size);
   border-radius: 50%;
+  transition: transform 180ms ease;
   background:
-    conic-gradient(from -90deg, var(--donut-color) 0deg var(--value), transparent var(--value) 360deg),
-    repeating-conic-gradient(from -90deg, #bfc1c3 0deg 26deg, #fff 26deg 30deg);
+    repeating-conic-gradient(from -90deg, transparent 0deg 26deg, #fff 26deg 30deg),
+    conic-gradient(from -90deg, var(--donut-color) 0deg var(--value), #bfc1c3 var(--value) 360deg);
+}
+@media (hover: hover) and (pointer: fine) {
+  .fraudDonut:hover { transform: scale(1.05); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fraudDonut, .fraudDonut:hover { transform: none; transition: none; }
 }
 .fraudDonut::after { content: ''; position: absolute; inset: var(--thickness); border-radius: 50%; background: #fff; }
 .fraudDonut span { position: relative; z-index: 1; font-size: clamp(12px, 1.1vw, 17px); font-weight: 700; }

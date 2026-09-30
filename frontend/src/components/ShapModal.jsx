@@ -6,7 +6,7 @@ import ResearchExplanation from './ResearchExplanation'
 import './InfoModal.css'
 import './ShapModal.css'
 
-export default function ShapModal({ model, number, explanation, onRetry, onClose }) {
+export default function ShapModal({ model, explanation, onRetry, onClose }) {
   const dialog = useRef(null)
   const close = useRef(null)
   const titleId = useId()
@@ -39,7 +39,6 @@ export default function ShapModal({ model, number, explanation, onRetry, onClose
       <div className="info-modal-panel">
         <button ref={close} type="button" className="info-modal-close" aria-label="Close SHAP evaluation" onClick={onClose}><X aria-hidden="true" /></button>
         <div className="info-modal-scroll" tabIndex="0" role="region" aria-label="SHAP evaluation contents">
-          <p>Transaction ID: {number}</p>
           <ResearchExplanation explanation={explanation} model={model} onRetry={onRetry} />
         </div>
       </div>

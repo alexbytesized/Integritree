@@ -64,6 +64,7 @@ test('all model views use display IDs, colored interpretations and model-specifi
   await expect(page.locator('body')).not.toContainText(fingerprint)
   const field = label => page.locator('.td-field-row').filter({ hasText: label }).locator('.td-field-value')
   await expect(field('Day of the Week')).toHaveText('0 (Monday)')
+  await expect(page.getByText('Weekday names use a Monday-based display convention for the simulated day index.')).toHaveCount(0)
   await expect(field('Transaction is Fraudulent:')).toHaveText('1 (True)')
   await expect(field('Transaction is Cash In:')).toHaveText('0 (False)')
   await expect(field('Transaction is Cash Out:')).toHaveText('1 (True)')
@@ -85,6 +86,20 @@ test('all model views use display IDs, colored interpretations and model-specifi
     await open.click()
     await expect(page.getByRole('dialog', { name: `${name} — SHAP Evaluation` })).toBeVisible()
     await expect(page.getByRole('dialog').locator('img')).toBeVisible()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog.getByText(/Transaction ID:/)).toHaveCount(0)
+    await expect(dialog.getByRole('heading', { name: 'SHAP waterfall' })).toHaveCount(0)
+    const desktopBox = await dialog.boundingBox()
+    expect(desktopBox.width).toBeCloseTo(860 * .8)
+    expect(desktopBox.height).toBeLessThanOrEqual(620 * .8)
+    expect(desktopBox.width).toBeGreaterThan(desktopBox.height)
+    await expect(dialog.locator('.shap-top-contributor')).toHaveCSS('margin-top', '12px')
+    const contentOrder = await dialog.locator('.shap-reconstruction').evaluate(element => ({
+      nextClass: element.nextElementSibling.className,
+      gap: element.nextElementSibling.getBoundingClientRect().top - element.getBoundingClientRect().bottom,
+    }))
+    expect(contentOrder.nextClass).toBe('shap-top-contributor')
+    expect(contentOrder.gap).toBeCloseTo(12 * .8, 1)
     expect(requests.length).toBe(before + 1)
     expect(requests.at(-1).pathname).toContain(`/waterfall/${model}`)
     expect(requests.at(-1).searchParams.get('presentation')).toBe('row_number')
@@ -97,6 +112,7 @@ test('all model views use display IDs, colored interpretations and model-specifi
   }
   await page.getByRole('tab', { name: 'Both Models' }).click()
   await expect(page.getByRole('button', { name: 'View risk classification thresholds' })).toHaveCount(2)
+  await expect(page.locator('.bmv-section-text').first()).toHaveCSS('margin-bottom', '40px')
   for (const [index, name] of ['RF-SMOTE', 'Benchmark RF'].entries()) {
     await page.getByRole('button', { name: 'See Full SHAP Evaluation' }).nth(index).click()
     await expect(page.getByRole('dialog', { name: `${name} — SHAP Evaluation` })).toBeVisible()
@@ -106,9 +122,14 @@ test('all model views use display IDs, colored interpretations and model-specifi
   await page.evaluate(() => window.scrollTo(0, 0))
   await page.screenshot({ path: testInfo.outputPath('both-models.png'), fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
+  await expect(page.locator('.bmv-section-text').first()).toHaveCSS('margin-bottom', '32px')
   await page.getByRole('button', { name: 'See Full SHAP Evaluation' }).first().click()
   await expect(page.getByRole('dialog').locator('img')).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('mobile-modal.png') })
+  await page.locator('.shap-top-contributor').scrollIntoViewIfNeeded()
+  await expect(page.locator('.shap-top-contributor')).toBeInViewport()
+  await expect(page.locator('.shap-reconstruction')).toBeInViewport()
+  await page.screenshot({ path: testInfo.outputPath('mobile-modal-footer.png') })
   const box = await page.getByRole('dialog').boundingBox()
   expect(box.x).toBeGreaterThanOrEqual(0)
   expect(box.x + box.width).toBeLessThanOrEqual(390)
@@ -134,7 +155,8 @@ test('overlapping markers, tooltips and risk-level note remain accessible', asyn
   await page.keyboard.press('Enter')
   await expect(page.locator('.risk-tooltip-note')).toHaveText('Note: The following bands describe model scores, not calibrated real-world probabilities.')
   await expect(page.locator('.risk-tooltip-note')).toHaveCSS('font-size', '12px')
-  await expect(page.locator('.risk-tooltip-note')).toHaveCSS('margin-top', '16px')
+  await expect(page.locator('.risk-tooltip-note')).toHaveCSS('margin-top', '24px')
+  await expect(page.locator('.risk-tooltip-popover')).not.toContainText('Fraud is predicted at or above')
   await page.screenshot({ path: testInfo.outputPath('risk-tooltip.png'), fullPage: true })
 })
 
@@ -152,6 +174,90 @@ test('pending, explanation retry and chart retry work inside the modal', async (
   await expect(page.getByRole('dialog').locator('img')).toBeVisible()
   await page.getByRole('button', { name: 'Close SHAP evaluation' }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+
+test('doughnut hover, shared modal sizing and results actions', async ({ page }, testInfo) => {
+  const metrics = Object.fromEntries(['precision', 'recall', 'f1', 'mcc', 'pr_auc'].map(key => [key, { value: 1 }]))
+  const model = { metrics, actual_fraud: 1, confusion_matrix: { tp: 1, tn: 2, fp: 0, fn: 0 } }
+  const job = { status: 'complete', filename: 'refinements.csv', rows_processed: 3, threshold: .43,
+    evaluation: { models: { rf: { ...model, confusion_matrix: { tp: 1, tn: 0, fp: 2, fn: 0 } }, rf_smote: model },
+      descriptive_comparisons: metrics,
+      statistical_test: { p_value: 1, table: { both_correct: 1, rf_only_correct: 0, smote_only_correct: 2, both_incorrect: 0 } } } }
+  let releaseExport
+  const exportGate = new Promise(resolve => { releaseExport = resolve })
+  const methods = []
+  await page.route('**/api/v1/research/analyses/refinements**', async route => {
+    methods.push(route.request().method())
+    const url = new URL(route.request().url())
+    if (url.pathname.endsWith('/exports')) {
+      await exportGate
+      return route.fulfill({ status: 503, json: { detail: 'Export unavailable. Please retry.' } })
+    }
+    if (url.pathname.endsWith('/records')) return route.fulfill({ json: { records: [], total: 0, page: 1 } })
+    return route.fulfill({ json: job })
+  })
+  await page.goto('/researcher?analysis=refinements')
+  const donuts = page.locator('.fraudDonut')
+  await expect(donuts).toHaveText(['33.33%', '100.00%', '33.33%'])
+  await page.locator('.system-results-container').screenshot({ path: testInfo.outputPath('segmented-doughnuts.png') })
+  for (const donut of await donuts.all()) {
+    const caption = donut.locator('..').locator('.fraudDonutTitle')
+    const before = await caption.boundingBox()
+    await donut.hover()
+    await expect(donut).toHaveCSS('transform', 'matrix(1.05, 0, 0, 1.05, 0, 0)')
+    expect(await caption.boundingBox()).toEqual(before)
+  }
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await expect(donuts.last()).toHaveCSS('transform', 'none')
+  await expect(donuts.last()).toHaveCSS('transition-duration', '0s')
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  const info = page.getByRole('button', { name: 'About MCC', exact: true }).first()
+  await info.focus()
+  await expect(info).toBeVisible()
+  await expect(info).toHaveCSS('outline-style', 'solid')
+  await info.press('Enter')
+  const formulaBox = await page.getByRole('dialog').boundingBox()
+  await page.keyboard.press('Escape')
+  const footer = page.locator('.results-actions')
+  const download = page.getByRole('button', { name: 'Download Results', exact: true })
+  const analyze = page.getByRole('link', { name: 'Analyze Another CSV', exact: true })
+  await expect(footer).not.toContainText('Shared fraud threshold:')
+  await expect(footer.getByRole('button', { name: /Clear/i })).toHaveCount(0)
+  for (const action of [download, analyze]) {
+    await action.focus()
+    await expect(action).toBeVisible()
+    await expect(action).toHaveCSS('cursor', 'pointer')
+    await expect(action).toHaveCSS('min-height', '54px')
+    await expect(action).toHaveCSS('border-radius', '10px')
+    await expect(action).toHaveCSS('font-weight', '700')
+    await expect(action).toHaveCSS('outline-style', 'solid')
+  }
+  await expect(analyze).toHaveCSS('background-color', 'rgb(255, 255, 255)')
+  await footer.screenshot({ path: testInfo.outputPath('desktop-actions.png') })
+  await download.click()
+  const pending = page.getByRole('button', { name: 'Preparing download...' })
+  await expect(pending).toBeDisabled()
+  await expect(pending).toHaveCSS('cursor', 'progress')
+  releaseExport()
+  await expect(footer.getByRole('alert')).toHaveText('Export unavailable. Please retry.')
+  await expect(download).toBeEnabled()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await analyze.scrollIntoViewIfNeeded()
+  const [downloadBox, analyzeBox] = await Promise.all([download.boundingBox(), analyze.boundingBox()])
+  expect(downloadBox.width).toEqual(analyzeBox.width)
+  expect(analyzeBox.y).toBeGreaterThan(downloadBox.y + downloadBox.height)
+  expect(analyzeBox.x + analyzeBox.width).toBeLessThanOrEqual(390)
+  await footer.screenshot({ path: testInfo.outputPath('mobile-actions.png') })
+  await analyze.click()
+  await expect(page).toHaveURL(/researcher-upload$/)
+  expect(methods).not.toContain('DELETE')
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await setup(page, recordFixture())
+  await page.getByRole('tab', { name: 'RF-SMOTE', exact: true }).click()
+  await page.getByRole('button', { name: 'See Full SHAP Evaluation' }).click()
+  await expect(page.getByRole('dialog').locator('img')).toBeVisible()
+  expect((await page.getByRole('dialog').boundingBox()).width).toBeCloseTo(formulaBox.width)
+  await page.screenshot({ path: testInfo.outputPath('shared-size-shap-modal.png') })
 })
 
 test('table badges fit boundary scores without changing gaps, and search requests row numbers', async ({ page }, testInfo) => {

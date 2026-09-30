@@ -29,10 +29,10 @@ export default function ResearchExplanation({ explanation, model, onRetry }) {
     ? 'Explanation failed.' : 'SHAP explanation pending…'}</p>
     {explanation?.status === 'failed' && <button type="button" onClick={onRetry}>Retry explanation</button>}</div>
   const top = item.features?.find(f => f.feature === item.top_positive_contributor?.feature)
-  return <div><h3>SHAP waterfall</h3>
-    <p>{item.top_positive_contributor?.status === 'no_positive_contributor' ? 'No transaction details meaningfully increased the score.'
-      : `Top risk-increasing contributor: ${top ? featureText(top) : item.top_positive_contributor?.feature || 'Unavailable'}`}</p>
+  return <div>
     {item.waterfall_url ? <WaterfallChart key={item.waterfall_url} item={item} /> : <p role="status">The waterfall chart is not available yet.</p>}
-    {item.additivity_error != null && <p>Reconstruction error: {item.additivity_error.toExponential(2)}</p>}
+    {item.additivity_error != null && <p className="shap-reconstruction">Reconstruction error: {item.additivity_error.toExponential(2)}</p>}
+    <p className="shap-top-contributor">{item.top_positive_contributor?.status === 'no_positive_contributor' ? 'No transaction details meaningfully increased the score.'
+      : `Top risk-increasing contributor: ${top ? featureText(top) : item.top_positive_contributor?.feature || 'Unavailable'}`}</p>
   </div>
 }

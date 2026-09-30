@@ -19,7 +19,7 @@ function Marker({ value, threshold = false }) {
 
 export default function ResearchRiskGauge({ score, threshold, compact = false }) {
   return <div className={`research-gauge${compact ? ' research-gauge--compact' : ''}`}>
-    <div className="research-gauge-header"><span>Risk Level</span><RiskThresholdTooltip threshold={threshold} /></div>
+    <div className="research-gauge-header"><span>Risk Level</span><RiskThresholdTooltip /></div>
     <div className="research-gauge-track" style={{ background: `linear-gradient(to right, ${RISK_BANDS.map((band, i) => `${band.color} ${i * 20}%, ${band.color} ${(i + 1) * 20}%`).join(', ')})` }}>
       {threshold != null && <Marker value={threshold} threshold />}
       <Marker value={score} />

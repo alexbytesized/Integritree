@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from "react"
 import { Info } from "lucide-react"
 import "./RiskThresholdTooltip.css"
-import { RISK_BANDS, scoreText } from '../researchDisplay'
+import { RISK_BANDS } from '../researchDisplay'
 
-const RiskThresholdTooltip = ({ position = "bottom", threshold }) => {
+const RiskThresholdTooltip = ({ position = "bottom" }) => {
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef(null)
 
@@ -50,7 +50,6 @@ const RiskThresholdTooltip = ({ position = "bottom", threshold }) => {
             <h4 className="risk-tooltip-title">Risk Thresholds</h4>
           </div>
           <div className="risk-tooltip-list">
-            {threshold != null && <p>Fraud is predicted at or above {scoreText(threshold)}%.</p>}
             {RISK_BANDS.map(({ label, range, color }) => (
               <div key={label} className="risk-tooltip-item">
                 <div className="risk-tooltip-badge-group">
