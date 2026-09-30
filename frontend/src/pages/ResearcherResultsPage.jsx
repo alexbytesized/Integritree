@@ -249,8 +249,8 @@ const ResearcherResultsPage = () => {
               <PercentageDifferenceCard percentage={metricDifference("precision")} label="Precision" />
               <PercentageDifferenceCard percentage={metricDifference("recall")} label="Recall" />
               <PercentageDifferenceCard percentage={metricDifference("f1")} label="F1-Score" />
-              <PercentageDifferenceCard percentage={metricDifference("auc")} label="PR-AUC" />
               <PercentageDifferenceCard percentage={metricDifference("mcc")} label="MCC" />
+              <PercentageDifferenceCard percentage={metricDifference("auc")} label="PR-AUC" />
             </div>
           </div>
         </div>
@@ -286,7 +286,10 @@ const ResearcherResultsPage = () => {
             </div>
 
             <div className="mcnemar-result">
-              <h4 className="mcnemar-label">P-Value:</h4>
+              <h4 className="mcnemar-label pvalue-label">
+                <span>P-Value:</span>
+                <InfoButton topic="P-Value" label="View statistical test details" onRequestInfo={setActiveInfoTopic} />
+              </h4>
               <div className="pvalue-box">
                 <strong>{test.p_value.toExponential(6)}</strong>
               </div>
@@ -294,10 +297,10 @@ const ResearcherResultsPage = () => {
               <h4>Interpretation:</h4>
               <div className="interpretation">
                 <p>
-                  {test.decision === 'reject_null' ? 'Reject the null hypothesis: paired classification error rates differ.' : 'Fail to reject the null hypothesis: insufficient evidence of different paired error rates.'}
+                  {test.p_value < 0.05
+                    ? 'P-value < 0.05: Reject the null hypothesis. The difference between the benchmark RF model and the RF-SMOTE model is statistically significant.'
+                    : 'P-value >= 0.05: Fail to reject the null hypothesis. The difference between the benchmark RF model and the RF-SMOTE model is not statistically significant.'}
                 </p>
-                <p>{test.status}. Discordant pairs: {test.discordant_pairs}. Statistic: {test.statistic ?? 'N/A'}.</p>
-                {test.supplementary && <p>Small-discordance caution. Supplementary exact p-value: {test.supplementary.p_value.toPrecision(6)}.</p>}
               </div>
             </div>
           </div>
@@ -309,7 +312,7 @@ const ResearcherResultsPage = () => {
         <button type="button" className="results-action download-button" disabled={downloading} onClick={download}>{downloading ? 'Preparing download...' : 'Download Results'}</button>
         <Link className="results-action analyze-button" to="/researcher-upload">Analyze Another CSV</Link>
       </footer>
-      {activeInfoTopic && <InfoModal topic={activeInfoTopic} onClose={closeInfo} />}
+      {activeInfoTopic && <InfoModal topic={activeInfoTopic} statisticalTest={test} onClose={closeInfo} />}
       </main>
     </div>
   )

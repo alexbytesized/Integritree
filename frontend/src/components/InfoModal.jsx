@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import { X } from "lucide-react"
+import ResearchPValueDetails from "./ResearchPValueDetails"
 import "./InfoModal.css"
 
 const fraudTerms = {
@@ -11,6 +12,9 @@ const fraudTerms = {
 }
 
 const topics = {
+  "P-Value": {
+    title: "Statistical Test Details",
+  },
   Precision: {
     title: "Precision",
     definition: "Precision answers “of the transactions this model predicted as fraud, how many were actually labeled fraud?”",
@@ -79,8 +83,9 @@ const topics = {
   },
 }
 
-const InfoModal = ({ topic, onClose }) => {
+const InfoModal = ({ topic, onClose, statisticalTest }) => {
   const closeButtonRef = useRef(null)
+  const dialogRef = useRef(null)
   const content = topics[topic]
 
   useEffect(() => {
@@ -94,9 +99,15 @@ const InfoModal = ({ topic, onClose }) => {
         event.preventDefault()
         onClose()
       } else if (event.key === "Tab") {
-        // The close button is the dialog's only interactive element.
-        event.preventDefault()
-        closeButtonRef.current?.focus()
+        const targets = [...dialogRef.current.querySelectorAll('button:not([disabled]), [tabindex="0"]')]
+        const first = targets[0], last = targets[targets.length - 1]
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault()
+          last.focus()
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault()
+          first.focus()
+        }
       }
     }
 
@@ -111,8 +122,8 @@ const InfoModal = ({ topic, onClose }) => {
   if (!content || typeof document === "undefined") return null
 
   return createPortal(
-    <div className="info-modal-overlay">
-      <div className="info-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="info-modal-title" aria-describedby="info-modal-definition">
+    <div className="info-modal-overlay" onClick={event => { if (event.target === event.currentTarget) onClose() }}>
+      <div ref={dialogRef} className={`info-modal-dialog${topic === 'P-Value' ? ' pvalue-details' : ''}`} role="dialog" aria-modal="true" aria-labelledby="info-modal-title" aria-describedby={topic === 'P-Value' ? undefined : 'info-modal-definition'}>
         <div className="info-modal-title-bar">
           <h2 id="info-modal-title">{content.title}</h2>
         </div>
@@ -120,12 +131,12 @@ const InfoModal = ({ topic, onClose }) => {
           <button ref={closeButtonRef} type="button" className="info-modal-close" aria-label={`Close ${content.title} information`} onClick={onClose}>
             <X aria-hidden="true" />
           </button>
-          <div className="info-modal-scroll">
-            <section className="info-modal-section">
+          <div className="info-modal-scroll" tabIndex={topic === 'P-Value' ? 0 : undefined} role={topic === 'P-Value' ? 'region' : undefined} aria-label={topic === 'P-Value' ? 'Statistical test details' : undefined}>
+            {topic !== 'P-Value' && <section className="info-modal-section">
               <h3>Definition</h3>
               <p id="info-modal-definition">{content.definition}</p>
-            </section>
-            <section className="info-modal-section">
+            </section>}
+            {topic === 'P-Value' ? <ResearchPValueDetails statisticalTest={statisticalTest} /> : <><section className="info-modal-section">
               <h3>Formula</h3>
               <p className="info-modal-formula">{content.formula}</p>
               <p className="info-modal-where-label">Where:</p>
@@ -139,7 +150,7 @@ const InfoModal = ({ topic, onClose }) => {
               {Array.isArray(content.interpretation)
                 ? <ul>{content.interpretation.map((item) => <li key={item}>{item}</li>)}</ul>
                 : <p>{content.interpretation}</p>}
-            </section>
+            </section></>}
           </div>
         </div>
       </div>

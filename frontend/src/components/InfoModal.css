@@ -99,6 +99,7 @@
 .info-modal-section ul { margin: 0; padding-left: 2em; }
 .info-modal-section li { padding-left: 3px; }
 .info-modal-section li strong { font-weight: 500; }
+.pvalue-details .info-modal-section li strong { font-weight: 700; }
 
 .info-modal-section .info-modal-formula {
   margin: 4px 0 16px;
