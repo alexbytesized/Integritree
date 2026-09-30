@@ -9,9 +9,10 @@ shared cutoff from exactly **1%, 2%, ..., 100%** by mean validation F1.
 See the current run status for measured results.
 
 Preparation, training, saved inference, evaluation, selection, and SHAP code are
-implemented. Application prediction APIs, frontend integration, and the
-experimental GCash receipt workflow remain planned. Expanded SHAP details use a
-waterfall graph; a numerical table remains a suggestion.
+implemented, including the researcher CSV APIs and frontend integration. Individual
+prediction APIs and the experimental five-category GCash receipt workflow remain
+planned. Expanded SHAP details use a waterfall graph; a numerical table remains
+a suggestion.
 
 - [Validation protocol](docs/THREE_STAGE_VALIDATION.md)
 - [Current run status and reset record](docs/VALIDATION_RUN_STATUS.md)
@@ -20,4 +21,5 @@ waterfall graph; a numerical table remains a suggestion.
 - [Agreed mock-up corrections](docs/MOCKUP_EVALUATION_DECISIONS.md)
 - [Backend alignment audit](docs/BACKEND_ALIGNMENT_AUDIT.md)
 - [Backend implementation plan](docs/BACKEND_IMPLEMENTATION_PLAN.md)
+- [Approved receipt scope and screenshot collection guide](docs/RECEIPT_WORKFLOW.md)
 - [Help-modal and limitations-page content](docs/UI_HELP_CONTENT.md)

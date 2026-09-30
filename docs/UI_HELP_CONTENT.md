@@ -343,8 +343,11 @@ Before publishing these modals:
 
 ## Research Scope and Limitations page
 
-Status: approved for implementation. Fill in the actual mapping conventions and
-implemented retention details before publishing; those facts remain unresolved.
+Status: approved copy for future implementation, updated 2026-09-30. The receipt
+scope, time/amount assumptions, and retention policy below are settled in
+[receipt decisions](RECEIPT_WORKFLOW.md). Exact layouts, account-role mappings,
+and the local OCR engine remain pending. Publish receipt behavior as operational
+only after implementation and verification; receipt processing remains a scaffold.
 
 **Title: Research Scope and Limitations**
 
@@ -366,18 +369,25 @@ Evaluation on PaySim does not establish prediction performance on real GCash
 transactions. Only receipt workflows identified as supported by the application
 can be analyzed. The system does not verify receipt authenticity or image editing.
 
+The approved initial scope targets GCash app screenshots for Express Send,
+over-the-counter cash-in, over-the-counter cash-out, wallet-funded merchant QR
+payments, and GCash-to-bank transfers. These map respectively to TRANSFER, CASH_IN,
+CASH_OUT, PAYMENT, and DEBIT. Exact supported layouts must be verified before
+release. SMS/email screenshots and printed receipt photos are outside this scope.
+
 **Timing assumptions**
 
 PaySim uses simulation steps rather than verified receipt calendar timestamps.
-The demonstration applies a documented date/time convention to construct timing
-features. This mapping is an assumption, not a verified alignment with PaySim's
-calendar or local clock. Display the actual configured convention here.
+The approved demonstration convention uses Asia/Manila local time, hour 0..23,
+and weekday Monday=0 through Sunday=6. This mapping is an assumption, not a
+verified alignment with PaySim's calendar or local clock.
 
 **Amount assumptions**
 
-Receipt amounts are confirmed in Philippine pesos. Their numerical mapping into
-the model has not been validated as equivalent to PaySim's amount units or
-distribution. Applying the saved transformations does not establish that equivalence.
+Receipt amounts are confirmed as the Philippine-peso principal, excluding fees.
+The numerical PHP value is used with the saved transformations; this has not been
+validated as equivalent to PaySim's amount units or distribution. No currency
+conversion or equivalent purchasing value is established by this assumption.
 
 **Transaction and account types**
 
@@ -385,6 +395,12 @@ Users confirm transaction and account categories. These confirmations describe
 the supplied input; they are not independent verification of a recipient's identity
 or account status. Missing essential information or unsupported workflows may
 prevent analysis.
+
+The dataset and models include all five transaction categories, but original
+fraud-positive examples occur only in TRANSFER and CASH_OUT. No original fraud
+examples occur in CASH_IN, PAYMENT, or DEBIT in this dataset. This does not imply
+that those transactions cannot be fraudulent in real life. SMOTE and five-category
+input support do not establish real GCash fraud-detection performance.
 
 **Risk communication bands**
 
@@ -407,10 +423,14 @@ separately. Download results to see evaluation methods, model provenance, and sc
 
 **Personal information and retention**
 
-Sender and recipient names are not model predictors. Masked or unavailable names
-do not need to be reconstructed. Before release, this section must state the
-implemented storage location, access rules, retention period, and deletion behavior.
-Do not publish deletion/security promises that have not been implemented.
+Sender and recipient names, phone numbers, and references are not model predictors.
+Names and references are optional; masked/unavailable names need not be reconstructed.
+The approved policy is local OCR and temporary application storage of images,
+confirmed details, and results until Clear or backend shutdown/restart, with no
+permanent receipt history. Closing a browser tab alone does not guarantee deletion.
+Retained development samples are separate from application uploads and cleanup.
+Before release, verify and publish actual storage/access/cleanup behavior. These
+are requirements awaiting implementation, not current deletion/security promises.
 
 ### Suggested entry-point copy
 

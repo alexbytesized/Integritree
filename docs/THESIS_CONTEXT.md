@@ -220,10 +220,11 @@ arbitrary dataset is compatible with the trained model.
 
 Purpose: an experimental demonstration of individual prediction.
 
-Confirmed initial scope:
+Confirmed initial scope (expanded 2026-09-30; implementation pending):
 
-- GCash receipts.
-- Person-to-person transfers.
+- GCash app screenshots only, with one workflow per PaySim category: Express Send
+  (TRANSFER), over-the-counter cash-in (CASH_IN), over-the-counter cash-out (CASH_OUT),
+  wallet-funded merchant QR payment (PAYMENT), and GCash-to-bank transfer (DEBIT).
 - Predict possible fraud based on transaction behavior.
 - Display both RF and RF-SMOTE results.
 - No receipt forgery or image-manipulation detection.
@@ -239,6 +240,10 @@ not classify the receipt’s pixels.
 Show model disagreements honestly.
 Do not invent missing fields or present predictions as verified facts.
 PaySim evaluation does not validate real GCash receipt predictions.
+All five categories occur in the dataset, but original fraud labels occur only
+in TRANSFER and CASH_OUT. Supporting five receipt categories is not evidence of
+fraud-detection performance for each real GCash workflow. See the approved
+[receipt mapping, storage, and collection decisions](RECEIPT_WORKFLOW.md).
 
 ## 8. Corrections discussed, not yet applied
 
@@ -296,12 +301,17 @@ common cutoff. No per-model thresholds are planned.
 
 Receipt demonstration:
 
-- Supported GCash receipt layouts and OCR engine.
-- Mapping receipt fields to the trained feature meanings, including
-  timing, amount units, transaction type, and merchant indicators.
-- Handling incomplete, unreadable, and incompatible records.
-- Manual-entry fallback.
-- Upload retention and handling of personal receipt information.
+- Exact supported GCash app layouts and local OCR engine.
+- Account-role/merchant-indicator mappings for bank, agent, and merchant workflows.
+- Receipt upload limits, job/API contracts, detailed error handling, and downloads.
+
+Settled receipt requirements (implementation pending): five selected workflows;
+Asia/Manila hour and Monday=0 weekday; numeric PHP principal excluding fees;
+correction/completion after image upload and explicit confirmation; optional string
+reference and optional masked names; local OCR; temporary application data until
+Clear or backend shutdown/restart. Image-free manual entry is outside this scope.
+Required inputs that cannot be mapped defensibly still block prediction. Development
+screenshots are retained separately in the ignored sample collection.
 
 Software:
 
@@ -309,7 +319,8 @@ Software:
   Python 3.12, FastAPI, NumPy, pandas, PyArrow, scikit-learn, imbalanced-learn,
   joblib, SciPy, Matplotlib, and SHAP 0.52.0 with a versioned lock.
 - Receipt API contracts and receipt-specific long-running work. Research CSV jobs are implemented.
-- Research storage is settled: temporary SQLite/files and downloads-only retention. Receipt retention remains to be finalized.
+- Research storage is settled: temporary SQLite/files and downloads-only retention.
+  Receipt storage policy is settled as above; its implementation remains pending.
 
 Do not silently resolve a methodological ambiguity merely to make
 implementation easier.
@@ -383,9 +394,11 @@ screen with McNemar, and ignore all screenshot sample numbers.
 - Signed symmetric percentage difference is approved. Active YAML now selects
   signed_over_mean; historical absolute configurations remain readable/unchanged.
   Metric calculation and edge-case policies are implemented in Phase 4.
-- GCash person-to-person receipt workflow only; TRANSFER selectable, other types
-  visible but disabled, server-enforced. Exact names remain optional traceability
-  information and never predictors. Receipt timing/amount mapping is experimental.
+- Receipt scope expanded on 2026-09-30 to five selected GCash app workflows;
+  this supersedes the earlier TRANSFER-only dropdown/server restriction. Validate
+  supported workflows and resolved account mappings on the server before prediction.
+  Names and references remain optional traceability, never predictors. Receipt
+  timing/amount assumptions remain experimental; see [current scope](RECEIPT_WORKFLOW.md).
 
 [The backend audit](BACKEND_ALIGNMENT_AUDIT.md) found the completed preparation and
 baseline method aligned and documented future extensions: selected-run artifacts,

@@ -16,6 +16,14 @@ See [researcher operation and retention](../docs/RESEARCHER_WORKFLOW.md).
 Receipt OCR and receipt integration remain future work; final test evaluation waits
 until the complete tool is ready and the researcher explicitly authorizes it.
 
+The approved receipt scope now targets one GCash app workflow per PaySim category,
+with local OCR and temporary application storage. Save development screenshots in
+`data/raw/receipt_samples/{TRANSFER,CASH_IN,CASH_OUT,PAYMENT,DEBIT,UNSURE}/`;
+this ignored collection is retained separately from temporary application uploads.
+See [receipt decisions and collection instructions](../docs/RECEIPT_WORKFLOW.md).
+Exact layouts, account-role mappings, and the OCR engine remain pending; this is
+an implementation target, not an operational receipt feature.
+
 ## Install on Windows
 
 Use Python 3.12. The development environment was verified with Python 3.12.5

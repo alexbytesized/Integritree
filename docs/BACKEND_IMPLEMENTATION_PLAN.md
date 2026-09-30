@@ -19,8 +19,10 @@ The planned application will support two uses of the same saved RF and RF-SMOTE 
 
 - Research: labeled PaySim test records, predictions, explanations, metrics,
   statistical comparisons, and exports.
-- Individual demonstration: GCash person-to-person transfer receipts, confirmed
-  transaction details, and both models' predictions, scores, and explanations.
+- Individual demonstration: GCash app screenshots for one workflow per PaySim
+  category, confirmed details, and both models' predictions, scores, and explanations.
+  The [2026-09-30 receipt decisions](RECEIPT_WORKFLOW.md) supersede the earlier
+  person-to-person-only scope; receipt processing is not implemented yet.
 
 Read [THESIS_CONTEXT.md](THESIS_CONTEXT.md) for the manuscript requirements,
 confirmed scope, and corrections discussed with the researchers. Scaffolding
@@ -62,8 +64,11 @@ implemented; see [the workflow and capacity evidence](RESEARCHER_WORKFLOW.md).
   and optional tooltips remain suggestions. No risk-score sorting.
 - Numerical SHAP table, standalone raw-contribution download, global SHAP plots,
   PDF/XLSX export, and agreement/disagreement filters are optional suggestions.
-- Receipt support is GCash person-to-person only. All five types may appear in
-  the dropdown, but only TRANSFER is enabled. Server validation enforces this.
+- Receipt scope targets Express Send/TRANSFER, over-the-counter cash-in/CASH_IN,
+  over-the-counter cash-out/CASH_OUT, merchant QR/PAYMENT, and bank transfer/DEBIT.
+  GCash app screenshots only; exact supported layouts and account-role mappings
+  must be validated before enabling prediction. Enforce supported workflows on
+  the server; five categories do not mean all GCash services are supported.
 - All screenshot numbers are placeholders; no expected performance or counts may
   be inferred from them. Use the corrected researcher page with McNemar already present.
 
@@ -350,24 +355,27 @@ Completion checks:
 
 Work:
 
-- Collect representative consented/redacted GCash person-to-person transfer
-  layouts and select the OCR engine. Use synthetic receipt fixtures for Git.
+- Collect 3–5 representative GCash app screenshots per selected category where
+  available, under the ignored `data/raw/receipt_samples/` collection. Follow
+  [collection guidance](RECEIPT_WORKFLOW.md); report layout gaps explicitly.
+  Select a local OCR engine; use synthetic receipt fixtures for Git.
 - Implement `receipts/ocr.py` as an extraction adapter and `receipts/gcash.py` for
-  supported fields such as amount, transaction date/time, and transfer type.
+  supported fields such as amount, transaction date/time, and workflow/category.
 - Return editable extracted fields and missing/uncertain-field information.
   Prediction occurs only after user confirmation and required-field validation.
-  Confirm receipt reference as string, amount/principal, date, unambiguous time,
-  TRANSFER type, sender type and recipient type. Retain available masked names
-  only for traceability; never reconstruct redacted identities or infer C/M from
-  a personal name. Personal accounts are required for this supported workflow;
-  unknown/merchant/contradictory roles block it. Separate internal analysis ID from
-  receipt reference. Finalize missing-reference behavior; full names are optional.
-- Advertise the five transaction categories but enforce TRANSFER-only receipt
-  support on the server. Do not silently relabel a payment/cash-out as a transfer.
-  All five categories remain supported by the research model/CSV workflow.
+  Confirm principal, date, unambiguous time, supported workflow/category, and
+  required account roles. Names are optional traceability; never reconstruct
+  identities or infer C/M from names. Finalize agent/bank/merchant role mappings
+  before prediction; unresolved or incompatible roles block it. Receipt reference
+  is an optional string preserving leading zeros; mark missing values unavailable
+  and keep the internal analysis ID separate.
+- Support the five selected workflows with server-side layout, category, and
+  role validation. Preserve the original GCash service label; do not silently
+  relabel an ambiguous or unsupported transaction. Research CSV support is unchanged.
 - Implement `receipts/mapping.py` using a documented mapping to the trained
-  feature meanings. Resolve timing, amount units, category, and entity indicators
-  explicitly; do not pretend PaySim steps are a verified GCash calendar.
+  feature meanings. Use the approved Asia/Manila hour, Monday=0 weekday, and
+  numeric PHP principal excluding fees. Resolve entity indicators explicitly;
+  do not pretend these assumptions establish PaySim calendar/currency equivalence.
 - Add a distinct receipt/derived-input boundary, then share the saved scaling
   stage with raw PaySim preprocessing. Derive all eleven unscaled features and
   apply saved scaling once, preserving order. Do not make a fake step or C/M ID
@@ -381,10 +389,13 @@ Work:
   a changed confirmation invalidates previous predictions/explanations.
 - Where required model inputs cannot be supplied or mapped defensibly, return an
   explanation of the missing/unsupported input rather than fabricated values.
-- Implement receipt routes and connect confirmed records to the existing
-  prediction service. A manual form fallback remains a product decision to record.
-- Decide temporary image retention/deletion and exclude personal receipt contents
-  from logs and committed fixtures.
+- Implement receipt routes and connect confirmed records to the prediction service.
+  Permit completion of unreadable fields after a supported image upload and require
+  confirmation; a separate image-free manual form is outside the approved scope.
+- Implement temporary storage of images, confirmed details, and results until Clear
+  or backend shutdown/restart, with no permanent receipt history. Browser closure
+  alone does not guarantee deletion. Exclude personal contents from logs/fixtures;
+  cleanup must never touch the retained development sample collection or research data.
 - Label results as experimental predictions of transaction behavior. Receipt
   forgery detection remains outside scope.
   Supply supported-scope and mapping information for Research Scope and Limitations
@@ -392,14 +403,15 @@ Work:
 
 Completion checks:
 
-- Test supported layouts, blurry images, missing fields, invalid amount/date text,
-  and unsupported transaction types or image formats.
+- Test all five selected workflows, supported layouts, blurry images, missing fields,
+  invalid amount/date text, ambiguous categories/roles, and unsupported workflows
+  or image sources/formats. Category availability alone is not layout support.
 - A corrected extraction reaches inference with the corrected values.
 - Receipt and direct structured-record inputs produce identical results when the
   confirmed inputs match.
 - Both model outputs are shown; no ground-truth metrics are fabricated.
 - Test cleanup according to the agreed retention policy.
-- Verify leading-zero references, masked/absent names, unsupported dropdown values
+- Verify missing/leading-zero references, masked/absent names, unsupported dropdown values
   submitted directly, ambiguous time, unknown roles, separate fees, and corrected data.
 - Prove raw and derived paths produce identical scaled matrices/scores for equivalent
   synthetic PaySim inputs; this software parity is not real-GCash validity evidence.
@@ -416,7 +428,8 @@ Work:
   workflow. The unlabeled view must not display mock ground truth or metrics.
   Include waterfall-only details; missing/failing SHAP; both-model disagreement;
   no-positive contributors; original/derived input details; ground truth when known;
-  disabled unsupported receipt types; table filters/pagination; and ZIP downloads.
+  five supported receipt categories with unsupported-workflow rejection;
+  table filters/pagination; and ZIP downloads.
 - Align help modals in UI_HELP_CONTENT.md with backend method identifiers and
   formulas. Keep risk bands, predicted labels, signed differences and MCC units
   consistent across pages and exports. Verify accessible chart descriptions,

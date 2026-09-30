@@ -1,6 +1,6 @@
 # Backend interface contracts
 
-Last updated: 2026-09-29. Researcher CSV analysis is connected to the frontend; receipt APIs remain future work.
+Last updated: 2026-09-30. Researcher CSV analysis is connected to the frontend; receipt APIs remain future work. The approved five-category receipt scope is documented in [receipt workflow decisions](RECEIPT_WORKFLOW.md).
 
 ## Available HTTP endpoint
 
@@ -172,18 +172,30 @@ Avoid including sensitive raw receipt details in logs or error bodies.
 ### Receipt boundary
 
 The current PredictorInput request is a raw PaySim contract. Add a separate
-confirmed-receipt contract for reference string, amount, date/time, TRANSFER,
-sender/recipient types, optional masked names, and extraction/correction provenance.
-The client can display all categories but the server accepts only the supported
-person-to-person transfer workflow. Unknown/merchant roles are incompatible with
-that scope. Missing-reference policy remains to be finalized; full names are not
-required predictors. Return field-level validation and unsupported-layout/type states.
+confirmed-receipt contract for optional reference string, PHP principal, Manila
+date/time, original GCash workflow label, mapped PaySim category, account roles,
+optional masked names, and extraction/correction provenance. Target Express Send
+(TRANSFER), over-the-counter cash-in (CASH_IN), over-the-counter cash-out (CASH_OUT),
+wallet-funded merchant QR (PAYMENT), and GCash-to-bank transfer (DEBIT), using app
+screenshots only. Exact layouts and bank/agent/merchant indicator mappings remain
+pending; reject unresolved required roles or unsupported workflows before prediction.
+Permit missing references, preserve leading zeros when present, and use a separate
+internal analysis ID. Full names are not required predictors. Permit correction and
+completion after image upload, followed by explicit confirmation; no image-free
+manual workflow. Return field-level validation and unsupported-layout/type states.
 
 Derive the eleven unscaled features under a recorded demonstration mapping and
 reuse saved scaling once. Do not synthesize a step or a fake PaySim account ID.
 Do not treat supplied derived values as automatically validated model inputs.
 Store currency/calendar assumptions and adapter version; invalidate prior results
 when confirmed inputs change. No receipt-derived ground truth or accuracy metrics.
+
+OCR will run locally; the engine remains undecided. Application images, confirmed
+details, and results will be temporary until Clear or backend shutdown/restart.
+Implement session access isolation and cleanup separately from retained development
+screenshots in `data/raw/receipt_samples/`. These are approved requirements, not
+implemented endpoints. Receipt upload limits, job contracts, and downloads remain
+to be finalized before publishing the receipt API.
 
 ### Configuration and artifact compatibility
 

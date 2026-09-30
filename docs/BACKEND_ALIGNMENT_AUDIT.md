@@ -4,6 +4,9 @@ Historical alignment audit, updated for the three-stage cleanup on 2026-09-28.
 The researcher application integration described as pending below was implemented
 on 2026-09-29; see [current workflow and verification](RESEARCHER_WORKFLOW.md).
 Receipt integration and final evaluation remain pending.
+Receipt requirements below were updated on 2026-09-30 for the approved
+[five-category scope](RECEIPT_WORKFLOW.md), superseding the earlier TRANSFER-only
+restriction. This updates requirements, not the historical code-review findings.
 
 ## Result and scope
 
@@ -47,7 +50,7 @@ tests; it is not an exhaustive security or scientific-validity certification.
 | Risk bands and labels | 5 | Unrounded boundary tests; score bands do not override the saved classification threshold. |
 | Table search, model/outcome filters, pagination | 5 | Whole-dataset querying before paging, one-model/ground-truth requirements for TP/FP/TN/FN, unchanged evaluation population. |
 | ZIP Download results | 5 | results.csv, evaluation.json, offline report.html, metadata.json; exact methods, scope, coverage, precision and missing-value statuses. |
-| GCash person-to-person receipt demonstration | 6 | Extraction, correction, confirmation, TRANSFER-only server enforcement, explicit time/amount assumptions and shared-scaler parity. |
+| Five-category GCash app receipt demonstration | 6 | Per-workflow extraction, correction/confirmation, supported-layout/category/account-role validation, approved time/amount assumptions and shared-scaler parity. Exact layouts, entity mappings, and local OCR engine remain pending. |
 | Limitations/help and full user journeys | 7 | Method-aware help, contextual notices, waterfall accessibility, unlabeled receipt results, failure/recovery and export checks. |
 
 No new on-screen correctness badge, model-run panel, or evaluation metadata panel
@@ -64,6 +67,9 @@ metrics, three-stage freezing/resume/integrity, and SHAP equivalence. See
 retained-data preservation checks.
 
 PR-AUC, McNemar, and SHAP methods are settled in the
-[methodology](METHODOLOGY.md). Receipt mapping/layout/OCR, manual fallback,
-application scheduling, retention, and upload/export limits remain application
-work. Mock-up changes do not require altering the retained raw/prepared data.
+[methodology](METHODOLOGY.md). Receipt account mapping, exact layouts, local OCR
+engine, job/API contracts, and upload/download limits remain to be finalized.
+Post-upload manual completion, optional reference, time/amount assumptions, and
+temporary receipt retention until Clear or backend shutdown/restart are settled
+requirements awaiting implementation; see [receipt decisions](RECEIPT_WORKFLOW.md).
+Mock-up changes do not require altering the retained raw/prepared data.

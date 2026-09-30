@@ -1,6 +1,10 @@
 # Integritree mock-up evaluation and implementation decisions
 
-Updated: 2026-09-22
+Updated: 2026-09-30 (receipt scope and collection decisions)
+
+The approved [five-category receipt workflow](RECEIPT_WORKFLOW.md) supersedes the
+2026-09-22 person-to-person-only restriction. Receipt processing remains planned;
+these documentation changes do not enable OCR or prediction routes.
 
 ## Purpose and status
 
@@ -23,8 +27,9 @@ Status definitions:
 Implementation status: the review is recorded for mock-up revision and backend
 planning. The 2026-09-22 audit also aligned the active comparison-method configuration
 with signed_over_mean while preserving legacy configuration loading. Evaluation,
-SHAP, application APIs, and receipts remain future work. Trained artifacts and the
-manuscript are unchanged. See [the backend alignment audit](BACKEND_ALIGNMENT_AUDIT.md).
+SHAP, and the researcher application have since been implemented; receipt processing
+remains future work. This receipt documentation update changes neither trained
+artifacts nor the Word manuscript. See [the backend alignment audit](BACKEND_ALIGNMENT_AUDIT.md).
 
 ## Decision ledger (matches review numbering)
 
@@ -32,8 +37,8 @@ manuscript are unchanged. See [the backend alignment audit](BACKEND_ALIGNMENT_AU
 | --- | --- | --- |
 | 1 | Existing requirement | Retain both models, five metrics, confusion matrices, descriptive comparison, and the already-present McNemar section. |
 | 2 | Agreed | Add a downloadable CSV template. Schema help and validation behavior below implement the previously reviewed input requirements. |
-| 3 | Agreed scope / input details proposed | Keep GCash person-to-person transfers. Show five transaction-type options with only TRANSFER selectable; other four visibly unsupported/disabled. Timing and amount limitations acknowledged; retain available names/reference. Entity dropdown and optional-field recommendations below remain under review. |
-| 4 | Agreed | Editable extracted fields, required indicators, extraction/correction status, validation errors, replace-image action, unsupported states, and explicit confirmation. Manual-entry fallback remains open. |
+| 3 | Agreed scope / account mapping pending | Target one GCash app workflow per category: Express Send/TRANSFER, OTC cash-in/CASH_IN, OTC cash-out/CASH_OUT, wallet-funded merchant QR/PAYMENT, bank transfer/DEBIT. Manila time, Monday=0 weekday, numeric PHP principal excluding fees, and optional names/reference are settled. Exact layouts and account-role mappings remain pending. |
+| 4 | Agreed | Editable extracted fields, required indicators, extraction/correction status, validation errors, replace-image action, unsupported states, and explicit confirmation. Permit completion after image upload; a separate image-free manual form is outside scope. |
 | 5 | Agreed | Top positive contributor, deterministic explanation, and View SHAP details with a waterfall only. Numerical table is a suggestion, outside the implementation plan. Technical background size/seed and runtime policy still need finalization. |
 | 6 | Agreed | Apply table best practices but retain the existing color-only visual model association for scores/contributors. Visible model badges/subheaders remain suggestions only. No risk sorting; dataset record ID and horizontal scroll retained. Use Model and Prediction outcome filters as specified below. |
 | 7 | Agreed | Use Original Inputs and Derived Inputs sections, show researcher ground truth, preserve return state. Do not add separate correctness/outcome badges or on-screen model-run details. |
@@ -41,7 +46,7 @@ manuscript are unchanged. See [the backend alignment audit](BACKEND_ALIGNMENT_AU
 | 9 | Agreed | Download results as the ZIP package specified below. Put evaluation context/model provenance in the exported package, not a new on-screen evaluation panel. |
 | 10 | Agreed presentation / remaining technical choices | Use signed symmetric percentage difference, standardized help modals, and the comparison/undefined-value policies below. PR-AUC integration and small-discordance McNemar handling still need a specific method choice. |
 | 11 | Requested draft | Comprehensive landing-page copy is provided below for review. |
-| 12 | Agreed direction | Implement exports, processing/error states, result actions, accessibility, responsive layouts, receipt handling, and usability checks. Exact formats, retention duration, and job lifecycle remain open where specified. |
+| 12 | Agreed direction | Implement exports, processing/error states, result actions, accessibility, responsive layouts, receipt handling, and usability checks. Receipt data is temporary until Clear or backend shutdown/restart; receipt download details and job contracts remain pending. |
 
 The earlier database discussion established that an application database is not
 technically mandatory. It did not authorize a particular persistence design.
@@ -74,21 +79,20 @@ Keep official evaluation on held-out PaySim records. Keep the receipt path separ
 and identify it as an experimental demonstration with no established real GCash
 performance. This mapping proposal does not validate transfer between domains.
 
-### Proposed user inputs and mapping
+### Approved scope and assumptions; account mapping pending
 
-| Receipt input | Proposed treatment | Qualification |
+| Receipt input | Treatment/status | Qualification |
 | --- | --- | --- |
-| Provider/layout | Accept supported GCash person-to-person transfer layouts only. | Exact layout list/OCR engine remain open. |
+| Provider/layout | GCash app screenshots for the five selected workflows in the receipt guide. | Exact layouts and local OCR engine remain open; no SMS/email or printed receipt images. |
 | Date and time | Confirm Asia/Manila local date/time; derive hour 0..23 and weekday Monday=0 through Sunday=6. | A demonstration convention: PaySim cycle day 0 is not known to be Monday and its clock has no verified Philippine anchor. |
-| Transfer amount | Parse the confirmed transfer principal, separately from fees; retain currency PHP. Derive log1p(amount) and the zero-amount indicator. | Passing the PHP numeric amount unchanged is an explicit demonstration assumption, NOT a verified conversion into PaySim units. Do not invent exchange rates or infer currency equivalence. |
-| Transaction type | Map confirmed person-to-person transfer to TRANSFER. | Reject merchant payments, cash-out, and other unsupported workflows. |
-| Sender/recipient account type | Confirm both are personal accounts, then set both merchant flags to 0. | Do not classify account types from names alone. Unknown or contradictory account type blocks the supported workflow. |
+| Transaction amount | Parse the confirmed principal, separately from fees; retain currency PHP. Derive log1p(amount) and the zero-amount indicator. | Passing the PHP numeric amount unchanged is an explicit demonstration assumption, NOT a verified conversion into PaySim units. Do not invent exchange rates or infer currency equivalence. |
+| Transaction type | Map Express Send to TRANSFER, OTC cash-in to CASH_IN, OTC cash-out to CASH_OUT, wallet-funded merchant QR to PAYMENT, and bank transfer to DEBIT. | Retain the original service label; reject unsupported or unresolved workflows rather than silently relabeling them. |
+| Account roles | Resolve workflow-specific bank/agent/merchant/customer mappings before deriving entity indicators. | Mapping remains pending. Do not infer C/M from names or automatically equate a cash agent with a PaySim merchant; unresolved required roles block prediction. |
 | Names/reference | Retain only as needed for confirmation and traceability. | Never use personal names, phone numbers, or receipt reference as predictors. |
 
-The researchers acknowledged the timing and currency assumptions on 2026-09-22.
-This does not establish empirical validity. The precise calendar convention and
-numeric amount-mapping details remain to be finalized. Receipt scope is confirmed
-as person-to-person transfers only. If a
+The researchers acknowledged the timing and currency limitations on 2026-09-22
+and approved the conventions above on 2026-09-30. This does not establish empirical
+validity. The expanded five-category scope replaces the earlier restriction. If a
 valid essential input cannot be established, show Unable to analyze. Do not
 substitute arbitrary step values, fabricated PaySim IDs, or model explanations.
 
@@ -97,34 +101,32 @@ establish equivalence, and independently normalizing receipt values does not fix
 the currency/distribution issue. Validated deployment would need representative
 compatible labeled data; that is outside the current PaySim experiment.
 
-### Proposed confirmation fields (2026-09-22)
+### Confirmation fields (updated 2026-09-30; role controls pending)
 
 | Field | Type | Validation and role |
 | --- | --- | --- |
-| Transaction ID / receipt reference | String | Retain leading zeros and visible text; distinguish from a generated internal analysis ID. If unreadable, recommend allowing analysis with an internal ID and marking the receipt reference unavailable. |
-| Amount | Finite nonnegative number | Confirm transfer principal, not balance or fee-inclusive total; retain PHP currency metadata. Use decimal-safe parsing before model conversion. |
+| Receipt reference | Optional string | Retain leading zeros and visible text; distinguish from a generated internal analysis ID. Missing/unreadable reference does not block prediction; mark it unavailable. |
+| Amount | Finite nonnegative number | Confirm transaction principal, not balance or fee-inclusive total; retain PHP currency metadata. Use decimal-safe parsing before model conversion. |
 | Transaction Type | Enum dropdown | TRANSFER, PAYMENT, CASH_IN, CASH_OUT, DEBIT are model categories, not proof that every GCash workflow is supported. |
 | Transaction Date | Date | Required for the selected timing convention. |
 | Transaction Time | Time | Unambiguous AM/PM or 24-hour input; retain Asia/Manila timezone metadata. |
-| Sender Type | Enum dropdown | Customer/non-merchant (C), Merchant (M), with Unknown/not shown as an unresolved UI state, not a third model class. |
-| Recipient Type | Enum dropdown | Same choices; require a resolved compatible type before predicting. |
+| Origin account role | Workflow-specific control, pending mapping | Record the real role and derive C/M only under the versioned mapping; unresolved is a validation state, not a new model class. |
+| Destination account role | Workflow-specific control, pending mapping | Distinguish customer, bank, agent, and merchant where needed; require a resolved compatible mapping before predicting. |
 | Sender name as shown | Optional string | Preserve masking/redaction. Do not require or reconstruct full identity. |
 | Recipient name as shown | Optional string | Same policy; traceability only. |
 
 PaySim C denotes customer/client and M denotes merchant. These are entity codes,
-not first letters of real names. Merchant flags are derived from confirmed types.
+not first letters of real names. Merchant flags require a confirmed, versioned role mapping.
 A cash-out agent is not automatically a merchant; unsupported roles need their own
 mapping. All original training senders are C in the supplied file, so selecting a
 merchant sender would be outside the observed training support for that feature.
 
-Agreed in the 2026-09-22 follow-up: list all five transaction categories, with only
-TRANSFER enabled for the initial receipt workflow. PAYMENT, CASH_IN, CASH_OUT,
-and DEBIT remain visible but disabled and labelled Unsupported for now. Show a
-nearby explanation because disabled options cannot reliably expose hover help.
-The backend must reject these unsupported receipt types as well. Do not silently
-relabel a detected payment/cash-out receipt as a transfer to fit the form.
-Supporting all categories later requires layouts, type/entity-role mappings, and
-validation cases for each. Research CSV processing still supports all five types.
+Historical decision (2026-09-22, superseded 2026-09-30): only TRANSFER was to be
+enabled, with the other four categories visible but disabled. The current target
+is all five selected workflows. Enable receipt prediction only after each workflow's
+layout and entity-role mapping is validated, and enforce the same rules server-side.
+Do not silently relabel unsupported or ambiguous receipts. Research CSV processing
+already supports all five types and is unchanged.
 
 Available masked names/reference may be retained for traceability as agreed.
 Exact names are optional and never model inputs. Names must not determine C/M.
@@ -503,8 +505,9 @@ model differences, and McNemar's test on compatible labeled data.
 
 ### How it works - For the receipt demonstration
 
-1. **Upload a supported receipt.** Choose a GCash person-to-person transfer receipt
-   in a supported image format.
+1. **Upload a supported receipt.** Choose a GCash app screenshot from one of the
+   five selected workflows in a supported image format. Publish the exact supported
+   layouts once implemented; this draft does not claim they already work.
 2. **Confirm transaction details.** Review extracted fields, correct mistakes, and
    complete required information.
 3. **Check compatibility.** Integritree checks whether the confirmed details fit
@@ -605,11 +608,12 @@ Proposed progress stages: uploading, validating or extracting, awaiting confirma
 predicting, explaining, ready, partial failure, failed. Use real measured progress
 where available; otherwise show an indeterminate stage rather than invented progress.
 
-Proposed receipt policy: temporary processing, no automatic permanent receipt
-history, and explicit cleanup of uploads and personal details. Retention duration,
-expiration, and recovery behavior remain open. Keep research artifact preservation
-separate from personal receipt retention. Isolate analysis access if multiple users
-can reach the service; do not expose files/results by a guessable record ID alone.
+Approved receipt policy (implementation pending): retain application images,
+confirmed details, and results until Clear or backend shutdown/restart, with no
+permanent receipt history or selected timed expiry. Browser closure alone does not
+promise deletion. Retained development screenshots in `data/raw/receipt_samples/`
+and research artifacts are outside application cleanup. Isolate analysis access;
+do not expose files/results by a guessable record ID alone.
 
 An application database remains optional. Files plus run metadata can support the
 prototype; accounts/history/persistent shared jobs would require a further design.
@@ -677,25 +681,27 @@ Do not add a mandatory acceptance checkbox unless separately requested/justified
 The mock-up corrections can proceed. The following details do not reopen approved
 presentation decisions; resolve each before its dependent backend feature ships.
 
-1. Entity dropdown presentation and optional name/reference handling. Receipt scope
-   is settled: person-to-person only, with the other four type options disabled.
-   Exact names remain optional in the recommendation; an unreadable reference is proposed
-   to remain unavailable while an internal analysis ID preserves traceability.
-2. Exact weekday/time convention and documented numeric amount mapping, following
-   acknowledgement of their limitations. No conversion validated by these decisions.
+1. Entity-role controls/mapping for all five selected receipt workflows. Names and
+   reference are optional; an unavailable reference stays unavailable while an
+   internal analysis ID preserves traceability. Banks/agents require explicit mapping.
+2. Exact supported GCash app layouts, local OCR engine, upload limits, receipt API/
+   job contracts, and receipt downloads. Time/amount assumptions are settled in the
+   [receipt guide](RECEIPT_WORKFLOW.md); their cross-domain equivalence is not validated.
 3. Final SHAP background size/seed/runtime coverage and export-job lifecycle.
 4. Optional model-association tooltips; visible model badges remain suggestions only.
 5. PR-AUC integration method and McNemar small-discordance handling. The signed
    comparison formula, negative-MCC comparison, undefined-value display, and
    zero-discordance presentation are approved.
-6. Landing-page draft copy and retention duration. Help/limitations content is
-   approved, subject to filling in actual methods and implemented retention facts.
+6. Landing-page draft copy and verification of implemented retention behavior.
+   Help/limitations content must distinguish the approved temporary receipt policy
+   from actual functionality until cleanup is implemented and checked.
 
 Approved and no longer open: communication-band names/boundaries; Original Inputs
 and Derived Inputs names; no correctness badges; no on-screen model-run/evaluation
 panel; color-only visible model association in score/contributor cells; SHAP
 three-level presentation and deterministic narrative; evaluation metadata in exports;
-person-to-person receipt scope with a five-option, TRANSFER-only-enabled dropdown;
+five selected GCash app receipt workflows, local OCR, post-upload completion,
+optional reference, time/amount assumptions, and temporary application retention;
 replacement filters; ZIP export; signed symmetric percentage difference and its
 edge-case presentation; standardized help modals; Research Scope and Limitations page.
 
@@ -716,6 +722,11 @@ edge-case presentation; standardized help modals; Research Scope and Limitations
 
 ## Change history
 
+- 2026-09-30: Approved five-category GCash app scope, superseding the person-to-person/
+  TRANSFER-only restriction. Settled local OCR, Manila/Monday-based time, numeric PHP
+  principal excluding fees, completion after upload, optional reference, and temporary
+  application storage. Added retained sample collection guidance. Exact layouts,
+  account-role mappings, and local OCR engine remain pending; no receipt code enabled.
 - 2026-09-22 (backend alignment review): Deferred the numerical SHAP table; waterfall
   is the sole expanded SHAP view. Audited Phases 1-3, aligned the active signed
   comparison configuration with legacy compatibility, and updated future-phase
@@ -730,7 +741,8 @@ edge-case presentation; standardized help modals; Research Scope and Limitations
   export-only metadata. Reopened percentage convention for a signed option. Added
   proposed receipt dropdowns/optional masked names, ZIP recommendation, standardized
   help copy, and limitations-page proposal. Application code remains unchanged.
-  Follow-up confirmed person-to-person scope and visible disabled non-transfer options.
+  Follow-up confirmed person-to-person scope and visible disabled non-transfer options
+  (superseded by the 2026-09-30 expansion).
 - 2026-09-21: Initial record from the researchers' numbered response. Recorded
   explicit agreements separately from proposed resolutions. Included corrected
   results-page coverage, ignored screenshot numbers, and drafted landing copy.

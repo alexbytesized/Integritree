@@ -62,8 +62,13 @@ the proposed destination-merchant feature would duplicate that type indicator.
 These are observations, not permission to remove manuscript features.
 
 Fraud labels occur in TRANSFER and CASH_OUT only. This does not authorize filtering
-the research dataset to those types. Sixteen records have zero amounts; keep valid
-unusual transactions. There is no calendar date/timezone anchor in the CSV, so
+the research dataset to those types. All five categories are present and supported
+by the trained models. CASH_IN, PAYMENT, and DEBIT contain no original fraud-positive
+examples in this dataset; this reflects the synthetic scenario/label coverage, not
+an absence of real-world fraud. SMOTE does not create missing real-world evidence
+or validate fraud detection for those categories. Receipt input coverage must not
+be reported as real GCash fraud-detection performance. Sixteen records have zero
+amounts; keep valid unusual transactions. There is no calendar date/timezone anchor in the CSV, so
 derived day/hour features must have an explicit simulation-time interpretation.
 
 ## Phase 1 software decisions
@@ -159,8 +164,9 @@ only when they do not learn from the full dataset.
 Preparation, paired training/inference, evaluation, three-stage selection, and
 SHAP are implemented. The canonical protocol supplies candidate ranges and
 selection rules. Final selected values come only from completed stages.
-Application services, receipt mapping/OCR, persistence, and retention remain
-pending; see [the implementation plan](BACKEND_IMPLEMENTATION_PLAN.md).
+The researcher application workflow is implemented. Receipt mapping/OCR and its
+approved temporary-storage lifecycle remain to be implemented; see
+[the implementation plan](BACKEND_IMPLEMENTATION_PLAN.md).
 
 ## Phase 2 implementation details
 
@@ -263,8 +269,19 @@ See [implementation details](PHASE4_IMPLEMENTATION.md),
 
 Top positive contributor and deterministic prose apply to either prediction class;
 expanded details use a waterfall only. The numerical table is suggestion-only.
-GCash receipt demonstration remains experimental person-to-person TRANSFER only.
+On 2026-09-30, the approved experimental receipt scope expanded to one GCash app
+workflow per PaySim category: Express Send/TRANSFER, over-the-counter cash-in/CASH_IN,
+over-the-counter cash-out/CASH_OUT, wallet-funded merchant QR/PAYMENT, and bank
+transfer/DEBIT. This supersedes the earlier person-to-person-only restriction.
+These are semantic demonstration mappings, not verified cross-domain equivalence.
 Names, reference IDs, balances, and ground truth are not predictor inputs.
-Receipt mapping, OCR, confirmation/fallback, and retention remain application work.
+Approved mapping assumptions are Asia/Manila hour, Monday=0 weekday, and numeric
+PHP principal excluding fees, with saved transformations reused once. Local OCR,
+editable completion after image upload, explicit confirmation, optional string
+reference, and temporary application storage until Clear or backend shutdown/restart
+are settled requirements awaiting implementation. Exact layouts, the OCR engine,
+and account-role/merchant-indicator mappings remain pending. No feature semantics,
+model artifacts, or research settings are changed by this scope decision.
+See [receipt decisions and sample collection](RECEIPT_WORKFLOW.md).
 See [mock-up decisions](MOCKUP_EVALUATION_DECISIONS.md) and
 [help content](UI_HELP_CONTENT.md).

@@ -74,9 +74,15 @@ The manuscript corrections remain unchecked until reviewed and applied.
 
 - [ ] **Clarify Chapters 1 and 3:** PaySim is synthetic; its held-out evaluation
   does not establish performance on actual GCash/Maya transaction databases.
-- [ ] **Add the experimental demonstration scope:** initial GCash person-to-person
-  receipt upload, extraction, user confirmation/completion, input mapping, and
-  both models' predictions. This is planned work, not currently implemented.
+- [ ] **Add the experimental demonstration scope:** GCash app screenshots for
+  Express Send/TRANSFER, over-the-counter cash-in/CASH_IN, over-the-counter cash-out/
+  CASH_OUT, wallet-funded merchant QR/PAYMENT, and bank transfer/DEBIT. Include local
+  extraction, confirmation/completion, mapping, and both models' predictions.
+  This 2026-09-30 decision supersedes person-to-person-only scope and remains planned.
+- [ ] **Distinguish category coverage from fraud coverage:** all five types are
+  included in the dataset/models, but original fraud labels occur only in TRANSFER
+  and CASH_OUT. Neither SMOTE nor accepting five receipt types validates detection
+  of real GCash fraud in the other categories.
 - [ ] **Clarify receipt behavior:** the models operate on structured transaction
   features, not receipt pixels. The system does not verify image authenticity,
   identify a proven scam category, or confirm that a transaction was actually fraud.
@@ -100,9 +106,13 @@ The manuscript corrections remain unchecked until reviewed and applied.
   known ground truth, model/outcome filters, ZIP results/evaluation/provenance export,
   and Research Scope and Limitations. No extra correctness badge, on-screen run
   panel, or on-screen evaluation metadata panel is required by the agreed UI.
-- [ ] **Finalize receipt mapping before demonstration:** amount units, time
-  convention, transaction type, entity indicators, missing/unreadable fields,
-  manual fallback, and receipt retention. Do not fabricate unavailable inputs.
+- [ ] **Record settled receipt decisions:** Manila hour/Monday=0 weekday, numeric
+  PHP principal excluding fees, post-upload correction/completion and confirmation,
+  optional reference, local OCR, temporary data until Clear or backend shutdown/
+  restart, and separately retained development samples. No image-free manual entry.
+- [ ] **Finalize receipt mapping before demonstration:** exact app layouts, local
+  OCR engine, bank/agent/merchant indicators, API/job contracts and upload/download
+  limits. Do not fabricate unavailable inputs. See [receipt guide](RECEIPT_WORKFLOW.md).
 
 ## Suggested replacement passages for review
 

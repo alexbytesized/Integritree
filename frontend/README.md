@@ -2,9 +2,13 @@
 
 Integritree implementation handoff: use the [agreed mock-up corrections](../docs/MOCKUP_EVALUATION_DECISIONS.md)
 and [help/limitations copy](../docs/UI_HELP_CONTENT.md). The expanded SHAP view is
-waterfall-only; a numerical table is suggestion-only. Backend endpoints beyond
-health remain planned; see [API status and future requirements](../docs/API.md).
-This documentation update does not replace the current frontend mock data.
+waterfall-only; a numerical table is suggestion-only. Researcher CSV APIs and
+frontend integration are implemented; individual receipt APIs remain planned.
+See [API status and future requirements](../docs/API.md) and the approved
+[five-category receipt workflow](../docs/RECEIPT_WORKFLOW.md). Receipt screens still
+use mock values. Their future integration must support the five selected workflows,
+editable confirmation, optional reference, and workflow-specific account validation.
+This documentation update does not enable receipt prediction or replace mock data.
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
