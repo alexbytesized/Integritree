@@ -1,6 +1,6 @@
 # Backend interface contracts
 
-Last updated: 2026-10-01. Researcher CSV analysis is connected to the frontend; receipt APIs remain future work. The approved five-category receipt scope is documented in [receipt workflow decisions](RECEIPT_WORKFLOW.md).
+Last updated: 2026-10-01. Researcher CSV analysis and the initial receipt workflows are connected to the frontend. See [receipt routes and wire contracts](RECEIPT_APPLICATION.md). The approved five-category receipt scope is documented in [receipt workflow decisions](RECEIPT_WORKFLOW.md).
 
 ## Available HTTP endpoint
 
@@ -16,14 +16,14 @@ Last updated: 2026-10-01. Researcher CSV analysis is connected to the frontend; 
 
 This confirms application availability. Startup validates application settings and
 the experiment configuration and creates/cleans its isolated temporary research
-session directory. It does not load models or datasets, train, or verify inference readiness. Unresolved draft methodology fields
+session directory and temporary receipt storage. It does not load models or datasets, train, or verify inference readiness. Unresolved draft methodology fields
 are allowed; malformed configuration stops startup with an error.
 
 Run the app using the factory command in [the backend README](../backend/README.md).
 FastAPI provides `/docs`, `/redoc`, and `/openapi.json`.
 Research routes are also registered; models load lazily on the first analysis.
 
-CORS permits GET, POST, and DELETE requests with Content-Type and X-Research-Session headers from `http://localhost:5173` and
+CORS permits GET, POST, and DELETE requests with Content-Type, X-Research-Session and X-Receipt-Session headers from `http://localhost:5173` and
 `http://127.0.0.1:5173` by default. Configure explicit origins with
 `INTEGRITREE_CORS_ORIGINS` as a JSON array in local settings.
 CORS is browser configuration, not authentication.
@@ -66,7 +66,8 @@ PaySim balances/flag are source information, not model features.
 
 Definitions live in `backend/src/integritree/contracts.py`; the reserved request
 envelope is in `backend/src/integritree/api/schemas.py`.
-The single-record prediction and receipt endpoints remain reserved. Research endpoints are documented below.
+The raw PaySim single-record prediction envelope remains reserved. Receipt endpoints
+use separate [confirmed-image contracts](RECEIPT_APPLICATION.md); researcher routes are above.
 
 | Contract | Meaning |
 | --- | --- |
@@ -85,7 +86,7 @@ zero remains valid. Labels are integer 0 or 1; steps and source rows are positiv
 integers. Transaction type must match one of the five PaySim categories.
 Phase 2 implements CSV parsing and an ingestion boundary for permitted missing
 amount/type values. Complete-record HTTP contracts remain strict; receipt mapping
-is a later responsibility.
+uses the separate implemented receipt adapter.
 
 Paired results allow model disagreement and contain no fabricated correctness
 or evaluation metrics. Evaluation must join separately established ground truth
@@ -96,8 +97,7 @@ These contracts define data boundaries; they do not prove that arbitrary labeled
 datasets or real GCash transactions are compatible with a PaySim-trained model.
 The engineered feature list and simulation-time convention are now approved in
 [METHODOLOGY.md](METHODOLOGY.md). Scores now use mean-tree fraud probability with
-the frozen shared >=0.43 cutoff for the current selected researcher bundle. Receipt mapping and prediction endpoint contracts
-remain decisions for their dependent phases.
+the frozen shared >=0.43 cutoff for the current selected researcher bundle. Receipt mapping and job contracts are documented in the receipt application guide.
 
 ## Configuration command
 
@@ -123,7 +123,7 @@ status is `complete`; it is not a trained model or an evaluation result.
 
 ## Phase 3 Python inference boundary
 
-No prediction HTTP route has been added. Python callers use `load_bundle(path)`
+This raw PaySim helper is not a standalone HTTP route. Python callers use `load_bundle(path)`
 and `predict_records(bundle, inputs, transaction_ids)`. Inputs contain exactly the
 five raw predictor attributes and reuse saved preprocessing without refitting.
 The returned DataFrame preserves input order and includes `transaction_id`,
@@ -132,11 +132,11 @@ The returned DataFrame preserves input order and includes `transaction_id`,
 Ground truth is supplied separately to evaluation, never to the models.
 Scores are 0..1; SHAP explanations and correctness fields are not fabricated.
 
-## Approved future contract requirements (not available endpoints)
+## Approved application contract requirements
 
-The following are Phase 4-6 implementation requirements, not descriptions of the
-current OpenAPI schema. Exact route names and wire schemas must be documented
-when implemented. See [the alignment audit](BACKEND_ALIGNMENT_AUDIT.md) and
+The following are cross-phase requirements. The researcher routes above and
+[receipt application guide](RECEIPT_APPLICATION.md) define implemented HTTP schemas;
+requirements below are not literal wire field names. See [the alignment audit](BACKEND_ALIGNMENT_AUDIT.md) and
 [the phase plan](BACKEND_IMPLEMENTATION_PLAN.md).
 
 | Response area | Required semantics |
@@ -175,9 +175,9 @@ The current PredictorInput request remains a raw PaySim contract. Separate inter
 [confirmed-receipt contracts and paired inference](RECEIPT_MAPPING.md) now validate
 optional reference string, PHP principal, Manila
 date/time, original GCash workflow label, mapped PaySim category, account roles,
-optional masked names, and extraction/correction provenance. This is not a new HTTP
-endpoint: server-owned source context must come from a validated image job, not from
-a client request. The initial adapter accepts Express Send, Pay Online and confirmed
+optional masked names, and extraction/correction provenance. The receipt HTTP
+service creates server-owned source context from a validated image job; it never
+accepts that context from a client request. The initial adapter accepts Express Send, Pay Online and confirmed
 bank-account transfers; QR and cash categories are rejected until supported. Target Express Send
 (TRANSFER), over-the-counter cash-in (CASH_IN), over-the-counter cash-out (CASH_OUT),
 wallet-funded merchant QR or Pay Online (PAYMENT), and GCash-to-bank transfer (DEBIT),
@@ -194,20 +194,20 @@ The internal adapter derives the eleven unscaled features under `gcash_confirmed
 and reuses saved scaling once through `transform_engineered`. Do not synthesize a step or a fake PaySim account ID.
 Do not treat supplied derived values as automatically validated model inputs.
 Immutable confirmations retain currency/calendar assumptions and mapping version.
-Revision fingerprints and `is_current` enable stale-result detection; the future
-service must invalidate cached results when confirmed inputs change. No receipt-derived ground truth or accuracy metrics.
+Revision fingerprints and `is_current` enable stale-result detection; the service
+invalidates cached results when confirmed inputs change. No receipt-derived ground truth or accuracy metrics.
 
 The local [OCR baseline](RECEIPT_OCR_BENCHMARK.md) provisionally selects RapidOCR.
 Its parser returns candidates only; it does not validate account roles or authorize
 prediction. A Bank Transfer heading can also lead to a wallet destination.
 Accept one PNG/JPEG at a time, at most 10 MiB and 20,000,000 decoded pixels. Release
 verified workflows first; CASH_IN/CASH_OUT await samples. Application images, confirmed
-details, and results will be temporary until Clear or backend shutdown/restart.
-Implement session access isolation and cleanup separately from retained development
-screenshots in `data/raw/receipt_samples/`. These are approved requirements, not
-implemented endpoints. Individual ZIP downloads will include confirmed inputs,
-paired predictions, explanations, and model/mapping provenance, excluding the image
-and evaluation metrics. Exact job/API/ZIP contracts remain to be finalized.
+details, and results are temporary until Clear or backend shutdown/restart.
+Session access isolation and cleanup are implemented separately from retained
+development screenshots in `data/raw/receipt_samples/`. Individual ZIPs include
+confirmed inputs, paired predictions, explanations, and model/mapping provenance,
+excluding the image and evaluation metrics. See the receipt application guide
+for exact routes, states, errors and ZIP contracts.
 
 ### Configuration and artifact compatibility
 
@@ -229,8 +229,7 @@ server limit are implemented. See the researcher route table and workflow above.
 
 ## Phase 4 Python interfaces (2026-09-23)
 
-These Phase 4 Python interfaces now underpin the researcher HTTP services. The
-single-record receipt routes remain future work:
+These Phase 4 Python interfaces now underpin researcher and receipt HTTP services:
 
 - `ml.research.evaluate_run(...)`: paired full-split predictions, metrics, AP,
   comparisons, McNemar, figures, and provenance. Validation is the default;
@@ -256,9 +255,9 @@ single-record receipt routes remain future work:
 - `ml.explainability.explain_report(...)`: paired preview/sample/full coverage from
   an existing evaluation report, selected identities, and mean absolute SHAP summary.
 
-These are local execution interfaces, not yet thread-safe HTTP job contracts.
-Phase 5 must define bounded work queues, status/error responses, ownership,
-portable asset URLs/downloads, and pagination. Never expose a local filesystem
+These are local execution interfaces wrapped by application services with bounded
+work queues, status/error responses, ownership, portable asset URLs/downloads,
+and researcher pagination. Never expose a local filesystem
 path directly as the final client asset contract. No new unlabeled request should
 receive evaluation metrics or an invented actual label. See
 [Phase 4 contracts and evidence](PHASE4_IMPLEMENTATION.md).

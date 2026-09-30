@@ -4,7 +4,7 @@ Updated: 2026-10-01 (receipt decisions and local OCR baseline)
 
 The approved [five-category receipt workflow](RECEIPT_WORKFLOW.md) supersedes the
 2026-09-22 person-to-person-only restriction. A local audit/OCR comparison is now
-implemented; receipt application routes remain pending. See the
+implemented; [receipt application routes and UI](RECEIPT_APPLICATION.md) are now connected. See the
 [baseline evidence](RECEIPT_OCR_BENCHMARK.md).
 
 ## Purpose and status
@@ -47,7 +47,7 @@ artifacts nor the Word manuscript. See [the backend alignment audit](BACKEND_ALI
 | 9 | Agreed | Download results as the ZIP package specified below. Put evaluation context/model provenance in the exported package, not a new on-screen evaluation panel. |
 | 10 | Agreed presentation / remaining technical choices | Use signed symmetric percentage difference, standardized help modals, and the comparison/undefined-value policies below. PR-AUC integration and small-discordance McNemar handling still need a specific method choice. |
 | 11 | Requested draft | Comprehensive landing-page copy is provided below for review. |
-| 12 | Agreed direction | Implement exports, processing/error states, result actions, accessibility, responsive layouts, receipt handling, and usability checks. Receipt data is temporary until Clear or backend shutdown/restart; individual ZIP contents are agreed (confirmed inputs, paired results, explanations, provenance; no image or evaluation metrics), while exact file/job contracts remain pending. |
+| 12 | Agreed direction | Implement exports, processing/error states, result actions, accessibility, responsive layouts, receipt handling, and usability checks. Receipt data is temporary until Clear or backend shutdown/restart; individual ZIP contents are agreed (confirmed inputs, paired results, explanations, provenance; no image or evaluation metrics), with exact file/job contracts in the receipt application guide. |
 
 The earlier database discussion established that an application database is not
 technically mandatory. It did not authorize a particular persistence design.
@@ -84,7 +84,7 @@ performance. This mapping proposal does not validate transfer between domains.
 
 | Receipt input | Treatment/status | Qualification |
 | --- | --- | --- |
-| Provider/layout | GCash app screenshots for the selected workflows across all five categories in the receipt guide. | RapidOCR is provisionally selected; exact layout release checks remain pending. No SMS/email or printed receipt images. |
+| Provider/layout | GCash app screenshots for the selected workflows across all five categories in the receipt guide. | RapidOCR is provisionally selected; initial Express Send, Pay Online and bank-account layout gates are implemented; cash/QR remain pending. No SMS/email or printed receipt images. |
 | Date and time | Confirm Asia/Manila local date/time; derive hour 0..23 and weekday Monday=0 through Sunday=6. | A demonstration convention: PaySim cycle day 0 is not known to be Monday and its clock has no verified Philippine anchor. |
 | Transaction amount | Parse the confirmed principal, separately from fees; retain currency PHP. Derive log1p(amount) and the zero-amount indicator. | Passing the PHP numeric amount unchanged is an explicit demonstration assumption, NOT a verified conversion into PaySim units. Do not invent exchange rates or infer currency equivalence. |
 | Transaction type | Map Express Send to TRANSFER, OTC cash-in to CASH_IN, OTC cash-out to CASH_OUT, wallet-funded merchant QR or Pay Online to PAYMENT, and bank transfer to DEBIT. | Retain the original service label; reject unsupported or unresolved workflows rather than silently relabeling them. |
@@ -331,6 +331,9 @@ record-detail display:
 
 Ordinary receipts lack independently established labels: omit correctness/outcome
 and ground truth. Never ask users to supply a label as a predictor.
+Implemented in receipt results: Ground Truth and Outcome cards are hidden in all
+model tabs. Shared researcher components provide the same fraud-threshold line,
+score bands, interpretations and SHAP modal; labeled researcher cards remain.
 
 A model run is the saved training bundle used for the prediction, not the uploaded
 file or the upload time. Retain its exact internal identifier and export it.
@@ -609,7 +612,7 @@ Proposed progress stages: uploading, validating or extracting, awaiting confirma
 predicting, explaining, ready, partial failure, failed. Use real measured progress
 where available; otherwise show an indeterminate stage rather than invented progress.
 
-Approved receipt policy (implementation pending): retain application images,
+Implemented receipt policy: retain application images,
 confirmed details, and results until Clear or backend shutdown/restart, with no
 permanent receipt history or selected timed expiry. Browser closure alone does not
 promise deletion. Retained development screenshots in `data/raw/receipt_samples/`
@@ -730,7 +733,7 @@ edge-case presentation; standardized help modals; Research Scope and Limitations
 - 2026-10-01: Added wallet-funded Pay Online to PAYMENT, settled personal-wallet
   role mappings for TRANSFER/PAYMENT/DEBIT, one-image 10 MiB / 20-million-pixel limits,
   staged release and individual ZIP contents. Completed local audit/OCR baseline;
-  RapidOCR is provisional, date and role failures remain. Receipt routes are pending.
+  RapidOCR is provisional; date and role review remains required. Receipt routes are connected.
 
 - 2026-09-30: Approved five-category GCash app scope, superseding the person-to-person/
   TRANSFER-only restriction. Settled local OCR, Manila/Monday-based time, numeric PHP

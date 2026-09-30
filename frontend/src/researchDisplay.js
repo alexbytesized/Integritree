@@ -14,16 +14,16 @@ export const weekdayText = (value) => value != null && value !== '' && WEEKDAYS[
 export const booleanText = (value) => value === true || value === 1 || value === '1' ? '1 (True)'
   : value === false || value === 0 || value === '0' ? '0 (False)' : value
 
-export function featureText(feature, derived = {}) {
+export function featureText(feature, derived = {}, context = 'research') {
   const value = derived[feature.feature]
-  if (feature.feature === 'day_of_week' && value != null) return `Simulated weekday: ${weekdayText(value)}`
-  if (feature.feature === 'hour_of_day' && value != null) return `Simulated hour: ${value}`
+  if (feature.feature === 'day_of_week' && value != null) return `${context === 'receipt' ? 'Manila' : 'Simulated'} weekday: ${weekdayText(value)}`
+  if (feature.feature === 'hour_of_day' && value != null) return `${context === 'receipt' ? 'Manila' : 'Simulated'} hour: ${value}`
   return (feature.readable_value || feature.feature.replaceAll('_', ' '))
     .replaceAll('CASH_IN', 'cash in').replaceAll('CASH_OUT', 'cash out')
     .replaceAll('TRANSFER', 'transfer').replaceAll('PAYMENT', 'payment').replaceAll('DEBIT', 'debit')
 }
 
-export function shapSummary(explanation, model, derived) {
+export function shapSummary(explanation, model, derived, context = 'research') {
   const item = explanation?.models?.[model]
   if (!item) return explanation?.status === 'failed'
     ? 'The explanation could not be loaded. Open the full SHAP evaluation to retry.'
@@ -35,7 +35,7 @@ export function shapSummary(explanation, model, derived) {
     const verb = direction === 1 ? 'raised' : 'lowered'
     if (!factors.length) return `No transaction details meaningfully ${verb} the score.`
     return `The main details that ${verb} the score were: ${factors.map(f =>
-      `${featureText(f, derived)} (${direction === 1 ? '+' : '−'}${scoreText(Math.abs(f.contribution) * 100)} percentage points)`
+      `${featureText(f, derived, context)} (${direction === 1 ? '+' : '−'}${scoreText(Math.abs(f.contribution) * 100)} percentage points)`
     ).join('; ')}.`
   }
   return `SHAP shows how transaction details raised or lowered this model’s fraud score. ${describe(1)} ${describe(-1)} These contributions explain the model’s score; they do not prove that a detail caused fraud.`

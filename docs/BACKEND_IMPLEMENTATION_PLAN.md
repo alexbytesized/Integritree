@@ -23,7 +23,8 @@ The planned application will support two uses of the same saved RF and RF-SMOTE 
   categories, confirmed details, and both models' predictions, scores, and explanations.
   The [2026-09-30 receipt decisions](RECEIPT_WORKFLOW.md) supersede the earlier
   person-to-person-only scope; the 2026-10-01 local audit/OCR baseline is implemented,
-  while receipt application integration remains pending. See
+  and initial receipt application integration is now implemented. See
+  [receipt operation and verification](RECEIPT_APPLICATION.md). See
   [measured results and remaining gaps](RECEIPT_OCR_BENCHMARK.md).
 
 Read [THESIS_CONTEXT.md](THESIS_CONTEXT.md) for the manuscript requirements,
@@ -39,9 +40,9 @@ does not approve an algorithm change or a Chapter 3 rewrite.
 | 2 | Dataset and preprocessing | Audited, reproducible splits and training-fitted transformations | Complete |
 | 3 | Training and saved inference | Baseline trainer and reloadable paired model bundles | Training code complete; fresh candidates come from the three-stage run |
 | 4 | Research evaluation and SHAP | Verified evaluation reports and model explanations | Code complete; Stages 1-2 frozen; Stage 3 uses the 1%-100% grid |
-| 5 | Application services and API | Research and individual structured-record workflows | Researcher CSV workflow implemented; receipt prediction remains |
-| 6 | GCash receipt demonstration | Image extraction, confirmation, mapping, and prediction | Local audit/OCR baseline and confirmed-input paired prediction complete; application integration pending |
-| 7 | Integration and reproducibility | Backend handoff validated against the frontend workflows | Researcher integration checked; receipt and whole-tool verification remain |
+| 5 | Application services and API | Research and individual structured-record workflows | Researcher CSV and receipt job workflows implemented |
+| 6 | GCash receipt demonstration | Image extraction, confirmation, mapping, and prediction | Express Send, Pay Online and bank-account paths connected; cash/QR layouts remain |
+| 7 | Integration and reproducibility | Backend handoff validated against the frontend workflows | Researcher and initial receipt integration checked; broader layout acceptance remains |
 
 The existing foundation is reusable; Phases 1-3 are complete for their stated
 PaySim/baseline scope. Their current contracts are not the complete application
@@ -358,7 +359,9 @@ Completion checks:
 
 Implemented foundation: [confirmed contracts, mapping and paired prediction](RECEIPT_MAPPING.md)
 for Express Send, Pay Online and bank-account transfers, with shared-scaler parity.
-Image authorization, HTTP jobs, confirmation UI, explanations/ZIPs and cleanup remain.
+Image ownership/layout gates, HTTP jobs, confirmation UI, explanations/ZIPs and
+cleanup are implemented. See [connection status and checks](RECEIPT_APPLICATION.md).
+The work list below describes the phase requirements; cash/QR expansion remains.
 
 Work:
 
@@ -400,14 +403,14 @@ Work:
   numeric PHP amount assumption, type/entity mapping, required fields and provenance.
   Neither derived features nor a disclaimer validates cross-domain equivalence.
   Store extracted and confirmed values with correction status and adapter version;
-  revision fingerprints identify stale results. The future service must invalidate
+  revision fingerprints identify stale results. The application service invalidates
   stored predictions/explanations/downloads when confirmation changes.
 - Where required model inputs cannot be supplied or mapped defensibly, return an
   explanation of the missing/unsupported input rather than fabricated values.
-- Implement receipt routes and connect confirmed records to the prediction service.
+- Implemented receipt routes connecting confirmed records to the prediction service.
   Permit completion of unreadable fields after a supported image upload and require
   confirmation; a separate image-free manual form is outside the approved scope.
-- Implement temporary storage of images, confirmed details, and results until Clear
+- Implemented temporary storage of images, confirmed details, and results until Clear
   or backend shutdown/restart, with no permanent receipt history. Browser closure
   alone does not guarantee deletion. Exclude personal contents from logs/fixtures;
   cleanup must never touch the retained development sample collection or research data.
@@ -415,7 +418,7 @@ Work:
   forgery detection remains outside scope.
   Supply supported-scope and mapping information for Research Scope and Limitations
   and brief contextual receipt notices. Actual retention behavior must match the page.
-- Add an individual ZIP containing confirmed inputs, paired results, explanations,
+- Implemented an individual ZIP containing confirmed inputs, paired results, explanations,
   and mapping/model provenance; exclude original images and evaluation metrics.
 
 Completion checks:

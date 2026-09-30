@@ -2,7 +2,8 @@
 
 Implemented 2026-10-01: internal confirmation contracts, versioned feature mapping,
 shared saved scaling, and paired prediction. **Image jobs, receipt HTTP routes,
-frontend confirmation, SHAP/export integration and cleanup are not connected yet.**
+frontend confirmation, SHAP/export integration and cleanup are now connected** in
+the [receipt application](RECEIPT_APPLICATION.md).
 This milestone does not enable an image-free manual-entry workflow.
 
 ## Supported mapping boundary
@@ -46,7 +47,7 @@ validated transfer of PaySim fraud patterns to GCash.
 
 **ReceiptSource is trusted service context, not a client request body.** Its initial
 layout IDs (`gcash_express_send_v1`, `gcash_pay_online_v1`,
-`gcash_bank_transfer_v1`) identify mapping targets. The next image service must verify
+`gcash_bank_transfer_v1`) identify mapping targets. The image service verifies
 upload ownership/existence/fingerprint, file limits and actual supported layout
 before creating this context. The current mapping validates metadata consistency;
 it does not read or authenticate an image. A parser's workflow guess cannot be used
@@ -85,7 +86,7 @@ times and other timezones are rejected rather than silently converted. Optional
 reference/names accept nonblank strings up to 256 characters, or null when unavailable;
 reference leading zeros are preserved. Extra properties, including labels, balances,
 raw PaySim fields and supplied feature vectors, are rejected. Validation errors
-identify fields or compatibility rules; a future HTTP handler must omit raw input
+identify fields or compatibility rules; the HTTP handler omits raw input
 and exception context from public errors/logs.
 
 ## Confirmation, provenance and prediction
@@ -114,13 +115,13 @@ are unchanged. This method is low-level code, not an arbitrary feature-matrix AP
 `predict_receipt(bundle, receipt)` uses a trusted loaded bundle, both models and its
 saved shared threshold. The internal result contains the confirmation snapshot,
 unscaled/scaled features and paired predictions with analysis ID and model run ID.
-It produces no ground truth or evaluation metrics. It does not compute receipt SHAP
-or ZIPs yet; those integrations will reuse this validated path.
+It produces no ground truth or evaluation metrics. The application service reuses
+this validated path before computing receipt SHAP and building ZIPs.
 
 `input_sha256` binds the image context, extracted/confirmed fields, revision and
 mapping version. `ReceiptPrediction.is_current(receipt)` rejects results from a
-different confirmation. The future service must store/check this identity and
-invalidate cached predictions, explanations and downloads on revision. The helper
+different confirmation. The application service stores this identity and
+invalidates cached predictions, explanations and downloads on revision. The helper
 does not itself manage application sessions or delete cached data.
 
 ## Verification
@@ -131,7 +132,7 @@ Test-only source steps and entity IDs serve as equivalence witnesses; production
 receipt code never fabricates them. Tests compare saved/reloaded scaling and paired
 predictions, zero/fractional/out-of-training-range amounts, optional references,
 role/layout conflicts, strict input rejection, provenance and stale result detection.
-The full backend suite passed: **293 tests**, with five dependency deprecation
+At the internal mapping milestone, the backend suite passed **293 tests**, with five dependency deprecation
 warnings. Saved research models, data, threshold and dependency lock remain unchanged.
 
 This is software parity, not evidence that real GCash fraud detection is validated.

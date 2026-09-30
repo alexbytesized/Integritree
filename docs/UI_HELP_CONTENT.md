@@ -345,10 +345,9 @@ Before publishing these modals:
 
 Status: approved copy for future implementation, updated 2026-10-01. The receipt
 scope, time/amount assumptions, and retention policy below are settled in
-[receipt decisions](RECEIPT_WORKFLOW.md). Exact layouts, cash-agent mappings,
-and receipt integration remain pending. RapidOCR is provisionally selected by the
-[local baseline](RECEIPT_OCR_BENCHMARK.md). Publish receipt behavior as operational
-only after end-to-end implementation and verification.
+[receipt decisions](RECEIPT_WORKFLOW.md). Initial Express Send, Pay Online and
+bank-account workflows are connected; cash-agent mappings and cash/QR layouts
+remain pending. RapidOCR is provisional. See [application operation and verification](RECEIPT_APPLICATION.md).
 
 **Title: Research Scope and Limitations**
 

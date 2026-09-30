@@ -14,7 +14,7 @@ const StackedCard = ({ header, children }) => (
 )
 
 /* The left/right compact model summary */
-const ModelColumn = ({ label, prediction, riskScore, groundTruth, outcome, threshold }) => {
+const ModelColumn = ({ label, prediction, riskScore, groundTruth, outcome, threshold, showGroundTruth }) => {
   const isFraudPred = prediction  === "Fraudulent" || prediction  === "Fraud"
   const isFraudGT   = groundTruth === "Fraudulent" || groundTruth === "Fraud"
   return (
@@ -28,12 +28,12 @@ const ModelColumn = ({ label, prediction, riskScore, groundTruth, outcome, thres
         <StackedCard header="Risk Score">
           <span className="bmv-value"><strong>{scoreText(riskScore)}</strong> out of <strong>100</strong></span>
         </StackedCard>
-        <StackedCard header="Ground Truth">
+        {showGroundTruth && <><StackedCard header="Ground Truth">
           <span className={isFraudGT ? "bmv-fraud" : "bmv-legit"}>{groundTruth}</span>
         </StackedCard>
         <StackedCard header="Outcome">
           <span className="bmv-value bmv-value--bold">{outcome}</span>
-        </StackedCard>
+        </StackedCard></>}
       </div>
     </div>
   )
@@ -62,12 +62,13 @@ const ExpandedCard = ({ modelName, riskScore, prediction, shapSummary, onOpenSha
   )
 }
 
-const BothModelsView = ({ rfSmote, benchmark }) => (
+const BothModelsView = ({ rfSmote, benchmark, showGroundTruth = true }) => (
   <div className="bmv-root">
     {/* Side-by-side compact model summary */}
     <div className="bmv-columns">
       <ModelColumn
         label="RF-SMOTE"
+        showGroundTruth={showGroundTruth}
         prediction={rfSmote.prediction}
         riskScore={rfSmote.riskScore}
         groundTruth={rfSmote.groundTruth}
@@ -76,6 +77,7 @@ const BothModelsView = ({ rfSmote, benchmark }) => (
       />
       <ModelColumn
         label="Benchmark RF"
+        showGroundTruth={showGroundTruth}
         prediction={benchmark.prediction}
         riskScore={benchmark.riskScore}
         groundTruth={benchmark.groundTruth}

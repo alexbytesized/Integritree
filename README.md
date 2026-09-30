@@ -9,10 +9,11 @@ shared cutoff from exactly **1%, 2%, ..., 100%** by mean validation F1.
 See the current run status for measured results.
 
 Preparation, training, saved inference, evaluation, selection, and SHAP code are
-implemented, including the researcher CSV APIs and frontend integration. Individual
-prediction APIs and the experimental five-category GCash receipt workflow remain
-planned. The local receipt audit/OCR baseline and internal confirmed-input mapping
-and paired prediction are implemented, with RapidOCR provisionally selected for integration. Expanded SHAP details use a waterfall graph; a numerical table remains
+implemented, including researcher CSV and receipt APIs with frontend integration.
+The receipt demonstration connects local RapidOCR, explicit confirmation, saved
+paired predictions, SHAP, ZIP downloads and temporary cleanup for Express Send,
+Pay Online and confirmed bank-account transfers. Cash categories and merchant QR
+remain pending. Expanded SHAP details use a waterfall graph; a numerical table remains
 a suggestion.
 
 - [Validation protocol](docs/THREE_STAGE_VALIDATION.md)
@@ -25,4 +26,5 @@ a suggestion.
 - [Approved receipt scope and screenshot collection guide](docs/RECEIPT_WORKFLOW.md)
 - [Local OCR comparison, sample issues, and next implementation steps](docs/RECEIPT_OCR_BENCHMARK.md)
 - [Implemented confirmed-receipt contracts and feature mapping](docs/RECEIPT_MAPPING.md)
+- [Connected receipt application, setup and API](docs/RECEIPT_APPLICATION.md)
 - [Help-modal and limitations-page content](docs/UI_HELP_CONTENT.md)

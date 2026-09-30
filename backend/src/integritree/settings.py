@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     exports_dir: Path = Path("runtime/exports")
     research_model_dir: Path = Path("artifacts/paysim_three_stage_20260928_172539")
     research_prepared_dir: Path = Path("data/prepared/paysim_phase2_20260918")
+    receipt_ocr_python: Path = Path("runtime/receipt_tools/venv/Scripts/python.exe")
     cors_origins: list[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
@@ -61,7 +62,7 @@ class Settings(BaseSettings):
     def resolve_paths(self) -> Self:
         for field in (
             "dataset_path", "experiment_config", "prepared_dir", "artifacts_dir",
-            "reports_dir", "uploads_dir", "exports_dir", "research_model_dir", "research_prepared_dir",
+            "reports_dir", "uploads_dir", "exports_dir", "research_model_dir", "research_prepared_dir", "receipt_ocr_python",
         ):
             path = getattr(self, field)
             if not path.is_absolute():

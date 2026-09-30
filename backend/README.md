@@ -15,7 +15,8 @@ selection, SHAP, and the researcher HTTP/frontend workflow are implemented.
 See [researcher operation and retention](../docs/RESEARCHER_WORKFLOW.md).
 The local receipt audit/OCR comparison and internal confirmed-input mapping/paired
 prediction are implemented. See [receipt mapping contracts](../docs/RECEIPT_MAPPING.md).
-Receipt API/frontend integration remains future work. Final test evaluation waits
+The [receipt API/frontend connection](../docs/RECEIPT_APPLICATION.md) now includes local
+OCR, confirmation, paired predictions/SHAP, downloads and temporary cleanup. Final test evaluation waits
 until the complete tool is ready and the researcher explicitly authorizes it.
 
 The approved receipt scope now targets selected GCash app workflows across all five PaySim categories,
@@ -28,8 +29,8 @@ for TRANSFER/PAYMENT/DEBIT are settled; cash-agent mappings and exact layouts re
 pending. RapidOCR is provisionally selected from the
 [local benchmark](../docs/RECEIPT_OCR_BENCHMARK.md), which records remaining date/role
 failures and reproducible isolated setup. One-image 10 MiB / 20-million-pixel
-PNG/JPEG uploads, staged release, and individual ZIPs are approved implementation
-targets, not operational receipt features.
+PNG/JPEG uploads and individual ZIPs are implemented for Express Send, Pay Online
+and confirmed bank-account transfers. Cash categories and merchant QR remain pending.
 
 ## Install on Windows
 
@@ -78,7 +79,10 @@ install that snapshot into the ML environment.
 Open http://127.0.0.1:8000/api/v1/health for the health response or
 http://127.0.0.1:8000/docs for the generated API documentation. Stop the server
 with Ctrl+C. From `frontend`, run `npm.cmd run dev -- --host 127.0.0.1` and open
-`http://127.0.0.1:5173/researcher-upload`. Vite proxies the researcher API to port 8000.
+`http://127.0.0.1:5173/researcher-upload`. Vite proxies both APIs to port 8000. Open `/upload` for the receipt workflow.
+Receipt extraction needs the isolated OCR environment described in the
+[application setup guide](../docs/RECEIPT_APPLICATION.md). Restart an already-running
+backend to load newly added routes.
 
 Tests use synthetic records and temporary configuration files. Neither tests
 nor health checks require loading the real dataset or a saved model. The health

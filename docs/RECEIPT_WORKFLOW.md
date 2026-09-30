@@ -1,11 +1,12 @@
 # Receipt workflow decisions and sample collection
 
-Updated 2026-10-01. **Local OCR baseline and confirmed-input mapping implemented;
-application receipt processing is not connected.** RapidOCR is the provisional
+Updated 2026-10-01. **Receipt application processing is connected for Express Send,
+Pay Online and confirmed bank-account transfers.** RapidOCR is the provisional
 integration choice after [comparison with Tesseract](RECEIPT_OCR_BENCHMARK.md).
 The [internal mapping and paired prediction path](RECEIPT_MAPPING.md) is implemented
 for Express Send, Pay Online and confirmed bank-account transfers. Image jobs,
-receipt HTTP routes, exports, frontend integration and cleanup remain. The five-category
+receipt HTTP routes, confirmation UI, paired SHAP, ZIPs and cleanup are implemented;
+see [application operation and contracts](RECEIPT_APPLICATION.md). The five-category
 scope supersedes the earlier person-to-person-only restriction and does not change
 model training, saved artifacts, or research evaluation.
 
@@ -44,8 +45,8 @@ CASH_IN/CASH_OUT remain pending representative samples and account-role mapping.
   selects RapidOCR; checked date and account-role failures still require review.
   Keep OCR dependencies isolated from frozen model dependencies.
 - Accept one PNG/JPEG screenshot at a time, at most 10 MiB of actual uploaded bytes,
-  with a 20,000,000 decoded-pixel guard (implemented in the local audit). Replace the current 100 MB frontend
-  mock limit during integration; receipt upload enforcement is not implemented yet.
+  with a 20,000,000 decoded-pixel guard. Frontend and server byte limits are
+  implemented; the server checks decoded dimensions before OCR.
 - Require an uploaded supported screenshot. Let users correct extracted fields
   and complete unreadable/missing fields before explicit confirmation. A separate
   image-free manual-entry workflow is not included. Manual completion does not
@@ -79,11 +80,11 @@ CASH_IN/CASH_OUT remain pending representative samples and account-role mapping.
   ground truth or evaluation metrics. Keep the saved shared classification threshold.
 - Provide an individual-analysis ZIP containing confirmed inputs, paired predictions,
   explanation results, and mapping/model provenance. Exclude the original image and
-  evaluation metrics. Its route and exact file contracts remain implementation work.
+  evaluation metrics. Routes and exact files are documented in the application guide.
 - Keep application images, confirmed details, and results temporarily until Clear
   or backend shutdown/restart; no permanent receipt history or timed expiry is
-  selected. Closing a browser tab alone does not promise deletion. Implement access
-  isolation and cleanup before publishing these behaviors as working features.
+  selected. Closing a browser tab alone does not promise deletion. Session access
+  isolation and cleanup are implemented and tested.
   Exclude personal receipt contents from logs and committed fixtures.
 
 ## Collect development screenshots
@@ -168,14 +169,14 @@ separate evaluation. OCR sample receipts are not a fraud-model training dataset.
    shared-scaler and paired prediction parity for Express Send/TRANSFER, Pay Online/
    PAYMENT and bank-account DEBIT. Known wallet-destination conflicts are rejected.
    Cash-agent mapping and merchant QR layout validation remain pending.
-3. Finalize receipt job/API contracts, HTTP field errors, and ZIP
-   file contracts. Bind image jobs to the implemented confirmation/revision identity.
-   The upload policy is one PNG/JPEG, 10 MiB and 20 million pixels.
-4. Connect local extraction, explicit confirmation, paired predictions/explanations,
-   exports, temporary storage and cleanup to the frontend.
-5. Verify each release workflow end to end, including ambiguous category/roles,
-   missing references, fee separation, corrections, failures and cleanup. Any parser
-   tuning requires fresh unseen examples for independent verification.
+3. Completed [receipt HTTP jobs, confirmation, SHAP/ZIPs, frontend connection and
+   cleanup](RECEIPT_APPLICATION.md). Revisions invalidate old predictions and assets.
+4. Synthetic API/browser checks and one real Express Send smoke test pass. Collect
+   additional unseen Pay Online and bank-account examples for acceptance checks;
+   this smoke test is not an independent OCR accuracy estimate.
+5. Collect cash-category and merchant QR samples, settle remaining layouts/roles,
+   then extend their gates and mappings. Any parser tuning requires fresh unseen
+   examples for independent verification.
 
 No retraining is required solely to expose existing transaction categories.
 Changing feature semantics requires a separate methodology decision. Official

@@ -304,10 +304,10 @@ Receipt demonstration:
 - Release checks for exact app layouts; RapidOCR is the provisional integration
   engine after the [local comparison](RECEIPT_OCR_BENCHMARK.md).
 - Cash-agent/merchant-indicator mappings; mappings for TRANSFER/PAYMENT/DEBIT are settled.
-- Receipt job/API/ZIP contracts and detailed error handling; the local audit already
-  enforces 10 MiB and 20 million decoded pixels.
+- Broader independent layout acceptance checks; job/API/ZIP contracts, errors and
+  10 MiB / 20-million-pixel enforcement are implemented in the receipt application.
 
-Settled receipt requirements (implementation pending): selected workflows across all five categories;
+Settled receipt requirements (initial three workflows connected; cash/QR pending): selected workflows across all five categories;
 Asia/Manila hour and Monday=0 weekday; numeric PHP principal excluding fees;
 correction/completion after image upload and explicit confirmation; optional string
 reference and optional masked names; local OCR; temporary application data until
@@ -323,12 +323,12 @@ retain actual destination roles and reject unresolved/incompatible roles.
 
 Software:
 
-- OCR benchmark dependencies are isolated; application integration remains pending. Phases 1-4 use
+- OCR dependencies are isolated; initial receipt application integration is implemented. Phases 1-4 use
   Python 3.12, FastAPI, NumPy, pandas, PyArrow, scikit-learn, imbalanced-learn,
   joblib, SciPy, Matplotlib, and SHAP 0.52.0 with a versioned lock.
-- Receipt API contracts and receipt-specific long-running work. Research CSV jobs are implemented.
+- Receipt API contracts and bounded background jobs are implemented, alongside research CSV jobs.
 - Research storage is settled: temporary SQLite/files and downloads-only retention.
-  Receipt storage policy is settled as above; its implementation remains pending.
+  Receipt storage and cleanup are implemented as above.
 
 Do not silently resolve a methodological ambiguity merely to make
 implementation easier.
@@ -340,9 +340,10 @@ full-upload evaluation, on-demand SHAP, and downloadable ZIP reports. Python
 implements preparation, training, evaluation, three-stage selection, and SHAP.
 The internal [confirmed-receipt mapping and paired prediction](RECEIPT_MAPPING.md)
 is implemented for Express Send, Pay Online and bank-account transfers, with
-revision/provenance checks and shared-scaler parity. Receipt screens still include
-mock values; receipt/OCR integration and whole-tool
-verification remain future work. Mock values are not experimental results. The raw dataset, completed preparation, and preparation verification
+revision/provenance checks and shared-scaler parity. The [receipt application](RECEIPT_APPLICATION.md)
+connects local OCR, explicit confirmation, saved predictions, SHAP, ZIPs and cleanup.
+User results omit Ground Truth and Outcome and share researcher threshold markers.
+Broader layout acceptance remains; integration smoke checks do not validate real-world fraud detection. The raw dataset, completed preparation, and preparation verification
 are retained. Current model/validation execution is recorded in
 [run status](VALIDATION_RUN_STATUS.md).
 

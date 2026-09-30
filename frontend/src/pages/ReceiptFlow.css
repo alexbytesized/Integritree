@@ -1,0 +1,20 @@
+.receipt-page { padding-top: 130px; }
+.receipt-page .user-results-overview { margin-top: 0; }
+.receipt-page h1 { color: #125b98; }
+.receipt-page p { line-height: 1.6; }
+.receipt-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin: 24px 0; }
+.receipt-actions button, .receipt-actions a, .receipt-page > button {
+  border: 1px solid #176ead; border-radius: 10px; padding: 12px 18px;
+  background: white; color: #125b98; font: inherit; text-decoration: none; cursor: pointer;
+}
+.receipt-page button:disabled { opacity: .55; cursor: wait; }
+.receipt-page [role="alert"] { color: #9c1824; background: #fff0f1; padding: 14px; border-radius: 10px; overflow-wrap: anywhere; }
+.receipt-form { margin-top: 28px; }
+.receipt-form label { display: grid; gap: 8px; margin: 18px 0; font-weight: 600; }
+.receipt-form input:not([type="checkbox"]) { width: 100%; min-height: 46px; border: 1px solid #9bb7cb; border-radius: 8px; padding: 10px; font: inherit; background: white; color: #182c3d; }
+.receipt-form .receipt-check { display: flex; align-items: flex-start; gap: 12px; line-height: 1.5; font-weight: 400; }
+.receipt-check input { width: 20px; height: 20px; flex-shrink: 0; margin-top: 3px; }
+.receipt-form .proceed-button { padding: 13px 22px; border: 0; border-radius: 10px; background: #126fb6; color: white; font: inherit; cursor: pointer; }
+.receipt-retention { margin-top: 32px; color: #526778; }
+.receipt-page .td-field-value { overflow-wrap: anywhere; }
+@media (max-width: 760px) { .receipt-page { padding-top: 100px; } }

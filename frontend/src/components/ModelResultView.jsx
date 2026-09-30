@@ -19,6 +19,7 @@ const ModelResultView = ({
   modelName = 'RF-SMOTE',
   shapSummary,
   onOpenShap,
+  showGroundTruth = true,
 }) => {
   const isFraudPred = prediction  === "Fraudulent"
   const isFraudGT   = groundTruth === "Fraudulent"
@@ -45,7 +46,7 @@ const ModelResultView = ({
           </span>
         </InfoCard>
 
-        <InfoCard header="Ground Truth">
+        {showGroundTruth && <><InfoCard header="Ground Truth">
           <span className={isFraudGT ? "mrv-highlight-fraud" : "mrv-highlight-legit"}>
             {groundTruth}
           </span>
@@ -53,7 +54,7 @@ const ModelResultView = ({
 
         <InfoCard header="Outcome">
           <span className="mrv-outcome">{outcome}</span>
-        </InfoCard>
+        </InfoCard></>}
       </div>
 
       {/* ── Interpretation ── */}

@@ -4,10 +4,12 @@ import { useDropzone } from 'react-dropzone'
 import { Camera, ImageIcon, X, FileImage } from 'lucide-react'
 import ReturnButton from '../components/ReturnButton'
 import './UploadPage.css'
+import { uploadReceipt, receiptKey } from '../receiptApi'
 
 const UploadPage = () => {
   const [file, setFile] = useState(null)
   const [error, setError] = useState('')
+  const [uploading, setUploading] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -38,8 +40,8 @@ const UploadPage = () => {
     if (acceptedFiles && acceptedFiles.length > 0) {
       const selectedFile = acceptedFiles[0]
 
-      if (selectedFile.size > 100 * 1024 * 1024) {
-        setError('File size exceeds the 100MB limit.')
+      if (selectedFile.size > 10 * 1024 * 1024) {
+        setError('File size exceeds the 10 MiB limit.')
         return
       }
 
@@ -54,6 +56,7 @@ const UploadPage = () => {
       'image/jpeg': ['.jpg', '.jpeg'],
     },
     multiple: false,
+    disabled: uploading,
   })
 
   const removeFile = () => {
@@ -61,15 +64,15 @@ const UploadPage = () => {
     setError('')
   }
 
-  const handleAnalyze = () => {
-    if (file) {
-      navigate('/results', {
-        state: {
-          fileName: file.name,
-          imageUrl: URL.createObjectURL(file),
-        },
-      })
-    }
+  const handleAnalyze = async () => {
+    if (!file || uploading) return
+    setUploading(true)
+    setError('')
+    try {
+      const job = await uploadReceipt(file)
+      navigate(`/results?receipt=${job.id}`)
+    } catch (err) { setError(err.message) }
+    finally { setUploading(false) }
   }
 
   const formatBytes = (bytes, decimals = 2) => {
@@ -100,6 +103,8 @@ const UploadPage = () => {
             Click here
           </Link>
         </p>
+        <p>GCash Express Send, wallet-funded Pay Online, or transfers to bank accounts. Cash-in, cash-out and merchant QR are not available yet.</p>
+        {sessionStorage.getItem(receiptKey) && <p><Link to={`/results?receipt=${sessionStorage.getItem(receiptKey)}`}>Resume or clear your current receipt</Link></p>}
       </div>
 
       {/* Upload Card */}
@@ -128,13 +133,13 @@ const UploadPage = () => {
                   <div className="file-name">{file.name}</div>
                   <div className="file-size">{formatBytes(file.size)}</div>
                 </div>
-                <button onClick={removeFile} className="btn-remove-file" title="Remove File">
+                <button onClick={removeFile} disabled={uploading} className="btn-remove-file" title="Remove File">
                   <X size={16} />
                 </button>
               </div>
 
-              <button onClick={handleAnalyze} className="btn-analyze-submit">
-                <span>▶</span> ANALYZE FILE
+              <button onClick={handleAnalyze} disabled={uploading} className="btn-analyze-submit">
+                {uploading ? 'Uploading…' : 'Extract transaction details'}
               </button>
             </div>
           ) : (
@@ -145,12 +150,13 @@ const UploadPage = () => {
               <input {...getInputProps()} />
               <ImageIcon size={36} className="dropzone-icon" />
               <h3 className="dropzone-title">Choose a file or drag and drop it here</h3>
-              <p className="dropzone-desc">PNG/JPG format only, up to 100MB</p>
+              <p className="dropzone-desc">One PNG/JPG, up to 10 MiB and 20 million pixels</p>
               <div className="btn-browse">Browse File</div>
             </div>
           )}
 
-          {error && <div className="upload-error-msg">{error}</div>}
+          {error && <div className="upload-error-msg" role="alert">{error}</div>}
+          <p>Review and confirm extracted details before prediction. Images and results stay on this computer until Clear or backend shutdown/restart. Closing this tab does not clear them.</p>
         </div>
       </div>
     </div>
