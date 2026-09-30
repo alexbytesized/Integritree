@@ -1,1 +1,1 @@
-"""Integritree backend package scaffold; functionality is not implemented yet."""
+"""Local OCR baseline and confirmed-receipt mapping; HTTP integration remains pending."""

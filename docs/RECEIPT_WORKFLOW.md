@@ -1,21 +1,25 @@
 # Receipt workflow decisions and sample collection
 
-Approved scope updated 2026-09-30. **Receipt processing is planned, not implemented.**
-The OCR adapter, parser, confirmed-input mapping, and receipt prediction routes
-remain scaffolds. This decision supersedes the earlier person-to-person-only
-restriction; it does not change model training, saved artifacts, or evaluation.
+Updated 2026-10-01. **Local OCR baseline and confirmed-input mapping implemented;
+application receipt processing is not connected.** RapidOCR is the provisional
+integration choice after [comparison with Tesseract](RECEIPT_OCR_BENCHMARK.md).
+The [internal mapping and paired prediction path](RECEIPT_MAPPING.md) is implemented
+for Express Send, Pay Online and confirmed bank-account transfers. Image jobs,
+receipt HTTP routes, exports, frontend integration and cleanup remain. The five-category
+scope supersedes the earlier person-to-person-only restriction and does not change
+model training, saved artifacts, or research evaluation.
 
 ## Initial five-category scope
 
 Accept screenshots of completed transaction receipts/details from the GCash app.
-Start with one workflow per PaySim category:
+Start with the selected workflows below; PAYMENT was expanded after sample review:
 
 | PaySim category | Initial GCash workflow | Interpretation |
 | --- | --- | --- |
 | TRANSFER | Express Send between GCash users | Mobile-wallet user to another mobile-wallet user. |
 | CASH_IN | Over-the-counter cash-in into GCash | Cash deposited into a wallet through an agent/partner. |
 | CASH_OUT | Over-the-counter cash-out | Wallet funds withdrawn as cash through an agent/partner. |
-| PAYMENT | Merchant QR payment funded from the GCash wallet | Payment for goods/services to a merchant. |
+| PAYMENT | Merchant QR and Pay Online payments funded from the GCash wallet | Payment for goods/services to a merchant. |
 | DEBIT | GCash Bank Transfer to a bank account | Money moved from the wallet to a bank account. |
 
 This is an approved experimental application mapping, not evidence that GCash and
@@ -25,16 +29,23 @@ does not distinguish a personal transfer from a merchant payment. Keep the origi
 GCash workflow label alongside the mapped category and resolve ambiguous inputs
 before prediction; do not silently force them into a category.
 
-Bank-funded cash-in, ATM cash-out, bills, load, online payments, SMS/email screenshots,
+Bank-funded cash-in, ATM cash-out, bills, load, credit-funded payments, SMS/email screenshots,
 and photos of printed receipts are outside this initial scope. Exact supported app
 layouts must be established from samples. If the app provides no usable screenshot
 for a selected workflow, report the gap rather than substituting another source.
 All five categories are implementation targets, not five operational receipt routes.
+Release verified workflows as they pass checks; do not wait for every category.
+CASH_IN/CASH_OUT remain pending representative samples and account-role mapping.
 
-## Settled behavior awaiting implementation
+## Settled behavior and implementation boundaries
 
 - Run OCR locally on the backend computer; do not send images to an external OCR
-  service. The engine and dependency versions remain to be selected.
+  service. The completed [local comparison](RECEIPT_OCR_BENCHMARK.md) provisionally
+  selects RapidOCR; checked date and account-role failures still require review.
+  Keep OCR dependencies isolated from frozen model dependencies.
+- Accept one PNG/JPEG screenshot at a time, at most 10 MiB of actual uploaded bytes,
+  with a 20,000,000 decoded-pixel guard (implemented in the local audit). Replace the current 100 MB frontend
+  mock limit during integration; receipt upload enforcement is not implemented yet.
 - Require an uploaded supported screenshot. Let users correct extracted fields
   and complete unreadable/missing fields before explicit confirmation. A separate
   image-free manual-entry workflow is not included. Manual completion does not
@@ -50,11 +61,15 @@ All five categories are implementation targets, not five operational receipt rou
   string when available; otherwise mark it unavailable. Use a separate internal
   analysis ID. Optional masked names are traceability only; names, phone numbers,
   references, balances, and labels are not receipt model predictors.
-- Validate account roles for each workflow. The earlier requirement that both
-  parties be personal accounts no longer covers the full scope. Mapping banks,
-  agents, and merchants into the model's entity indicators remains unresolved.
-  Do not infer C/M indicators from names or automatically equate an agent with a
-  PaySim merchant. Unknown or incompatible required roles must block prediction.
+- Require a confirmed personal-wallet origin for the currently mapped workflows.
+  TRANSFER has personal-wallet destination and merchant flags 0/0; PAYMENT has
+  merchant destination and flags 0/1; DEBIT has bank-account destination and flags
+  0/0 (origin/destination). Preserve the actual bank role: non-merchant does not mean
+  person. This approved demonstration mapping follows the dataset's encoding, not
+  proof of cross-domain equivalence. Confirm wallet funding; do not infer roles from
+  names or the Bank Transfer heading alone; the collection includes a bank-screen
+  transfer to Maya Wallet. Unknown/incompatible required roles block prediction. Cash-agent mappings
+  remain pending; do not automatically classify an agent as a PaySim merchant.
 - Use a separate confirmed-receipt contract, derive the same eleven unscaled
   features, and apply saved scaling exactly once. Do not fabricate a PaySim step
   or account ID, accept arbitrary client matrices, or refit preprocessing.
@@ -62,6 +77,9 @@ All five categories are implementation targets, not five operational receipt rou
   provenance; changed inputs invalidate prior predictions and explanations.
 - Return both saved models' predictions, scores, and explanations without invented
   ground truth or evaluation metrics. Keep the saved shared classification threshold.
+- Provide an individual-analysis ZIP containing confirmed inputs, paired predictions,
+  explanation results, and mapping/model provenance. Exclude the original image and
+  evaluation metrics. Its route and exact file contracts remain implementation work.
 - Keep application images, confirmed details, and results temporarily until Clear
   or backend shutdown/restart; no permanent receipt history or timed expiry is
   selected. Closing a browser tab alone does not promise deletion. Implement access
@@ -89,7 +107,14 @@ formats, and image sizes to repeated copies of the same example. Add difficult
 examples and reserve some unseen screenshots for testing after extraction rules
 are developed. Record missing categories/layouts instead of manufacturing evidence.
 
-Use neutral names such as `transfer_001.png` or `debit_001.png`. Put uncertain
+The current collection contains 123 TRANSFER, 19 PAYMENT, and 4 DEBIT images;
+CASH_IN, CASH_OUT, and UNSURE are empty. These are collection labels, not verified
+layout classifications. All 146 images were renamed without content changes to
+four-digit names such as `transfer_0023.jpg` and `debit_0002.jpg`. The 3–5 example
+target is not a cap; retain all usable originals and keep duplicate groups together
+when separating development and verification examples.
+
+Use neutral four-digit filenames. Put uncertain
 examples in `UNSURE`; folder placement is a provisional collection label, not a
 validated model input. Preserve labels, layout, amount, and date/time. Redacted
 copies are recommended for shared inspection; real names, phone numbers, and
@@ -135,14 +160,22 @@ separate evaluation. OCR sample receipts are not a fraud-model training dataset.
 
 ## Remaining decisions and next implementation sequence
 
-1. Inspect representative screenshots and record exact supported layouts/gaps.
-2. Resolve and version account-role/merchant-indicator mappings for all workflows.
-3. Select the local OCR engine and parser approach; finalize upload limits, receipt
-   job/API contracts, error behavior, and any receipt-result download requirements.
-4. Implement and verify the confirmed-input prediction path, preserving raw PaySim
-   inference and shared-scaler parity, then connect image extraction and the frontend.
-5. Verify every supported workflow, ambiguous category/roles, missing references,
-   fee/principal separation, corrections, failures, cleanup, and no fabricated labels.
+1. Completed the initial audit/comparison: all 146 files decode; 10 duplicate pairs,
+   including one cross-category conflict; 21 visually annotated examples. See the
+   [benchmark and layout gaps](RECEIPT_OCR_BENCHMARK.md). Keep unresolved examples for
+   review; merchant QR and cash-in/out remain unverified.
+2. Completed [confirmed-input contracts and mapping](RECEIPT_MAPPING.md), with
+   shared-scaler and paired prediction parity for Express Send/TRANSFER, Pay Online/
+   PAYMENT and bank-account DEBIT. Known wallet-destination conflicts are rejected.
+   Cash-agent mapping and merchant QR layout validation remain pending.
+3. Finalize receipt job/API contracts, HTTP field errors, and ZIP
+   file contracts. Bind image jobs to the implemented confirmation/revision identity.
+   The upload policy is one PNG/JPEG, 10 MiB and 20 million pixels.
+4. Connect local extraction, explicit confirmation, paired predictions/explanations,
+   exports, temporary storage and cleanup to the frontend.
+5. Verify each release workflow end to end, including ambiguous category/roles,
+   missing references, fee separation, corrections, failures and cleanup. Any parser
+   tuning requires fresh unseen examples for independent verification.
 
 No retraining is required solely to expose existing transaction categories.
 Changing feature semantics requires a separate methodology decision. Official

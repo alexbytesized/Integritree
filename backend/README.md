@@ -13,16 +13,23 @@ Stage 3 selects from exactly 1%, 2%, ..., 100%. See
 Preparation, paired RF/RF-SMOTE training, saved inference, evaluation, three-stage
 selection, SHAP, and the researcher HTTP/frontend workflow are implemented.
 See [researcher operation and retention](../docs/RESEARCHER_WORKFLOW.md).
-Receipt OCR and receipt integration remain future work; final test evaluation waits
+The local receipt audit/OCR comparison and internal confirmed-input mapping/paired
+prediction are implemented. See [receipt mapping contracts](../docs/RECEIPT_MAPPING.md).
+Receipt API/frontend integration remains future work. Final test evaluation waits
 until the complete tool is ready and the researcher explicitly authorizes it.
 
-The approved receipt scope now targets one GCash app workflow per PaySim category,
+The approved receipt scope now targets selected GCash app workflows across all five PaySim categories,
 with local OCR and temporary application storage. Save development screenshots in
 `data/raw/receipt_samples/{TRANSFER,CASH_IN,CASH_OUT,PAYMENT,DEBIT,UNSURE}/`;
 this ignored collection is retained separately from temporary application uploads.
 See [receipt decisions and collection instructions](../docs/RECEIPT_WORKFLOW.md).
-Exact layouts, account-role mappings, and the OCR engine remain pending; this is
-an implementation target, not an operational receipt feature.
+PAYMENT includes wallet-funded QR and Pay Online. Personal-wallet role mappings
+for TRANSFER/PAYMENT/DEBIT are settled; cash-agent mappings and exact layouts remain
+pending. RapidOCR is provisionally selected from the
+[local benchmark](../docs/RECEIPT_OCR_BENCHMARK.md), which records remaining date/role
+failures and reproducible isolated setup. One-image 10 MiB / 20-million-pixel
+PNG/JPEG uploads, staged release, and individual ZIPs are approved implementation
+targets, not operational receipt features.
 
 ## Install on Windows
 
@@ -57,7 +64,9 @@ install it, and rerun the tests:
 The lock was generated on Windows with Python 3.12; installation on other
 platforms has not been verified. Phase 2 adds NumPy, pandas, PyArrow, and scikit-learn. Phase 3 adds imbalanced-learn 0.14.2 and explicit joblib support.
 Phase 4 adds SHAP 0.52.0, Matplotlib, and explicit SciPy support. The constraints
-preserve saved-model dependency versions. OCR libraries remain future work.
+preserve saved-model dependency versions. OCR benchmark dependencies are isolated in
+`runtime/receipt_tools/venv`, pinned in `requirements-ocr-benchmark.lock`; do not
+install that snapshot into the ML environment.
 
 ## Test and run
 

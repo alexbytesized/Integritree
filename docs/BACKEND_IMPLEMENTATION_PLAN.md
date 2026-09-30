@@ -19,10 +19,12 @@ The planned application will support two uses of the same saved RF and RF-SMOTE 
 
 - Research: labeled PaySim test records, predictions, explanations, metrics,
   statistical comparisons, and exports.
-- Individual demonstration: GCash app screenshots for one workflow per PaySim
-  category, confirmed details, and both models' predictions, scores, and explanations.
+- Individual demonstration: GCash app screenshots for selected workflows across all five PaySim
+  categories, confirmed details, and both models' predictions, scores, and explanations.
   The [2026-09-30 receipt decisions](RECEIPT_WORKFLOW.md) supersede the earlier
-  person-to-person-only scope; receipt processing is not implemented yet.
+  person-to-person-only scope; the 2026-10-01 local audit/OCR baseline is implemented,
+  while receipt application integration remains pending. See
+  [measured results and remaining gaps](RECEIPT_OCR_BENCHMARK.md).
 
 Read [THESIS_CONTEXT.md](THESIS_CONTEXT.md) for the manuscript requirements,
 confirmed scope, and corrections discussed with the researchers. Scaffolding
@@ -38,7 +40,7 @@ does not approve an algorithm change or a Chapter 3 rewrite.
 | 3 | Training and saved inference | Baseline trainer and reloadable paired model bundles | Training code complete; fresh candidates come from the three-stage run |
 | 4 | Research evaluation and SHAP | Verified evaluation reports and model explanations | Code complete; Stages 1-2 frozen; Stage 3 uses the 1%-100% grid |
 | 5 | Application services and API | Research and individual structured-record workflows | Researcher CSV workflow implemented; receipt prediction remains |
-| 6 | GCash receipt demonstration | Image extraction, confirmation, mapping, and prediction | Not started |
+| 6 | GCash receipt demonstration | Image extraction, confirmation, mapping, and prediction | Local audit/OCR baseline and confirmed-input paired prediction complete; application integration pending |
 | 7 | Integration and reproducibility | Backend handoff validated against the frontend workflows | Researcher integration checked; receipt and whole-tool verification remain |
 
 The existing foundation is reusable; Phases 1-3 are complete for their stated
@@ -65,9 +67,10 @@ implemented; see [the workflow and capacity evidence](RESEARCHER_WORKFLOW.md).
 - Numerical SHAP table, standalone raw-contribution download, global SHAP plots,
   PDF/XLSX export, and agreement/disagreement filters are optional suggestions.
 - Receipt scope targets Express Send/TRANSFER, over-the-counter cash-in/CASH_IN,
-  over-the-counter cash-out/CASH_OUT, merchant QR/PAYMENT, and bank transfer/DEBIT.
-  GCash app screenshots only; exact supported layouts and account-role mappings
-  must be validated before enabling prediction. Enforce supported workflows on
+  over-the-counter cash-out/CASH_OUT, wallet-funded merchant QR or Pay Online/PAYMENT,
+  and bank transfer/DEBIT. GCash app screenshots only, PNG/JPEG, one image up to
+  10 MiB with a 20-million-pixel decoded-image guard. Release verified workflows first; cash-agent
+  mappings and cash samples remain pending. Enforce supported workflows on
   the server; five categories do not mean all GCash services are supported.
 - All screenshot numbers are placeholders; no expected performance or counts may
   be inferred from them. Use the corrected researcher page with McNemar already present.
@@ -353,40 +356,52 @@ Completion checks:
 
 **Requires:** Phase 5 structured-record prediction and an agreed input mapping.
 
+Implemented foundation: [confirmed contracts, mapping and paired prediction](RECEIPT_MAPPING.md)
+for Express Send, Pay Online and bank-account transfers, with shared-scaler parity.
+Image authorization, HTTP jobs, confirmation UI, explanations/ZIPs and cleanup remain.
+
 Work:
 
 - Collect 3–5 representative GCash app screenshots per selected category where
   available, under the ignored `data/raw/receipt_samples/` collection. Follow
   [collection guidance](RECEIPT_WORKFLOW.md); report layout gaps explicitly.
-  Select a local OCR engine; use synthetic receipt fixtures for Git.
-- Implement `receipts/ocr.py` as an extraction adapter and `receipts/gcash.py` for
+  Initial RapidOCR/Tesseract comparison is complete; RapidOCR is the provisional
+  integration choice. See [baseline evidence](RECEIPT_OCR_BENCHMARK.md), including
+  date failures, bank-screen wallet destination, and unresolved payment layout.
+  Keep OCR dependencies isolated and obtain unseen samples after future tuning.
+  Use synthetic receipt fixtures for Git.
+- Local candidate extraction exists in `receipts/ocr.py` and `receipts/gcash.py`;
+  harden and integrate these benchmark components for
   supported fields such as amount, transaction date/time, and workflow/category.
 - Return editable extracted fields and missing/uncertain-field information.
   Prediction occurs only after user confirmation and required-field validation.
   Confirm principal, date, unambiguous time, supported workflow/category, and
   required account roles. Names are optional traceability; never reconstruct
-  identities or infer C/M from names. Finalize agent/bank/merchant role mappings
-  before prediction; unresolved or incompatible roles block it. Receipt reference
+  identities or infer C/M from names. For confirmed personal-wallet origins,
+  approved merchant flags are TRANSFER 0/0, PAYMENT 0/1, DEBIT 0/0; preserve bank
+  destination as an actual role. Resolve cash-agent mappings separately; unresolved
+  or incompatible required roles block prediction. Receipt reference
   is an optional string preserving leading zeros; mark missing values unavailable
   and keep the internal analysis ID separate.
-- Support the five selected workflows with server-side layout, category, and
+- Support the selected workflows across all five categories with server-side layout, category, and
   role validation. Preserve the original GCash service label; do not silently
   relabel an ambiguous or unsupported transaction. Research CSV support is unchanged.
-- Implement `receipts/mapping.py` using a documented mapping to the trained
+- Implemented `receipts/mapping.py` and `receipts/contracts.py` with a versioned mapping to the trained
   feature meanings. Use the approved Asia/Manila hour, Monday=0 weekday, and
   numeric PHP principal excluding fees. Resolve entity indicators explicitly;
   do not pretend these assumptions establish PaySim calendar/currency equivalence.
-- Add a distinct receipt/derived-input boundary, then share the saved scaling
-  stage with raw PaySim preprocessing. Derive all eleven unscaled features and
+- Implemented a distinct confirmed-receipt boundary and shared saved scaling
+  through `transform_engineered` with raw PaySim preprocessing. Derive all eleven unscaled features and
   apply saved scaling once, preserving order. Do not make a fake step or C/M ID
   merely to pass PredictorInput. Do not accept arbitrary client-supplied scaled
   matrices as validated receipt inputs. Preserve raw-input behavior and state format.
   Missing original columns are acceptable only after this validated path exists.
-- Freeze/version the demonstration mapping before enabling it: date/time convention,
+- Mapping `gcash_confirmed_v1` records the date/time convention,
   numeric PHP amount assumption, type/entity mapping, required fields and provenance.
   Neither derived features nor a disclaimer validates cross-domain equivalence.
   Store extracted and confirmed values with correction status and adapter version;
-  a changed confirmation invalidates previous predictions/explanations.
+  revision fingerprints identify stale results. The future service must invalidate
+  stored predictions/explanations/downloads when confirmation changes.
 - Where required model inputs cannot be supplied or mapped defensibly, return an
   explanation of the missing/unsupported input rather than fabricated values.
 - Implement receipt routes and connect confirmed records to the prediction service.
@@ -400,10 +415,12 @@ Work:
   forgery detection remains outside scope.
   Supply supported-scope and mapping information for Research Scope and Limitations
   and brief contextual receipt notices. Actual retention behavior must match the page.
+- Add an individual ZIP containing confirmed inputs, paired results, explanations,
+  and mapping/model provenance; exclude original images and evaluation metrics.
 
 Completion checks:
 
-- Test all five selected workflows, supported layouts, blurry images, missing fields,
+- Test all selected workflows across all five categories, supported layouts, blurry images, missing fields,
   invalid amount/date text, ambiguous categories/roles, and unsupported workflows
   or image sources/formats. Category availability alone is not layout support.
 - A corrected extraction reaches inference with the corrected values.

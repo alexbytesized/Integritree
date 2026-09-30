@@ -343,11 +343,12 @@ Before publishing these modals:
 
 ## Research Scope and Limitations page
 
-Status: approved copy for future implementation, updated 2026-09-30. The receipt
+Status: approved copy for future implementation, updated 2026-10-01. The receipt
 scope, time/amount assumptions, and retention policy below are settled in
-[receipt decisions](RECEIPT_WORKFLOW.md). Exact layouts, account-role mappings,
-and the local OCR engine remain pending. Publish receipt behavior as operational
-only after implementation and verification; receipt processing remains a scaffold.
+[receipt decisions](RECEIPT_WORKFLOW.md). Exact layouts, cash-agent mappings,
+and receipt integration remain pending. RapidOCR is provisionally selected by the
+[local baseline](RECEIPT_OCR_BENCHMARK.md). Publish receipt behavior as operational
+only after end-to-end implementation and verification.
 
 **Title: Research Scope and Limitations**
 
@@ -370,10 +371,12 @@ transactions. Only receipt workflows identified as supported by the application
 can be analyzed. The system does not verify receipt authenticity or image editing.
 
 The approved initial scope targets GCash app screenshots for Express Send,
-over-the-counter cash-in, over-the-counter cash-out, wallet-funded merchant QR
-payments, and GCash-to-bank transfers. These map respectively to TRANSFER, CASH_IN,
+over-the-counter cash-in, over-the-counter cash-out, wallet-funded merchant QR or
+Pay Online payments, and GCash-to-bank transfers. These map respectively to TRANSFER, CASH_IN,
 CASH_OUT, PAYMENT, and DEBIT. Exact supported layouts must be verified before
 release. SMS/email screenshots and printed receipt photos are outside this scope.
+Verified workflows may become available before others; categories awaiting samples
+remain visibly unavailable. The approved upload limit is one PNG/JPEG up to 10 MiB.
 
 **Timing assumptions**
 
@@ -395,6 +398,8 @@ Users confirm transaction and account categories. These confirmations describe
 the supplied input; they are not independent verification of a recipient's identity
 or account status. Missing essential information or unsupported workflows may
 prevent analysis.
+For supported personal-wallet workflows, the destination can be a personal wallet,
+merchant, or bank account. A bank's non-merchant model flag does not make it a person.
 
 The dataset and models include all five transaction categories, but original
 fraud-positive examples occur only in TRANSFER and CASH_OUT. No original fraud
@@ -431,6 +436,9 @@ permanent receipt history. Closing a browser tab alone does not guarantee deleti
 Retained development samples are separate from application uploads and cleanup.
 Before release, verify and publish actual storage/access/cleanup behavior. These
 are requirements awaiting implementation, not current deletion/security promises.
+An individual-result ZIP is planned for saving confirmed inputs, paired results,
+explanations, and provenance before cleanup. It excludes the original screenshot
+and evaluation metrics.
 
 ### Suggested entry-point copy
 

@@ -76,9 +76,10 @@ The manuscript corrections remain unchecked until reviewed and applied.
   does not establish performance on actual GCash/Maya transaction databases.
 - [ ] **Add the experimental demonstration scope:** GCash app screenshots for
   Express Send/TRANSFER, over-the-counter cash-in/CASH_IN, over-the-counter cash-out/
-  CASH_OUT, wallet-funded merchant QR/PAYMENT, and bank transfer/DEBIT. Include local
+  CASH_OUT, wallet-funded merchant QR or Pay Online/PAYMENT, and bank-account transfer/DEBIT. Include local
   extraction, confirmation/completion, mapping, and both models' predictions.
-  This 2026-09-30 decision supersedes person-to-person-only scope and remains planned.
+  This scope supersedes person-to-person-only support. A local extraction baseline
+  exists; the application receipt workflow remains planned.
 - [ ] **Distinguish category coverage from fraud coverage:** all five types are
   included in the dataset/models, but original fraud labels occur only in TRANSFER
   and CASH_OUT. Neither SMOTE nor accepting five receipt types validates detection
@@ -110,9 +111,17 @@ The manuscript corrections remain unchecked until reviewed and applied.
   PHP principal excluding fees, post-upload correction/completion and confirmation,
   optional reference, local OCR, temporary data until Clear or backend shutdown/
   restart, and separately retained development samples. No image-free manual entry.
-- [ ] **Finalize receipt mapping before demonstration:** exact app layouts, local
-  OCR engine, bank/agent/merchant indicators, API/job contracts and upload/download
-  limits. Do not fabricate unavailable inputs. See [receipt guide](RECEIPT_WORKFLOW.md).
+- [ ] **Record the local OCR baseline:** RapidOCR provisionally selected after
+  development comparison and frozen verification; see [measured limits](RECEIPT_OCR_BENCHMARK.md).
+  This is separate from fraud-model performance, with only 21 visually annotated images.
+- [ ] **Document the implemented internal receipt mapping:** personal-wallet origin,
+  TRANSFER personal-wallet destination 0/0, PAYMENT merchant 0/1, DEBIT bank-account
+  0/0 merchant flags, with actual roles retained. Bank-screen wallet destinations
+  must not silently become DEBIT. Cash-agent mapping and layout release checks remain.
+  One PNG/JPEG, 10 MiB / 20 million pixels and individual ZIP contents are settled;
+  exact API/job/file contracts remain. The adapter, shared scaling, paired prediction
+  and revision identity have synthetic parity tests; application integration remains.
+  See [mapping implementation](RECEIPT_MAPPING.md) and [receipt guide](RECEIPT_WORKFLOW.md).
 
 ## Suggested replacement passages for review
 

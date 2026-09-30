@@ -1,0 +1,30 @@
+# Local OCR benchmark only: Windows x64, CPython 3.12.
+# Install into runtime/receipt_tools/venv, never the frozen ML environment.
+antlr4-python3-runtime==4.9.3
+certifi==2026.7.22
+charset-normalizer==3.5.2
+colorama==0.4.6
+colorlog==6.12.0
+flatbuffers==25.12.19
+idna==3.20
+iniconfig==2.3.0
+numpy==2.5.3
+omegaconf==2.3.0
+onnxruntime==1.30.0
+opencv-python==5.0.0.93
+packaging==26.3
+pillow==12.3.0
+pluggy==1.6.0
+protobuf==7.36.2
+pyclipper==1.4.0
+Pygments==2.21.0
+pytest==9.1.1
+PyYAML==6.0.3
+rapidocr==3.9.2
+requests==2.34.2
+shapely==2.1.2
+six==1.17.0
+tesserocr @ https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.10.0-tesseract-5.5.2/tesserocr-2.10.0-cp312-cp312-win_amd64.whl#sha256=e05d41a2b0e6f38f3a5195d05a73674d72152a775d1b8ebe481ca9306f94d27a
+tqdm==4.70.1
+typing_extensions==4.16.0
+urllib3==2.8.0

@@ -1,6 +1,6 @@
 # Backend interface contracts
 
-Last updated: 2026-09-30. Researcher CSV analysis is connected to the frontend; receipt APIs remain future work. The approved five-category receipt scope is documented in [receipt workflow decisions](RECEIPT_WORKFLOW.md).
+Last updated: 2026-10-01. Researcher CSV analysis is connected to the frontend; receipt APIs remain future work. The approved five-category receipt scope is documented in [receipt workflow decisions](RECEIPT_WORKFLOW.md).
 
 ## Available HTTP endpoint
 
@@ -171,31 +171,43 @@ Avoid including sensitive raw receipt details in logs or error bodies.
 
 ### Receipt boundary
 
-The current PredictorInput request is a raw PaySim contract. Add a separate
-confirmed-receipt contract for optional reference string, PHP principal, Manila
+The current PredictorInput request remains a raw PaySim contract. Separate internal
+[confirmed-receipt contracts and paired inference](RECEIPT_MAPPING.md) now validate
+optional reference string, PHP principal, Manila
 date/time, original GCash workflow label, mapped PaySim category, account roles,
-optional masked names, and extraction/correction provenance. Target Express Send
+optional masked names, and extraction/correction provenance. This is not a new HTTP
+endpoint: server-owned source context must come from a validated image job, not from
+a client request. The initial adapter accepts Express Send, Pay Online and confirmed
+bank-account transfers; QR and cash categories are rejected until supported. Target Express Send
 (TRANSFER), over-the-counter cash-in (CASH_IN), over-the-counter cash-out (CASH_OUT),
-wallet-funded merchant QR (PAYMENT), and GCash-to-bank transfer (DEBIT), using app
-screenshots only. Exact layouts and bank/agent/merchant indicator mappings remain
-pending; reject unresolved required roles or unsupported workflows before prediction.
+wallet-funded merchant QR or Pay Online (PAYMENT), and GCash-to-bank transfer (DEBIT),
+using app screenshots only. For confirmed personal-wallet origins, merchant flags
+are 0/0 for personal-wallet TRANSFER, 0/1 for merchant PAYMENT, and 0/0 for bank-account
+DEBIT; retain actual role labels separately. Cash-agent mappings remain pending.
+Reject unresolved required roles or unsupported workflows before prediction.
 Permit missing references, preserve leading zeros when present, and use a separate
 internal analysis ID. Full names are not required predictors. Permit correction and
 completion after image upload, followed by explicit confirmation; no image-free
 manual workflow. Return field-level validation and unsupported-layout/type states.
 
-Derive the eleven unscaled features under a recorded demonstration mapping and
-reuse saved scaling once. Do not synthesize a step or a fake PaySim account ID.
+The internal adapter derives the eleven unscaled features under `gcash_confirmed_v1`
+and reuses saved scaling once through `transform_engineered`. Do not synthesize a step or a fake PaySim account ID.
 Do not treat supplied derived values as automatically validated model inputs.
-Store currency/calendar assumptions and adapter version; invalidate prior results
-when confirmed inputs change. No receipt-derived ground truth or accuracy metrics.
+Immutable confirmations retain currency/calendar assumptions and mapping version.
+Revision fingerprints and `is_current` enable stale-result detection; the future
+service must invalidate cached results when confirmed inputs change. No receipt-derived ground truth or accuracy metrics.
 
-OCR will run locally; the engine remains undecided. Application images, confirmed
+The local [OCR baseline](RECEIPT_OCR_BENCHMARK.md) provisionally selects RapidOCR.
+Its parser returns candidates only; it does not validate account roles or authorize
+prediction. A Bank Transfer heading can also lead to a wallet destination.
+Accept one PNG/JPEG at a time, at most 10 MiB and 20,000,000 decoded pixels. Release
+verified workflows first; CASH_IN/CASH_OUT await samples. Application images, confirmed
 details, and results will be temporary until Clear or backend shutdown/restart.
 Implement session access isolation and cleanup separately from retained development
 screenshots in `data/raw/receipt_samples/`. These are approved requirements, not
-implemented endpoints. Receipt upload limits, job contracts, and downloads remain
-to be finalized before publishing the receipt API.
+implemented endpoints. Individual ZIP downloads will include confirmed inputs,
+paired predictions, explanations, and model/mapping provenance, excluding the image
+and evaluation metrics. Exact job/API/ZIP contracts remain to be finalized.
 
 ### Configuration and artifact compatibility
 

@@ -222,9 +222,9 @@ Purpose: an experimental demonstration of individual prediction.
 
 Confirmed initial scope (expanded 2026-09-30; implementation pending):
 
-- GCash app screenshots only, with one workflow per PaySim category: Express Send
+- GCash app screenshots only, with selected workflows across all five PaySim categories: Express Send
   (TRANSFER), over-the-counter cash-in (CASH_IN), over-the-counter cash-out (CASH_OUT),
-  wallet-funded merchant QR payment (PAYMENT), and GCash-to-bank transfer (DEBIT).
+  wallet-funded merchant QR or Pay Online (PAYMENT), and GCash-to-bank transfer (DEBIT).
 - Predict possible fraud based on transaction behavior.
 - Display both RF and RF-SMOTE results.
 - No receipt forgery or image-manipulation detection.
@@ -301,21 +301,29 @@ common cutoff. No per-model thresholds are planned.
 
 Receipt demonstration:
 
-- Exact supported GCash app layouts and local OCR engine.
-- Account-role/merchant-indicator mappings for bank, agent, and merchant workflows.
-- Receipt upload limits, job/API contracts, detailed error handling, and downloads.
+- Release checks for exact app layouts; RapidOCR is the provisional integration
+  engine after the [local comparison](RECEIPT_OCR_BENCHMARK.md).
+- Cash-agent/merchant-indicator mappings; mappings for TRANSFER/PAYMENT/DEBIT are settled.
+- Receipt job/API/ZIP contracts and detailed error handling; the local audit already
+  enforces 10 MiB and 20 million decoded pixels.
 
-Settled receipt requirements (implementation pending): five selected workflows;
+Settled receipt requirements (implementation pending): selected workflows across all five categories;
 Asia/Manila hour and Monday=0 weekday; numeric PHP principal excluding fees;
 correction/completion after image upload and explicit confirmation; optional string
 reference and optional masked names; local OCR; temporary application data until
 Clear or backend shutdown/restart. Image-free manual entry is outside this scope.
 Required inputs that cannot be mapped defensibly still block prediction. Development
 screenshots are retained separately in the ignored sample collection.
+Follow-up decisions: accept one PNG/JPEG up to 10 MiB / 20 million pixels; use
+RapidOCR provisionally after the local comparison;
+release verified workflows first; export confirmed inputs, paired results,
+explanations, and provenance as ZIP without original images or evaluation metrics.
+For personal-wallet origins, merchant flags are TRANSFER 0/0, PAYMENT 0/1, DEBIT 0/0;
+retain actual destination roles and reject unresolved/incompatible roles.
 
 Software:
 
-- Dependency changes required for future OCR work. Phases 1-4 use
+- OCR benchmark dependencies are isolated; application integration remains pending. Phases 1-4 use
   Python 3.12, FastAPI, NumPy, pandas, PyArrow, scikit-learn, imbalanced-learn,
   joblib, SciPy, Matplotlib, and SHAP 0.52.0 with a versioned lock.
 - Receipt API contracts and receipt-specific long-running work. Research CSV jobs are implemented.
@@ -330,7 +338,10 @@ implementation easier.
 The React/Vite researcher frontend uses live CSV analysis, saved inference,
 full-upload evaluation, on-demand SHAP, and downloadable ZIP reports. Python
 implements preparation, training, evaluation, three-stage selection, and SHAP.
-Receipt screens still include mock values; receipt/OCR integration and whole-tool
+The internal [confirmed-receipt mapping and paired prediction](RECEIPT_MAPPING.md)
+is implemented for Express Send, Pay Online and bank-account transfers, with
+revision/provenance checks and shared-scaler parity. Receipt screens still include
+mock values; receipt/OCR integration and whole-tool
 verification remain future work. Mock values are not experimental results. The raw dataset, completed preparation, and preparation verification
 are retained. Current model/validation execution is recorded in
 [run status](VALIDATION_RUN_STATUS.md).

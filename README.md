@@ -11,7 +11,8 @@ See the current run status for measured results.
 Preparation, training, saved inference, evaluation, selection, and SHAP code are
 implemented, including the researcher CSV APIs and frontend integration. Individual
 prediction APIs and the experimental five-category GCash receipt workflow remain
-planned. Expanded SHAP details use a waterfall graph; a numerical table remains
+planned. The local receipt audit/OCR baseline and internal confirmed-input mapping
+and paired prediction are implemented, with RapidOCR provisionally selected for integration. Expanded SHAP details use a waterfall graph; a numerical table remains
 a suggestion.
 
 - [Validation protocol](docs/THREE_STAGE_VALIDATION.md)
@@ -22,4 +23,6 @@ a suggestion.
 - [Backend alignment audit](docs/BACKEND_ALIGNMENT_AUDIT.md)
 - [Backend implementation plan](docs/BACKEND_IMPLEMENTATION_PLAN.md)
 - [Approved receipt scope and screenshot collection guide](docs/RECEIPT_WORKFLOW.md)
+- [Local OCR comparison, sample issues, and next implementation steps](docs/RECEIPT_OCR_BENCHMARK.md)
+- [Implemented confirmed-receipt contracts and feature mapping](docs/RECEIPT_MAPPING.md)
 - [Help-modal and limitations-page content](docs/UI_HELP_CONTENT.md)

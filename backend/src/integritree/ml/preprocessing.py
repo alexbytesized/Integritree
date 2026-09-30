@@ -72,6 +72,20 @@ class FittedPreprocessor:
 
     def transform(self, inputs: pd.DataFrame) -> pd.DataFrame:
         features = engineer_features(inputs, self.state.amount_median)
+        return self.transform_engineered(features)
+
+    def transform_engineered(self, features: pd.DataFrame) -> pd.DataFrame:
+        """Scale internal unscaled features once, after the caller validates its source.
+
+        This low-level method is not a client input contract. Receipt callers must
+        use the confirmed-receipt adapter; research callers normally use transform.
+        Saved state/schema and the order of arithmetic remain unchanged.
+        """
+        if list(features.columns) != self.state.feature_order:
+            raise ValueError("Unscaled feature columns/order must match the saved schema")
+        if not np.isfinite(features.to_numpy(dtype="float64")).all():
+            raise ValueError("Unscaled features must be finite")
+        features = features.copy(deep=True)
         # Exact MinMaxScaler transform (multiply then add), without refitting/clipping.
         scaled = features[SCALED_COLUMNS].to_numpy(dtype="float64", copy=True)
         scaled *= np.array(self.state.scale)

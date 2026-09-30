@@ -269,9 +269,9 @@ See [implementation details](PHASE4_IMPLEMENTATION.md),
 
 Top positive contributor and deterministic prose apply to either prediction class;
 expanded details use a waterfall only. The numerical table is suggestion-only.
-On 2026-09-30, the approved experimental receipt scope expanded to one GCash app
-workflow per PaySim category: Express Send/TRANSFER, over-the-counter cash-in/CASH_IN,
-over-the-counter cash-out/CASH_OUT, wallet-funded merchant QR/PAYMENT, and bank
+On 2026-09-30, the approved experimental receipt scope expanded to selected GCash app
+workflows across all five PaySim categories: Express Send/TRANSFER, over-the-counter cash-in/CASH_IN,
+over-the-counter cash-out/CASH_OUT, wallet-funded merchant QR or Pay Online/PAYMENT, and bank
 transfer/DEBIT. This supersedes the earlier person-to-person-only restriction.
 These are semantic demonstration mappings, not verified cross-domain equivalence.
 Names, reference IDs, balances, and ground truth are not predictor inputs.
@@ -279,8 +279,17 @@ Approved mapping assumptions are Asia/Manila hour, Monday=0 weekday, and numeric
 PHP principal excluding fees, with saved transformations reused once. Local OCR,
 editable completion after image upload, explicit confirmation, optional string
 reference, and temporary application storage until Clear or backend shutdown/restart
-are settled requirements awaiting implementation. Exact layouts, the OCR engine,
-and account-role/merchant-indicator mappings remain pending. No feature semantics,
+are settled requirements awaiting implementation. For personal-wallet origins,
+approved merchant flags (origin/destination) are 0/0 for TRANSFER, 0/1 for PAYMENT,
+and 0/0 for DEBIT, retaining the bank role separately. Cash-agent mappings remain
+pending. The [local OCR baseline](RECEIPT_OCR_BENCHMARK.md) provisionally selects
+RapidOCR; accept one PNG/JPEG up to 10 MiB / 20 million pixels, release
+verified workflows first, and provide an individual ZIP without images or evaluation
+metrics. Layout release checks and confirmed-role validation remain pending; the
+OCR comparison is separate from fraud evaluation. The
+[confirmed-receipt adapter](RECEIPT_MAPPING.md) now implements the approved mapping
+and shared scaling with synthetic parity tests; receipt HTTP integration remains.
+No feature semantics,
 model artifacts, or research settings are changed by this scope decision.
 See [receipt decisions and sample collection](RECEIPT_WORKFLOW.md).
 See [mock-up decisions](MOCKUP_EVALUATION_DECISIONS.md) and
