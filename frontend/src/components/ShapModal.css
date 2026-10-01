@@ -1,7 +1,40 @@
-.shap-modal .info-modal-scroll { padding: 40px 28px 28px; }
-.shap-modal p { line-height: 1.5; }
-.shap-modal .shap-reconstruction { margin: 20px 0 0; }
-.shap-modal .shap-top-contributor { margin: 12px 0 0; }
-.shap-modal .shap-chart-scroll { overflow-x: auto; }
-.shap-modal .shap-chart-scroll img { display: block; width: 100%; min-width: 620px; height: auto; }
-@media (max-width: 540px) { .shap-modal .info-modal-scroll { padding: 40px 16px 20px; } }
+.shap-modal {
+  --info-modal-max-height: min(880px, calc(100dvh - 32px));
+  width: min(920px, 100%);
+}
+
+.shap-modal .info-modal-scroll {
+  padding: 32px 28px 24px;
+}
+
+.shap-modal p {
+  line-height: 1.5;
+}
+
+.shap-modal .shap-reconstruction {
+  margin: 16px 0 0;
+}
+
+.shap-modal .shap-top-contributor {
+  margin: 10px 0 0;
+}
+
+.shap-modal .shap-chart-scroll {
+  overflow-x: auto;
+}
+
+.shap-modal .shap-chart-scroll img {
+  display: block;
+  width: 100%;
+  min-width: 580px;
+  max-width: 820px;
+  margin: 0 auto;
+  height: auto;
+}
+
+@media (max-width: 540px) {
+  .shap-modal .info-modal-scroll {
+    padding: 28px 16px 20px;
+  }
+}
+

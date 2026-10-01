@@ -2,6 +2,7 @@ import "./TransactionDetailsPage.css"
 import "./ResearcherResultsPage.css"
 import stars from "../assets/stars.png"
 import ReturnButton from "../components/ReturnButton"
+import ReceiptParticles from "../components/ReceiptParticles"
 import TabBar from "../components/TabBar"
 import ModelResultView from "../components/ModelResultView"
 import BothModelsView from "../components/BothModelsView"
@@ -60,20 +61,6 @@ const TransactionRecord = ({ analysis, number, returnQuery }) => {
     return () => { live = false; clearTimeout(timer) }
   }, [analysis, number, revision])
 
-  useEffect(() => {
-    if (window.particlesJS) {
-      window.particlesJS.load("particles-js", "/particles.json", function () {})
-    }
-    return () => {
-      if (window.pJSDom && window.pJSDom.length > 0) {
-        window.pJSDom.forEach((entry) => {
-          if (entry.pJS?.fn?.vendors?.destroypJS) entry.pJS.fn.vendors.destroypJS()
-        })
-        window.pJSDom = []
-      }
-    }
-  }, [])
-
   if (!record) return <main className="researcher-results-page"><h1>Transaction details</h1><p role="status">{error || (analysis ? 'Loading...' : 'Session expired. Upload a CSV again.')}</p><Link to="/researcher-upload">Return to upload</Link></main>
   const modelProps = (name) => ({
     prediction: label(record[name].predicted_label), riskScore: record[name].score * 100,
@@ -95,7 +82,7 @@ const TransactionRecord = ({ analysis, number, returnQuery }) => {
     rfSmote: modelProps('rf_smote'), benchmark: modelProps('rf') }
   return (
     <div className="researcher-results-wrapper">
-      <div id="particles-js" className="particles-background" aria-hidden="true" />
+      <ReceiptParticles />
       <ReturnButton to={back} />
       <main className="researcher-results-page">
         {error && <p role="alert">{error}</p>}

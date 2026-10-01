@@ -1,6 +1,7 @@
 .upload-page-container {
   position: relative;
   height: 100vh;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -11,15 +12,14 @@
   overflow: hidden;
 }
 
-.upload-page-container.researcher-upload {
-  height: auto;
-  min-height: 100vh;
-  overflow: visible;
-  box-sizing: border-box;
-  padding-top: 100px;
-  padding-bottom: 48px;
+@media (max-height: 680px) {
+  .upload-page-container {
+    height: auto;
+    padding-top: 80px;
+    padding-bottom: 40px;
+    overflow-y: auto;
+  }
 }
-.researcher-upload .upload-card-body > p { line-height: 1.5; }
 
 .upload-page-container #particles-js {
   position: absolute;
@@ -97,8 +97,90 @@
 .upload-card-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 14px;
   padding: 14px 24px;
+}
+
+.upload-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.btn-upload-instructions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background-color: #ddeeff;
+  color: #181818;
+  border: 1.5px solid #181818;
+  border-radius: 999px;
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.btn-upload-instructions:hover {
+  background-color: #181818;
+  color: #ffffff;
+}
+
+.btn-upload-instructions:focus-visible {
+  outline: 3px solid #f5a524;
+  outline-offset: 2px;
+}
+
+.btn-upload-instructions svg {
+  width: 16px;
+  height: 16px;
+}
+
+.upload-resume-link {
+  margin: 8px 0 0 0;
+  font-size: 13.5px;
+}
+
+.upload-resume-link a {
+  color: #1a73e8;
+  text-decoration: none;
+}
+
+.upload-resume-link a:hover {
+  text-decoration: underline;
+}
+
+.instructions-download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background-color: #086dc1;
+  color: #ffffff;
+  border: 1px solid #086dc1;
+  border-radius: 8px;
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  margin-top: 20px;
+}
+
+.instructions-download-btn:hover {
+  background-color: #ffffff;
+  color: #086dc1;
+}
+
+.instructions-download-btn:focus-visible {
+  outline: 3px solid #f5a524;
+  outline-offset: 2px;
 }
 
 .upload-header-icon {
@@ -272,6 +354,21 @@
 .btn-analyze-submit:hover {
   background-color: #ffffff;
   color: #111111;
+}
+
+.btn-analyze-submit:disabled {
+  opacity: 0.75;
+  cursor: wait;
+}
+
+/* Upload Status Text */
+.upload-status-text {
+  font-family: 'SF Pro Display', sans-serif;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #181818;
+  margin: 14px auto 0;
+  text-align: center;
 }
 
 /* Error Message */

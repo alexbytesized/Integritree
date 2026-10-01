@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useDropzone } from 'react-dropzone'
-import { Camera, ImageIcon, X, FileImage } from 'lucide-react'
+import { Camera, ImageIcon, X, FileImage, Info } from 'lucide-react'
 import ReturnButton from '../components/ReturnButton'
+import UploadInstructionsModal from '../components/UploadInstructionsModal'
 import './UploadPage.css'
 import { uploadReceipt, receiptKey } from '../receiptApi'
 
@@ -10,6 +11,7 @@ const UploadPage = () => {
   const [file, setFile] = useState(null)
   const [error, setError] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [showInstructions, setShowInstructions] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -103,8 +105,13 @@ const UploadPage = () => {
             Click here
           </Link>
         </p>
-        <p>Upload GCash Express Send, Pay Online, or bank-account transfer screenshots. You can edit all five transaction types after extraction; Cash In/Out and QR screenshot layouts are not supported yet.</p>
-        {sessionStorage.getItem(receiptKey) && <p><Link to={`/results?receipt=${sessionStorage.getItem(receiptKey)}`}>Resume or clear your current receipt</Link></p>}
+        {sessionStorage.getItem(receiptKey) && (
+          <p className="upload-resume-link">
+            <Link to={`/results?receipt=${sessionStorage.getItem(receiptKey)}`}>
+              Resume or clear your current receipt
+            </Link>
+          </p>
+        )}
       </div>
 
       {/* Upload Card */}
@@ -112,15 +119,26 @@ const UploadPage = () => {
 
         {/* Card Header */}
         <div className="upload-card-header">
-          <div className="upload-header-icon">
-            <Camera size={22} strokeWidth={1.5} />
+          <div className="upload-header-left">
+            <div className="upload-header-icon">
+              <Camera size={22} strokeWidth={1.5} />
+            </div>
+            <div className="upload-header-text">
+              <h2 className="upload-card-title">Upload Screenshot</h2>
+              <p className="upload-card-subtitle">
+                Select and Upload the screenshot of your transaction record
+              </p>
+            </div>
           </div>
-          <div className="upload-header-text">
-            <h2 className="upload-card-title">Upload Screenshot</h2>
-            <p className="upload-card-subtitle">
-              Select and Upload the screenshot of your transaction record
-            </p>
-          </div>
+          <button
+            type="button"
+            className="btn-upload-instructions"
+            title="Upload Instructions"
+            onClick={() => setShowInstructions(true)}
+          >
+            <Info size={16} />
+            Upload Instructions
+          </button>
         </div>
 
         {/* Dropzone / File Area */}
@@ -139,7 +157,7 @@ const UploadPage = () => {
               </div>
 
               <button onClick={handleAnalyze} disabled={uploading} className="btn-analyze-submit">
-                {uploading ? 'Uploading…' : 'Extract transaction details'}
+                <span>▶</span> {uploading ? 'ANALYZING FILE…' : 'ANALYZE FILE'}
               </button>
             </div>
           ) : (
@@ -150,15 +168,18 @@ const UploadPage = () => {
               <input {...getInputProps()} />
               <ImageIcon size={36} className="dropzone-icon" />
               <h3 className="dropzone-title">Choose a file or drag and drop it here</h3>
-              <p className="dropzone-desc">One PNG/JPG, up to 10 MiB and 20 million pixels</p>
+              <p className="dropzone-desc">JPG/PNG format only, up to 10 MB.</p>
               <div className="btn-browse">Browse File</div>
             </div>
           )}
 
           {error && <div className="upload-error-msg" role="alert">{error}</div>}
-          <p>Review and confirm extracted details before prediction. Receipts clear automatically when you leave the receipt flow or close this tab. Refresh preserves your current receipt.</p>
         </div>
       </div>
+
+      {showInstructions && (
+        <UploadInstructionsModal onClose={() => setShowInstructions(false)} />
+      )}
     </div>
   )
 }

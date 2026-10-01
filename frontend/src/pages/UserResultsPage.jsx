@@ -5,6 +5,7 @@ import ResearchAnalysisLoading from '../components/ResearchAnalysisLoading'
 import TransactionAmountTooltip from '../components/TransactionAmountTooltip'
 import ReturnButton from '../components/ReturnButton'
 import ScreenshotPreview from '../components/ScreenshotPreview'
+import ReceiptParticles from '../components/ReceiptParticles'
 import TabBar from '../components/TabBar'
 import ModelResultView from '../components/ModelResultView'
 import BothModelsView from '../components/BothModelsView'
@@ -43,18 +44,22 @@ function ReceiptResults({ id }) {
   const retry = () => action(async () => { await receiptApi(`/${id}/retry`, { method: 'POST' }); setRefresh(v => v + 1) })
   if (!loadError && ((id && !job) || job?.busy)) return <ResearchAnalysisLoading title="Receipt results"
     message="Preparing your predictions and explanations..." returnTo={`/results?receipt=${id}`} returnLabel="Return to receipt" />
-  if (!record || job.status !== 'complete') return <main className="user-details-page receipt-page">
-    <h1>Receipt results</h1><p role={loadError || job?.error ? 'alert' : 'status'}>{loadError || job?.error || (job?.busy ? 'Preparing your predictions and explanations...' : 'No confirmed receipt results yet.')}</p>
-    {error && <p role="alert">{error}</p>}
-    {job?.status === 'failed' && <button disabled={working || job.busy} onClick={retry}>Retry processing</button>}
-    <p><Link to={id ? `/results?receipt=${id}` : '/upload'}>{id ? 'Return to receipt' : 'Upload a receipt'}</Link></p>
-  </main>
+  if (!record || job.status !== 'complete') return <div className="researcher-results-wrapper">
+    <ReceiptParticles />
+    <main className="user-details-page receipt-page">
+      <h1>Receipt results</h1><p role={loadError || job?.error ? 'alert' : 'status'}>{loadError || job?.error || (job?.busy ? 'Preparing your predictions and explanations...' : 'No confirmed receipt results yet.')}</p>
+      {error && <p role="alert">{error}</p>}
+      {job?.status === 'failed' && <button disabled={working || job.busy} onClick={retry}>Retry processing</button>}
+      <p><Link to={id ? `/results?receipt=${id}` : '/upload'}>{id ? 'Return to receipt' : 'Upload a receipt'}</Link></p>
+    </main>
+  </div>
   const modelProps = name => ({ modelName: MODEL_NAMES[name], prediction: record[name].predicted_label === 1 ? 'Fraudulent' : 'Legitimate',
     riskScore: record[name].score * 100, threshold: record.threshold * 100,
     shapSummary: shapSummary(record.explanation, name, record.derived, 'receipt'), onOpenShap: () => setShapModel(name) })
   const original = record.original
   const derived = record.derived
   return <div className="researcher-results-wrapper">
+    <ReceiptParticles />
     <ReturnButton to={`/results?receipt=${id}`} />
     <main className="researcher-results-page receipt-results-page">
       <section className="results-overview-section">

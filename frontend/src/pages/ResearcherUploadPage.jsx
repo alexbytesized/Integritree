@@ -2,8 +2,9 @@ import { useState, useCallback, useEffect } from 'react'
 import { uploadCsv } from '../researchApi'
 import { useNavigate, Link } from 'react-router-dom'
 import { useDropzone } from 'react-dropzone'
-import { Database, Upload, X, FileText } from 'lucide-react'
+import { Database, Upload, X, FileText, Info } from 'lucide-react'
 import ReturnButton from '../components/ReturnButton'
+import ResearcherInstructionsModal from '../components/ResearcherInstructionsModal'
 import './UploadPage.css'
 
 const ResearcherUploadPage = () => {
@@ -11,6 +12,7 @@ const ResearcherUploadPage = () => {
   const [error, setError] = useState('')
   const [progress, setProgress] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [showInstructions, setShowInstructions] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -111,15 +113,26 @@ const ResearcherUploadPage = () => {
 
         {/* Card Header */}
         <div className="upload-card-header">
-          <div className="upload-header-icon">
-            <Database size={22} strokeWidth={1.5} />
+          <div className="upload-header-left">
+            <div className="upload-header-icon">
+              <Database size={22} strokeWidth={1.5} />
+            </div>
+            <div className="upload-header-text">
+              <h2 className="upload-card-title">Upload File</h2>
+              <p className="upload-card-subtitle">
+                Select and Upload the CSV File containing E-Wallet Transaction Records
+              </p>
+            </div>
           </div>
-          <div className="upload-header-text">
-            <h2 className="upload-card-title">Upload File</h2>
-            <p className="upload-card-subtitle">
-              Select and Upload the CSV File containing E-Wallet Transaction Records
-            </p>
-          </div>
+          <button
+            type="button"
+            className="btn-upload-instructions"
+            title="Upload Instructions"
+            onClick={() => setShowInstructions(true)}
+          >
+            <Info size={16} />
+            Upload Instructions
+          </button>
         </div>
 
         {/* Dropzone / File Area */}
@@ -138,8 +151,14 @@ const ResearcherUploadPage = () => {
               </div>
 
               <button disabled={busy} onClick={handleAnalyze} className="btn-analyze-submit">
-                <span>▶</span> ANALYZE FILE
+                <span>▶</span> {busy ? 'ANALYZING FILE…' : 'ANALYZE FILE'}
               </button>
+
+              {busy && (
+                <p className="upload-status-text" role="status" aria-live="polite">
+                  Uploading: {progress ?? 0}%
+                </p>
+              )}
             </div>
           ) : (
             <div
@@ -149,19 +168,18 @@ const ResearcherUploadPage = () => {
               <input {...getInputProps()} />
               <Upload size={36} className="dropzone-icon" />
               <h3 className="dropzone-title">Choose a file or drag and drop it here</h3>
-              <p className="dropzone-desc">CSV format only, up to 500 MiB. No fixed record-count limit.</p>
+              <p className="dropzone-desc">CSV format only, up to 500 MB. No fixed record-count limit.</p>
               <div className="btn-browse">Browse File</div>
             </div>
           )}
 
-          {busy && <p role="status">Uploading: {progress ?? 0}%</p>}
           {error && <div className="upload-error-msg" role="alert">{error}</div>}
-          <p>Required columns: step, type, amount, nameOrig, nameDest, isFraud (0 or 1). UTF-8 CSV; no duplicate headers.</p>
-          <p>Step must be a positive integer; names must start with C or M. Type: CASH_IN, CASH_OUT, DEBIT, PAYMENT, TRANSFER, or unknown. Missing amount/type use the saved preprocessing rules. Other original PaySim columns are optional and are not predictors.</p>
-          <a href="/api/v1/research/template" download>Download demonstration CSV template</a>
-          <p>Analyses are temporary. Download results before stopping or restarting the backend. Withhold your test set until the whole tool is complete and official evaluation begins.</p>
         </div>
       </div>
+
+      {showInstructions && (
+        <ResearcherInstructionsModal onClose={() => setShowInstructions(false)} />
+      )}
     </div>
   )
 }

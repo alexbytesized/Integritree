@@ -154,7 +154,9 @@
   padding: 28px 40px 80px;
   text-align: center;
   max-width: 1100px;
+  width: 100%;
   margin: 0 auto;
+  box-sizing: border-box;
 }
 
 .features-banner-title {
@@ -174,8 +176,10 @@
   border-radius: 20px;
   padding: 32px 24px;
   max-width: 1100px;
+  width: 100%;
   margin: -52px auto 0;
   z-index: 2;
+  box-sizing: border-box;
 }
 
 /* Individual feature card */

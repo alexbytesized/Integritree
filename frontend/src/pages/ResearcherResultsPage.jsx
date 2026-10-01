@@ -1,6 +1,7 @@
 import "./ResearcherResultsPage.css"
 import stars from "../assets/stars.png"
 import ReturnButton from "../components/ReturnButton"
+import ReceiptParticles from "../components/ReceiptParticles"
 import SystemResults from "../components/SystemResults"
 import SearchBar from "../components/SearchBar"
 import FilterBar from "../components/FilterBar"
@@ -30,24 +31,6 @@ const outcomeOptions = [
 ]
 
 const ResearcherResultsPage = () => {
-  useEffect(() => {
-    if (window.particlesJS) {
-      window.particlesJS.load("particles-js", "/particles.json", function () {
-        console.log("callback - particles.js config loaded")
-      })
-    }
-
-    return () => {
-      if (window.pJSDom && window.pJSDom.length > 0) {
-        window.pJSDom.forEach((entry) => {
-          if (entry.pJS && entry.pJS.fn && entry.pJS.fn.vendors && entry.pJS.fn.vendors.destroypJS) {
-            entry.pJS.fn.vendors.destroypJS()
-          }
-        })
-        window.pJSDom = []
-      }
-    }
-  }, [])
 
   const [params, setParams] = useSearchParams()
   const id = params.get('analysis') || sessionStorage.getItem(analysisKey)
@@ -119,7 +102,7 @@ const ResearcherResultsPage = () => {
   const rate = (count) => 100 * count / job.rows_processed
   return (
     <div className="researcher-results-wrapper">
-      <div id="particles-js" className="particles-background" aria-hidden="true" />
+      <ReceiptParticles />
       <ReturnButton to="/researcher-upload" />
       <main className="researcher-results-page">
 
