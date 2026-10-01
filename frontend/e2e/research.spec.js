@@ -70,7 +70,7 @@ test('upload, refresh, search, pagination, details, real SHAP, download and anal
   await page.screenshot({ path: testInfo.outputPath('mobile.png') })
   const analysisId = new URL(page.url()).searchParams.get('analysis')
   await expect(page.getByRole('button', { name: 'Clear results', exact: true })).toHaveCount(0)
-  await page.getByRole('link', { name: 'Analyze Another CSV', exact: true }).click()
+  await page.getByRole('link', { name: 'Clear Results', exact: true }).click()
   await expect(page).toHaveURL(/researcher-upload$/)
   // Clean up only this test's analysis, independently of the removed results action.
   await page.evaluate(async id => {

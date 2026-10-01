@@ -38,7 +38,10 @@ const PageJump = ({ currentPage, totalPages, onPageChange }) => {
         value={pageInput}
         style={{ width: `max(46px, calc(${pageInput.length}ch + 14px))` }}
         aria-describedby="page-jump-help"
-        onChange={(event) => setPageInput(event.target.value)}
+        onChange={(event) => {
+          const next = event.target.value
+          if (/^[0-9]*$/.test(next)) setPageInput(next)
+        }}
       />
       <span>of {totalPages}</span>
       <span id="page-jump-help" className="visually-hidden">Press Enter to go to this page.</span>

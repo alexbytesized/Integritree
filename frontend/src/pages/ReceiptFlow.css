@@ -3,8 +3,8 @@
 .receipt-page h1 { color: #125b98; }
 .receipt-page .results-overview-title h1 { color: #23272a; }
 .receipt-page p { line-height: 1.6; }
-.receipt-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin: 24px 0; }
-.receipt-actions button, .receipt-actions a, .receipt-page > button {
+.receipt-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 14px; margin: 24px 0; }
+.receipt-actions button:not(.proceed-button), .receipt-actions a, .receipt-page > button {
   border: 1px solid #176ead; border-radius: 10px; padding: 12px 18px;
   background: white; color: #125b98; font: inherit; text-decoration: none; cursor: pointer;
 }

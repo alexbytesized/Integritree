@@ -310,7 +310,7 @@ const ResearcherResultsPage = () => {
       <footer className="results-actions">
         {error && <p role="alert">{error}</p>}
         <button type="button" className="results-action download-button" disabled={downloading} onClick={download}>{downloading ? 'Preparing download...' : 'Download Results'}</button>
-        <Link className="results-action analyze-button" to="/researcher-upload">Analyze Another CSV</Link>
+        <Link className="results-action analyze-button" to="/researcher-upload">Clear Results</Link>
       </footer>
       {activeInfoTopic && <InfoModal topic={activeInfoTopic} statisticalTest={test} onClose={closeInfo} />}
       </main>
