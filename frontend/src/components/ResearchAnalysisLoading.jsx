@@ -9,10 +9,11 @@ const STATUS_MESSAGES = {
   evaluating: 'Calculating your analysis results…',
 }
 
-export default function ResearchAnalysisLoading({ status, rowsProcessed = 0 }) {
+export default function ResearchAnalysisLoading({ status, rowsProcessed = 0, title = 'CSV analysis', message,
+  returnTo = '/researcher-upload', returnLabel = 'Return to upload', onReturn, returning = false, error }) {
   const showCount = status === 'processing' || status === 'evaluating'
   return <main className="research-loading">
-    <h1 className="visually-hidden">CSV analysis</h1>
+    <h1 className="visually-hidden">{title}</h1>
     <div className="researcher-results-page research-loading-skeleton" aria-hidden="true">
       <div className="research-loading-placeholder research-loading-heading" />
       <div className="research-loading-banner">
@@ -43,10 +44,12 @@ export default function ResearchAnalysisLoading({ status, rowsProcessed = 0 }) {
       <div className="research-loading-status">
         <div className="research-loading-spinner" aria-hidden="true" />
         <p className="research-loading-message" role="status" aria-live="polite" aria-atomic="true">
-          {STATUS_MESSAGES[status] || 'Connecting to your analysis…'}
+          {message || STATUS_MESSAGES[status] || 'Connecting to your analysis…'}
         </p>
         {showCount && <p className="research-loading-count">{rowsProcessed.toLocaleString('en-US')} records processed.</p>}
-        <Link className="research-loading-return" to="/researcher-upload">Return to upload</Link>
+        {error && <p role="alert">{error}</p>}
+        {onReturn ? <button type="button" className="research-loading-return" disabled={returning} onClick={onReturn}>{returnLabel}</button>
+          : <Link className="research-loading-return" to={returnTo}>{returnLabel}</Link>}
       </div>
     </div>
   </main>

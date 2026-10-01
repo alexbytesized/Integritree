@@ -1,4 +1,5 @@
 import { Routes, Route } from "react-router-dom"
+import ReceiptLifecycle from "./components/ReceiptLifecycle"
 import LandingPage from "./pages/LandingPage"
 import UploadPage from "./pages/UploadPage"
 import ResearcherUploadPage from "./pages/ResearcherUploadPage"
@@ -9,7 +10,7 @@ import UserResultsPage from "./pages/UserResultsPage"
 
 const App = () => {
   return (
-    <div>
+    <ReceiptLifecycle>
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/upload" element={<UploadPage />} />
@@ -19,7 +20,7 @@ const App = () => {
         <Route path="/results" element={<UploadDetails />} />
         <Route path="/user-results" element={<UserResultsPage />} />
       </Routes>
-    </div>
+    </ReceiptLifecycle>
   )
 }
 

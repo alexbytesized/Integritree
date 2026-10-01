@@ -22,17 +22,17 @@ from integritree.receipts.contracts import (
 from integritree.receipts.mapping import predict_receipt, receipt_features
 
 WORKFLOWS = [
-    ("express_send", "TRANSFER", "personal_wallet"),
+    ("express_send", "TRANSFER", "client"),
     ("pay_online", "PAYMENT", "merchant"),
-    ("bank_transfer", "DEBIT", "bank_account"),
+    ("bank_transfer", "DEBIT", "merchant"),
 ]
 
 
 def fields(**changes):
     return ConfirmedReceiptFields.model_validate({
         "workflow": "express_send", "category": "TRANSFER", "amount": "1234.50",
-        "date": "2026-10-05", "time": "13:42", "origin_role": "personal_wallet",
-        "destination_role": "personal_wallet", "wallet_funded": True,
+        "date": "2026-10-05", "time": "13:42", "origin_role": "client",
+        "destination_role": "client",
     } | changes)
 
 
@@ -63,11 +63,11 @@ def receipt(**changes):
     ("time", "00:00+08:00"), ("time", "23:59:60"), ("time", "12:00:00.5"),
     ("currency", "USD"), ("timezone", "UTC"), ("reference", 123),
     ("reference", " "), ("origin_name", ""),
-    ("origin_role", "merchant"), ("origin_role", "unknown"),
+    ("origin_role", "bank_account"), ("origin_role", "unknown"),
     ("destination_role", "unknown"), ("wallet_funded", False),
     ("wallet_funded", 1), ("wallet_funded", "true"),
     ("workflow", "merchant_qr"), ("workflow", "cash_in"), ("workflow", "cash_out"),
-    ("category", "CASH_IN"), ("category", "CASH_OUT"),
+    ("category", "unknown"), ("destination_role", "personal_wallet"),
     ("isFraud", 1), ("oldbalanceOrg", 100), ("step", 1),
     ("is_merchant_dest", 1), ("features", [0] * 11),
 ])
@@ -76,7 +76,7 @@ def test_strict_confirmed_fields_reject_invalid_missing_or_forbidden_values(fiel
         fields(**{field: value})
 
 
-@pytest.mark.parametrize("missing", ["amount", "date", "time", "wallet_funded", "origin_role", "destination_role"])
+@pytest.mark.parametrize("missing", ["amount", "date", "time", "origin_role", "destination_role"])
 def test_required_fields_have_no_imputation(missing):
     payload = fields().model_dump()
     del payload[missing]
@@ -84,16 +84,18 @@ def test_required_fields_have_no_imputation(missing):
         ConfirmedReceiptFields.model_validate(payload)
 
 
-@pytest.mark.parametrize("workflow,category,destination", WORKFLOWS)
-def test_only_compatible_category_and_role_are_accepted(workflow, category, destination):
-    values = fields(workflow=workflow, category=category, destination_role=destination)
-    assert values.destination_role == destination
-    for wrong in {"personal_wallet", "merchant", "bank_account", "agent"} - {destination}:
-        with pytest.raises(ValidationError, match="workflow_destination_role_mismatch"):
-            fields(workflow=workflow, category=category, destination_role=wrong)
-    wrong_category = "PAYMENT" if category != "PAYMENT" else "TRANSFER"
-    with pytest.raises(ValidationError, match="workflow_category_mismatch"):
-        fields(workflow=workflow, category=wrong_category, destination_role=destination)
+@pytest.mark.parametrize("category", ["PAYMENT", "TRANSFER", "DEBIT", "CASH_IN", "CASH_OUT"])
+@pytest.mark.parametrize("origin", ["client", "merchant"])
+@pytest.mark.parametrize("destination", ["client", "merchant"])
+def test_all_categories_and_role_overrides_match_saved_raw_pipeline(category, origin, destination, saved_bundle):
+    item = receipt(category=category, origin_role=origin, destination_role=destination)
+    raw = pd.DataFrame([{"step": 14, "type": category, "amount": 1234.50,
+                         "nameOrig": "M_ORIGIN" if origin == "merchant" else "C_ORIGIN",
+                         "nameDest": "M_DEST" if destination == "merchant" else "C_DEST"}])
+    result = predict_receipt(saved_bundle, item)
+    assert_frame_equal(result.unscaled_features, engineer_features(raw, saved_bundle.preprocessor.state.amount_median))
+    assert_frame_equal(result.predictions, predict_records(saved_bundle, raw, [str(item.source.analysis_id)]))
+    assert item.mapping_version == "gcash_confirmed_v2"
 
 
 @pytest.mark.parametrize("confirmation", [False, 1, "true", None])
@@ -113,11 +115,12 @@ def test_image_context_and_compatible_observed_role_are_required():
         source(image_sha256="invalid")
     with pytest.raises(ValidationError, match="image_layout"):
         confirm_receipt(source("pay_online"), fields(), confirmed=True)
-    # Bank Transfer heading with a known wallet destination cannot become DEBIT.
-    bank_fields = fields(workflow="bank_transfer", category="DEBIT", destination_role="bank_account")
-    with pytest.raises(ValidationError, match="image_evidence"):
-        confirm_receipt(source("bank_transfer", observed_destination_role="personal_wallet"),
-                        bank_fields, confirmed=True)
+    # Observed screenshot roles remain evidence; confirmed model roles are editable.
+    bank_fields = fields(workflow="bank_transfer", category="CASH_IN", origin_role="merchant")
+    confirmed = confirm_receipt(source("bank_transfer", observed_destination_role="bank_account"),
+                                bank_fields, confirmed=True)
+    assert confirmed.source.observed_destination_role == "bank_account"
+    assert confirmed.fields.category == "CASH_IN"
 
 
 def test_decimal_json_roundtrip_reference_and_calendar_boundaries():
@@ -157,7 +160,7 @@ def test_model_copy_cannot_bypass_mapping_validation():
     unsafe = item.model_copy(update={"confirmed": False})
     with pytest.raises(ValidationError):
         receipt_features(unsafe)
-    unsafe_fields = item.fields.model_copy(update={"destination_role": "merchant"})
+    unsafe_fields = item.fields.model_copy(update={"destination_role": "unknown"})
     with pytest.raises(ValidationError):
         receipt_features(item.model_copy(update={"fields": unsafe_fields}))
 
@@ -174,7 +177,7 @@ def test_names_reference_and_ids_do_not_change_features():
 def synthetic_raw(day, hour, category, amount):
     # Test-only equivalence witness. Production receipt mapping never fabricates step/IDs.
     return {"step": day * 24 + hour + 1, "type": category, "amount": float(amount),
-            "nameOrig": "C_SYNTHETIC", "nameDest": "M_SYNTHETIC" if category == "PAYMENT" else "C_SYNTHETIC_DEST"}
+            "nameOrig": "C_SYNTHETIC", "nameDest": "M_SYNTHETIC" if category in {"PAYMENT", "DEBIT"} else "C_SYNTHETIC_DEST"}
 
 
 @pytest.fixture

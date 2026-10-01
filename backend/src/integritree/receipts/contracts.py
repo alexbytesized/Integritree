@@ -1,6 +1,6 @@
 """Internal receipt confirmation contracts; not an upload or HTTP authorization layer.
 
-The future image service must create ReceiptSource after validating a stored upload
+The image service creates ReceiptSource after validating a stored upload
 and its supported layout. Never accept that trusted context from a client verbatim.
 """
 from datetime import date, time
@@ -16,16 +16,12 @@ from pydantic import ConfigDict, Field, StrictBool, StringConstraints, field_val
 
 from integritree.contracts import Contract, Sha256
 
-MAPPING_VERSION = "gcash_confirmed_v1"
+MAPPING_VERSION = "gcash_confirmed_v2"
 Workflow = Literal["express_send", "pay_online", "bank_transfer"]
-Role = Literal["personal_wallet", "merchant", "bank_account", "agent"]
+Role = Literal["client", "merchant"]
+ObservedRole = Literal["personal_wallet", "merchant", "bank_account", "agent"]
 Text = Annotated[str, StringConstraints(strict=True, min_length=1, max_length=256)]
 OptionalText = Text | None
-RULES = {
-    "express_send": ("TRANSFER", "personal_wallet"),
-    "pay_online": ("PAYMENT", "merchant"),
-    "bank_transfer": ("DEBIT", "bank_account"),
-}
 LAYOUT_WORKFLOWS = {
     "gcash_express_send_v1": "express_send",
     "gcash_pay_online_v1": "pay_online",
@@ -66,20 +62,19 @@ class ReceiptSource(ReceiptContract):
     extractor_version: Text
     parser_version: Text
     extracted: ExtractedReceiptFields
-    observed_destination_role: Role | None = None
+    observed_destination_role: ObservedRole | None = None
 
 
 class ConfirmedReceiptFields(ReceiptContract):
     workflow: Workflow
-    category: Literal["TRANSFER", "PAYMENT", "DEBIT"]
+    category: Literal["TRANSFER", "PAYMENT", "DEBIT", "CASH_IN", "CASH_OUT"]
     amount: Decimal
     date: str
     time: str
     currency: Literal["PHP"] = "PHP"
     timezone: Literal["Asia/Manila"] = "Asia/Manila"
-    origin_role: Literal["personal_wallet"]
+    origin_role: Role
     destination_role: Role
-    wallet_funded: StrictBool
     reference: OptionalText = None
     origin_name: OptionalText = None
     destination_name: OptionalText = None
@@ -132,29 +127,12 @@ class ConfirmedReceiptFields(ReceiptContract):
             raise ValueError("use_null_for_unavailable_text")
         return value
 
-    @field_validator("wallet_funded")
-    @classmethod
-    def require_wallet_funding(cls, value):
-        if value is not True:
-            raise ValueError("wallet_funding_required")
-        return value
-
-    @model_validator(mode="after")
-    def compatible_mapping(self):
-        category, destination = RULES[self.workflow]
-        if self.category != category:
-            raise ValueError("workflow_category_mismatch")
-        if self.destination_role != destination:
-            raise ValueError("workflow_destination_role_mismatch")
-        return self
-
-
 class ConfirmedReceipt(ReceiptContract):
     source: ReceiptSource
     fields: ConfirmedReceiptFields
     confirmed: StrictBool
     revision: Annotated[int, Field(strict=True, ge=1)]
-    mapping_version: Literal["gcash_confirmed_v1"] = MAPPING_VERSION
+    mapping_version: Literal["gcash_confirmed_v2"] = MAPPING_VERSION
 
     @model_validator(mode="after")
     def source_matches_confirmation(self):
@@ -162,9 +140,6 @@ class ConfirmedReceipt(ReceiptContract):
             raise ValueError("explicit_confirmation_required")
         if self.fields.workflow != LAYOUT_WORKFLOWS[self.source.layout_id]:
             raise ValueError("confirmed_workflow_does_not_match_supported_image_layout")
-        observed = self.source.observed_destination_role
-        if observed is not None and observed != self.fields.destination_role:
-            raise ValueError("destination_role_conflicts_with_image_evidence")
         return self
 
     @property

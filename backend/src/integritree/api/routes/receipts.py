@@ -1,8 +1,10 @@
 """Local session-owned receipt HTTP boundary; source context is never client-supplied."""
+import asyncio
 import hashlib
+import json
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Header, Query, Request
+from fastapi import APIRouter, Header, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import Response
 from pydantic import Field, StrictBool, ValidationError
 from starlette.concurrency import run_in_threadpool
@@ -25,6 +27,46 @@ def session(request: Request):
     return {"token": request.app.state.receipts.session()}
 
 
+@router.delete("/sessions/current", status_code=204)
+def clear_session(request: Request, x_session: Session = None):
+    request.app.state.receipts.delete_session(x_session)
+    return Response(status_code=204)
+
+
+@router.websocket("/sessions/presence")
+async def presence(socket: WebSocket):
+    # WebSocket handshakes are not protected by HTTP CORS middleware.
+    if socket.headers.get("origin") not in socket.app.state.settings.cors_origins:
+        await socket.close(code=1008)
+        return
+    await socket.accept()
+    service = socket.app.state.receipts
+    token, connection = None, None
+    try:
+        raw = await asyncio.wait_for(socket.receive_text(), timeout=5)
+        if len(raw) > 256:
+            raise ValueError("Invalid authentication")
+        auth = json.loads(raw)
+        token = auth.get("token")
+        if not isinstance(token, str):
+            raise ValueError("Invalid authentication")
+        connection = service.attach(token)
+        await socket.send_json({"status": "connected"})
+        while True:
+            try:
+                await asyncio.wait_for(socket.receive_text(), timeout=5)
+            except TimeoutError:
+                pass
+            service.check_session(token)
+    except WebSocketDisconnect:
+        pass
+    except (ReceiptError, ValueError, AttributeError, TimeoutError):
+        await socket.close(code=1008)
+    finally:
+        if connection:
+            service.detach(token, connection)
+
+
 @router.post("", status_code=202)
 async def upload(request: Request, filename: str = Query(min_length=1, max_length=255), x_session: Session = None):
     service = request.app.state.receipts
@@ -39,6 +81,7 @@ async def upload(request: Request, filename: str = Query(min_length=1, max_lengt
     try:
         with (job["folder"] / "image").open("wb") as stream:
             async for chunk in request.stream():
+                service.check_session(x_session)
                 job["bytes_received"] += len(chunk)
                 if job["bytes_received"] > MAX_BYTES:
                     raise ReceiptError("Image exceeds 10 MiB.", 413)

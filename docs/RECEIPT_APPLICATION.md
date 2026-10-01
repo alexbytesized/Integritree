@@ -8,28 +8,37 @@ bands, model tabs and SHAP modal. The current saved common cutoff is 43%.
 
 ## Available workflows and limits
 
-| Recognized workflow | Confirmed category | Required destination |
-| --- | --- | --- |
-| Express Send | TRANSFER | Personal wallet |
-| Pay Online | PAYMENT | Merchant |
-| Bank Transfer Complete | DEBIT | Bank account |
+| Recognized workflow | Initial category |
+| --- | --- |
+| Express Send | TRANSFER |
+| Pay Online | PAYMENT |
+| Bank Transfer Complete | DEBIT |
 
-All require a personal-wallet origin and confirmation that wallet funds paid the
-transaction. The server checks multiple OCR layout anchors before allowing field
-confirmation. Ambiguous, failed/pending, unsupported, and known wallet/mixed-bank
-destinations are rejected. Maya Wallet and BPI/VYBE destination labels cannot be
-overridden as bank-account DEBIT. These heuristic gates recognize sampled layouts;
-they do not authenticate screenshots or verify the user's account-role statement.
+The restored seven-row form exposes reference (Transaction ID), PHP principal amount,
+category, Manila date/time, sender type and recipient type. All fields are editable;
+roles offer only Client/Merchant. All five model categories can be selected, with
+editable role defaults documented in [mapping v2](RECEIPT_MAPPING.md). Proceed confirms
+valid fields without review/funding checkboxes. Missing extracted fields stay blank.
+Drafts are stored by receipt/revision in sessionStorage and survive refresh.
 
-Cash-in, cash-out and merchant QR remain pending samples/layout checks and, for
-cash categories, role mapping. The approved five-category target is unchanged.
+Receipt extraction and prediction use the shared researcher loading screen. The
+confirmation form displays and submits time as `HH:mm`; the amount information
+popover explains that the PHP principal excludes fees. Clear Receipt sits beside
+Proceed. The background uses the home particle configuration and resizes its canvas
+when asynchronous content changes the page height. Results share the researcher
+heading and show the optional Transaction ID (`Not provided` when absent). All four
+tabs end with Download Results, Edit Details and Clear Results, in that order.
+
+The server still checks multiple OCR layout anchors before field confirmation.
+Ambiguous, failed/pending, unsupported, and known wallet/mixed-bank destinations are
+rejected. Cash In/Out and merchant QR screenshot recognition remain outside this update.
 PaySim fraud labels occur only in TRANSFER and CASH_OUT; these receipt predictions
 are an experimental demonstration, not validated GCash fraud detection.
 
 See [mapping](RECEIPT_MAPPING.md), [scope and samples](RECEIPT_WORKFLOW.md) and
 [OCR baseline](RECEIPT_OCR_BENCHMARK.md). Missing fields can be completed only after
 a supported image is recognized. Confirm PHP principal excluding fees, Manila
-date/time, account roles and wallet funding. Reference is optional and preserved
+date/time and account roles. Reference is optional and preserved
 as text. No fake PaySim step/account ID or user-supplied feature matrix is used.
 
 ## Run locally
@@ -49,7 +58,7 @@ the runtime lock prevents two processes from sharing temporary storage. Open
 
 1. Upload one PNG/JPEG, at most 10 MiB and 20 million decoded pixels.
 2. Review extracted fields and complete/correct them against the screenshot.
-3. Confirm the account roles, wallet funding and transaction details.
+3. Review or edit the seven fields, then choose Proceed to confirm.
 4. View paired results and SHAP; download the ZIP before Clear or backend shutdown.
 
 The models and saved preprocessing load lazily; no retraining occurs. SHAP uses
@@ -72,19 +81,21 @@ result, chart and download checks ownership. Responses use `Cache-Control: no-st
 | `POST /{id}/retry` | 202 retries failed OCR, prediction or explanation work. |
 | `GET /{id}/waterfall/{rf\|rf_smote}?revision=N` | Current computed SVG only. |
 | `GET /{id}/download?revision=N` | Current completed result ZIP. |
-| `DELETE /{id}` | 204 clears an inactive receipt, private files and derived results. |
+| `DELETE /{id}` | 204 retires a receipt, including busy jobs; active writers finish before physical deletion. |
+| `DELETE /sessions/current` | Idempotent 204 invalidates the session and retires all owned receipt data. |
+| `WS /sessions/presence` | Allowed-origin handshake; first JSON message `{token}`, then `{status: "connected"}` acknowledgment. Token is never in the URL. |
 
 `fields` follows [ConfirmedReceiptFields](RECEIPT_MAPPING.md): strict workflow,
-category, decimal-string amount, date, time, roles and wallet funding; optional
+category, decimal-string amount, date, time and Client/Merchant roles; optional
 reference/names. PHP and Asia/Manila are fixed. Source/layout context is server-owned
 and cannot be supplied by a client. Confirmation bodies are limited to 16 KiB.
 Errors identify invalid fields without echoing submitted values or exception context.
 
 States: `uploading`, `queued`, `extracting`, `awaiting_confirmation`, `unsupported`,
-`failed`, `predicting`, `explaining`, `complete`. `busy` controls whether Clear or
-confirmation is allowed. One receipt is retained per session. One worker processes
-receipt jobs, with capacity for two queued/running jobs. Closing a tab does not
-cancel work or guarantee deletion. Missing/expired session returns 410; another
+`failed`, `predicting`, `explaining`, `complete`. Busy jobs cannot be reconfirmed,
+but can be cleared. One receipt is retained per session. One worker processes receipt
+jobs, with capacity for two queued/running jobs. Session presence is required by the
+browser before upload. Missing/expired session returns 410; another
 session's receipt returns 404; incompatible state/stale revision returns 409;
 oversized upload returns 413; invalid media type returns 415; confirmation validation
 returns 422; full queue returns 429. Image/layout rejection can be asynchronous.
@@ -106,12 +117,41 @@ model run, preprocessing, threshold and explanation state. An unavailable explan
 is explicit in the JSON. The ZIP excludes the original image and evaluation metrics.
 
 Private application files live under ignored `backend/runtime/receipt_sessions/`.
-Clear deletes the receipt directory; graceful shutdown removes this process's
-session directory; startup removes abandoned session directories after acquiring
-the runtime lock. Cleanup never touches retained development screenshots, datasets,
-models or research reports. Downloaded ZIPs remain wherever the user saves them.
+Return from confirmation to Upload, browser navigation out of the flow, and Clear
+invalidate access immediately. Active upload/OCR/prediction/SHAP writers retain their
+files until they finish; their results cannot be revived. Failed file deletion is
+retried by the cleanup worker and explicit cleanup offers a retry action.
+
+A live authenticated WebSocket keeps a session alive. The last disconnect starts a
+30-second grace period; reconnecting on refresh cancels it. Switching tabs does not
+end presence. Unconnected new sessions also expire after 30 seconds. Transport
+ping/pong detects broken connections (20-second interval and timeout by default).
+Network loss, browser suspension or sleep lasting beyond detection plus grace can
+expire a receipt; reconnecting after expiry returns to Upload. A duplicated tab that
+shares the same session keeps it alive until its last connection closes.
+
+Use the installed `websockets` transport (in the dependency lock). Vite proxies both
+HTTP and WebSocket upgrades. Production origins must be listed in `cors_origins`;
+the WebSocket route validates them separately from HTTP CORS. Restart the backend
+and load the updated frontend together; temporary v1 sessions are discarded.
+Graceful shutdown removes this process's session directory; startup removes abandoned
+session directories under the existing runtime lock. Cleanup never touches samples,
+datasets, models, research reports or already downloaded ZIPs.
 
 ## Verification and remaining acceptance work
+
+Mapping-v2 verification (2026-10-01): the full backend suite passed 329 tests;
+receipt/research display browser regressions, two real HTTP/WebSocket lifecycle
+checks, a cleanup-failure/late-confirmation race check, and the opt-in local OCR /
+saved-model / SHAP / ZIP flow passed. Frontend lint/build and `pip check` passed.
+Desktop/mobile screenshots verified the restored seven-row form and local particle
+background. Private OCR screenshots/downloads remain under ignored runtime outputs.
+
+UI refinements (2026-10-01): 19 receipt/researcher browser checks passed, covering
+shared loading, amount help, minute-only time, particle sizing, and all four results
+tabs and footer actions. The opt-in live OCR check was skipped in this frontend run.
+Frontend lint and production build passed.
+
 
 Synthetic backend checks cover all three mappings/layouts, ownership, limits,
 confirmation, revision invalidation, explanation recovery, ZIP contents and cleanup.
@@ -138,3 +178,15 @@ local supported screenshot and `RECEIPT_API_BASE_URL` to the running backend, th
 run Playwright with `-g 'live local'`. It uploads, confirms and clears that temporary
 copy; screenshots/ZIPs in the ignored test-output directory may contain private data.
 Use separate `--output` directories for simultaneous Playwright runs.
+
+
+### Repeat the real browser lifecycle checks
+
+Run the synthetic backend on port 8001:
+`backend/.venv/Scripts/python -m uvicorn receipt_browser_app:create_browser_app --app-dir backend/tests --factory --host 127.0.0.1 --port 8001`.
+In a second terminal set `INTEGRITREE_API_TARGET=http://127.0.0.1:8001` and run Vite
+on `127.0.0.1:5174`. From frontend, set `RECEIPT_LIFECYCLE_LIVE=1` and
+`PLAYWRIGHT_BASE_URL=http://127.0.0.1:5174`, then run
+`npx playwright test e2e/receipt-lifecycle.spec.js`.
+This fixture uses synthetic OCR and models in a temporary directory; it never reads
+private receipt samples or retained research data.

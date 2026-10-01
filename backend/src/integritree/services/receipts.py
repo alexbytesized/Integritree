@@ -8,6 +8,7 @@ import secrets
 import shutil
 import subprocess
 import threading
+import time
 import uuid
 import zipfile
 
@@ -31,6 +32,8 @@ class ReceiptError(Exception):
 
 
 class ReceiptService:
+    presence_grace = 30.0
+
     def __init__(self, settings, experiment, bundle_provider, extractor=None, explanation_factory=None):
         self.settings, self.experiment = settings, experiment
         self.bundle_provider, self.extractor = bundle_provider, extractor or self._extract
@@ -51,6 +54,81 @@ class ReceiptService:
         self.slots = threading.BoundedSemaphore(2)
         self.sessions, self.jobs = set(), {}
         self.closed, self.engine = False, None
+        self.connections, self.deadlines, self.retired = {}, {}, {}
+        self.stop_cleanup = threading.Event()
+        self.cleanup_thread = threading.Thread(target=self._cleanup_loop, name="receipt-cleanup", daemon=True)
+        self.cleanup_thread.start()
+
+    def attach(self, token):
+        with self.lock:
+            self.check_session(token)
+            connection = uuid.uuid4().hex
+            self.connections.setdefault(token, set()).add(connection)
+            self.deadlines.pop(token, None)
+            return connection
+
+    def detach(self, token, connection):
+        with self.lock:
+            connections = self.connections.get(token, set())
+            connections.discard(connection)
+            if token in self.sessions and not connections:
+                self.deadlines[token] = time.monotonic() + self.presence_grace
+
+    def _cleanup_loop(self):
+        while not self.stop_cleanup.wait(1):
+            self.reap()
+
+    def reap(self, now=None):
+        with self.lock:
+            now = time.monotonic() if now is None else now
+            for token, deadline in list(self.deadlines.items()):
+                if deadline <= now:
+                    try:
+                        self.delete_session(token)
+                    except ReceiptError:
+                        pass  # Inaccessible retired files are retried below.
+            for job in list(self.retired.values()):
+                if not job["busy"]:
+                    try:
+                        self._purge(job)
+                    except OSError:
+                        pass
+
+    def _purge(self, job):
+        self._remove(job["folder"])
+        job.update(result=None, confirmation=None, source=None)
+        self.retired.pop(job["id"], None)
+
+    def _retire(self, job):
+        job["cancelled"] = True
+        self.jobs.pop(job["id"], None)
+        self.retired[job["id"]] = job
+        if not job["busy"]:
+            self._purge(job)
+
+    def delete_session(self, token):
+        with self.lock:
+            self.sessions.discard(token)
+            self.connections.pop(token, None)
+            self.deadlines.pop(token, None)
+            try:
+                for job in list(self.jobs.values()) + list(self.retired.values()):
+                    if job["owner"] == token:
+                        self._retire(job)
+            except OSError:
+                raise ReceiptError("Receipt access was cleared, but file cleanup needs a retry.", 503) from None
+
+    def _finish(self, job):
+        with self.lock:
+            job["busy"] = False
+            if job["slot_held"]:
+                job["slot_held"] = False
+                self.slots.release()
+            if job["cancelled"]:
+                try:
+                    self._purge(job)
+                except OSError:
+                    self.retired[job["id"]] = job
 
     def _remove(self, path):
         resolved = path.resolve()
@@ -61,6 +139,8 @@ class ReceiptService:
 
     def close(self):
         self.closed = True
+        self.stop_cleanup.set()
+        self.cleanup_thread.join()
         self.worker.shutdown(wait=True)
         self._remove(self.folder)
         self.process_lock.__exit__(None, None, None)
@@ -71,6 +151,7 @@ class ReceiptService:
                 raise ReceiptError("Backend is shutting down.", 503)
             token = secrets.token_urlsafe(32)
             self.sessions.add(token)
+            self.deadlines[token] = time.monotonic() + self.presence_grace
             return token
 
     def check_session(self, token):
@@ -97,32 +178,35 @@ class ReceiptService:
             folder.mkdir()
             job = dict(id=identifier, owner=token, folder=folder, filename=filename.replace("\\", "/").split("/")[-1],
                        status="uploading", busy=True, bytes_received=0, revision=0, result=None, confirmation=None,
-                       source=None, error=None, created_at=datetime.now(timezone.utc).isoformat())
+                       source=None, error=None, cancelled=False, slot_held=True,
+                       created_at=datetime.now(timezone.utc).isoformat())
             self.jobs[identifier] = job
             return job
 
     def abort(self, job):
         with self.lock:
-            self.jobs.pop(job["id"], None)
-            self._remove(job["folder"])
-            self.slots.release()
+            self._retire(job)
+            self._finish(job)
 
     def submit(self, job, digest):
         with self.lock:
+            self.check_session(job["owner"])
+            if job["cancelled"]:
+                raise ReceiptError("Receipt cleared. Upload again.", 410)
             job.update(status="queued", image_sha256=digest)
             self.worker.submit(self._task, job, self._ocr)
 
     def _task(self, job, function):
         try:
-            function(job)
+            if not job["cancelled"]:
+                function(job)
         except Exception:
             # Do not log receipt contents, model input values or raw exception messages.
             with self.lock:
-                job.update(status="failed", error="Receipt processing failed. Retry or clear this receipt.")
+                if not job["cancelled"]:
+                    job.update(status="failed", error="Receipt processing failed. Retry or clear this receipt.")
         finally:
-            with self.lock:
-                job["busy"] = False
-            self.slots.release()
+            self._finish(job)
 
     def _schedule(self, job, function):
         if job["busy"]:
@@ -130,6 +214,7 @@ class ReceiptService:
         if not self.slots.acquire(blocking=False):
             raise ReceiptError("Receipt queue is full. Retry shortly.", 429)
         job["busy"] = True
+        job["slot_held"] = True
         self.worker.submit(self._task, job, function)
 
     def _extract(self, path):
@@ -165,6 +250,8 @@ class ReceiptService:
             return
         layout, observed, error = identify_layout(extraction["lines"])
         with self.lock:
+            if job["cancelled"]:
+                return
             job["media_type"] = media_type
             if not layout:
                 job.update(status="unsupported", error=error)
@@ -215,13 +302,15 @@ class ReceiptService:
                 self.slots.release()
                 raise ReceiptError("Could not retire the previous result. Clear this receipt and try again.", 503) from None
             job.update(confirmation=confirmation, revision=confirmation.revision, result=None,
-                       status="predicting", error=None, busy=True)
+                       status="predicting", error=None, busy=True, slot_held=True)
             self.worker.submit(self._task, job, self._predict)
             return {"id": identifier, "revision": job["revision"], "status": job["status"]}
 
     def _predict(self, job):
         bundle = self.bundle_provider()
         result = predict_receipt(bundle, job["confirmation"])
+        if job["cancelled"]:
+            return
         revision_dir = job["folder"] / f"revision_{job['revision']}"
         revision_dir.mkdir(exist_ok=True)
         row = result.predictions.iloc[0]
@@ -233,12 +322,17 @@ class ReceiptService:
         for name in ("rf", "rf_smote"):
             record[name] = {"score": float(row[f"{name}_risk_score"]), "predicted_label": int(row[f"{name}_predicted_label"])}
         with self.lock:
+            if job["cancelled"]:
+                return
             job.update(result=record, status="explaining")
         self._explain(job, result.scaled_features)
         with self.lock:
-            job["status"] = "complete"
+            if not job["cancelled"]:
+                job["status"] = "complete"
 
     def _explain(self, job, features=None):
+        if job["cancelled"]:
+            return
         try:
             bundle = self.bundle_provider()
             folder = job["folder"] / f"revision_{job['revision']}"
@@ -256,6 +350,8 @@ class ReceiptService:
                 features = pd.DataFrame([job["result"]["model_inputs"]], columns=FEATURE_COLUMNS)
             self.engine.cache_root = folder / "shap"
             values = self.engine.explain(features, [job["id"]], f"{job['id']}:{job['revision']}")
+            if job["cancelled"]:
+                return
             from integritree.ml.explainability import waterfall, summarize
             models = {}
             for value in values:
@@ -277,10 +373,12 @@ class ReceiptService:
             if set(models) != {"rf", "rf_smote"}:
                 raise ValueError("Both explanations required")
             with self.lock:
-                job["result"]["explanation"] = {"status": "computed", "models": models}
+                if not job["cancelled"]:
+                    job["result"]["explanation"] = {"status": "computed", "models": models}
         except Exception:
             with self.lock:
-                job["result"]["explanation"] = {"status": "failed", "error": "Explanation unavailable. Retry is available."}
+                if not job["cancelled"]:
+                    job["result"]["explanation"] = {"status": "failed", "error": "Explanation unavailable. Retry is available."}
 
     def retry(self, token, identifier):
         with self.lock:
@@ -330,7 +428,7 @@ class ReceiptService:
                         "preprocessing": bundle.preprocessor.state.model_dump(),
                         "model_package_versions": bundle.metadata.get("package_versions"),
                         "explanation_status": result["explanation"]["status"],
-                        "retention": "temporary until Clear or backend shutdown/restart"}
+                        "retention": "temporary until leaving the receipt flow, Clear, 30 seconds after the last browser connection disconnects, or backend shutdown/restart"}
             model_meta = self.settings.research_model_dir / "metadata.json"
             if model_meta.exists():
                 metadata["model_metadata_sha256"] = file_sha256(model_meta)
@@ -349,7 +447,7 @@ class ReceiptService:
     def delete(self, token, identifier):
         with self.lock:
             job = self.owned(token, identifier)
-            if job["busy"]:
-                raise ReceiptError("Wait for processing to finish before clearing the receipt.", 409)
-            self._remove(job["folder"])
-            del self.jobs[identifier]
+            try:
+                self._retire(job)
+            except OSError:
+                raise ReceiptError("Receipt access was cleared, but file cleanup needs a retry.", 503) from None

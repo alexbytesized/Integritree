@@ -23,7 +23,7 @@ def receipt_features(receipt: ConfirmedReceipt) -> pd.DataFrame:
         frame[f"type_{category}"] = np.array([values.category == category], dtype="uint8")
     frame["log_amount"] = np.log1p(np.array([amount], dtype="float64"))
     frame["is_zero_amount"] = np.array([amount == 0], dtype="uint8")
-    frame["is_merchant_origin"] = np.array([0], dtype="uint8")
+    frame["is_merchant_origin"] = np.array([values.origin_role == "merchant"], dtype="uint8")
     frame["is_merchant_dest"] = np.array([values.destination_role == "merchant"], dtype="uint8")
     return frame.loc[:, FEATURE_COLUMNS]
 

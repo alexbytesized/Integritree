@@ -103,7 +103,7 @@ const UploadPage = () => {
             Click here
           </Link>
         </p>
-        <p>GCash Express Send, wallet-funded Pay Online, or transfers to bank accounts. Cash-in, cash-out and merchant QR are not available yet.</p>
+        <p>Upload GCash Express Send, Pay Online, or bank-account transfer screenshots. You can edit all five transaction types after extraction; Cash In/Out and QR screenshot layouts are not supported yet.</p>
         {sessionStorage.getItem(receiptKey) && <p><Link to={`/results?receipt=${sessionStorage.getItem(receiptKey)}`}>Resume or clear your current receipt</Link></p>}
       </div>
 
@@ -156,7 +156,7 @@ const UploadPage = () => {
           )}
 
           {error && <div className="upload-error-msg" role="alert">{error}</div>}
-          <p>Review and confirm extracted details before prediction. Images and results stay on this computer until Clear or backend shutdown/restart. Closing this tab does not clear them.</p>
+          <p>Review and confirm extracted details before prediction. Receipts clear automatically when you leave the receipt flow or close this tab. Refresh preserves your current receipt.</p>
         </div>
       </div>
     </div>

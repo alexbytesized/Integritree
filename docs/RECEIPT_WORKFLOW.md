@@ -36,7 +36,7 @@ layouts must be established from samples. If the app provides no usable screensh
 for a selected workflow, report the gap rather than substituting another source.
 All five categories are implementation targets, not five operational receipt routes.
 Release verified workflows as they pass checks; do not wait for every category.
-CASH_IN/CASH_OUT remain pending representative samples and account-role mapping.
+CASH_IN/CASH_OUT screenshot recognition remains pending representative samples. All five model categories are editable for a supported image using mapping v2.
 
 ## Settled behavior and implementation boundaries
 
@@ -50,7 +50,7 @@ CASH_IN/CASH_OUT remain pending representative samples and account-role mapping.
 - Require an uploaded supported screenshot. Let users correct extracted fields
   and complete unreadable/missing fields before explicit confirmation. A separate
   image-free manual-entry workflow is not included. Manual completion does not
-  bypass unsupported workflow or unresolved account-role validation.
+  bypass the supported-image gate. Category and Client/Merchant roles are editable.
 - Interpret confirmed date/time in Asia/Manila; derive hour 0..23 and weekday
   Monday=0 through Sunday=6. Preserve an unambiguous time. This is a demonstration
   convention, not a verified alignment with PaySim's simulation clock.
@@ -62,15 +62,12 @@ CASH_IN/CASH_OUT remain pending representative samples and account-role mapping.
   string when available; otherwise mark it unavailable. Use a separate internal
   analysis ID. Optional masked names are traceability only; names, phone numbers,
   references, balances, and labels are not receipt model predictors.
-- Require a confirmed personal-wallet origin for the currently mapped workflows.
-  TRANSFER has personal-wallet destination and merchant flags 0/0; PAYMENT has
-  merchant destination and flags 0/1; DEBIT has bank-account destination and flags
-  0/0 (origin/destination). Preserve the actual bank role: non-merchant does not mean
-  person. This approved demonstration mapping follows the dataset's encoding, not
-  proof of cross-domain equivalence. Confirm wallet funding; do not infer roles from
-  names or the Bank Transfer heading alone; the collection includes a bank-screen
-  transfer to Maya Wallet. Unknown/incompatible required roles block prediction. Cash-agent mappings
-  remain pending; do not automatically classify an agent as a PaySim merchant.
+- Mapping v2 uses editable Client/Merchant roles. Type changes apply defaults:
+  PAYMENT, DEBIT and CASH_OUT Client-to-Merchant; TRANSFER Client-to-Client;
+  CASH_IN Merchant-to-Client. Users may override both roles. Preserve detected
+  workflow/layout/observed roles as source evidence; only confirmed category and
+  model roles drive their corresponding features. No wallet-funding assertion is
+  required. These user-selected assumptions supersede the original v1 restrictions.
 - Use a separate confirmed-receipt contract, derive the same eleven unscaled
   features, and apply saved scaling exactly once. Do not fabricate a PaySim step
   or account ID, accept arbitrary client matrices, or refit preprocessing.
@@ -81,11 +78,12 @@ CASH_IN/CASH_OUT remain pending representative samples and account-role mapping.
 - Provide an individual-analysis ZIP containing confirmed inputs, paired predictions,
   explanation results, and mapping/model provenance. Exclude the original image and
   evaluation metrics. Routes and exact files are documented in the application guide.
-- Keep application images, confirmed details, and results temporarily until Clear
-  or backend shutdown/restart; no permanent receipt history or timed expiry is
-  selected. Closing a browser tab alone does not promise deletion. Session access
-  isolation and cleanup are implemented and tested.
-  Exclude personal receipt contents from logs and committed fixtures.
+- Keep images, drafts and results only while the receipt flow is active. Leaving
+  the flow or Clear invalidates access immediately; active workers finish before
+  file deletion. Closing the final session tab clears after a 30-second reconnect
+  grace period. Refresh and Results-to-edit navigation preserve the receipt.
+  Backend shutdown/restart clears temporary data. See [session presence and network
+  limits](RECEIPT_APPLICATION.md). Exclude private receipt contents from logs/fixtures.
 
 ## Collect development screenshots
 

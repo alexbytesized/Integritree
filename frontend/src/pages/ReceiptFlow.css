@@ -1,6 +1,7 @@
 .receipt-page { padding-top: 130px; }
 .receipt-page .user-results-overview { margin-top: 0; }
 .receipt-page h1 { color: #125b98; }
+.receipt-page .results-overview-title h1 { color: #23272a; }
 .receipt-page p { line-height: 1.6; }
 .receipt-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin: 24px 0; }
 .receipt-actions button, .receipt-actions a, .receipt-page > button {
@@ -9,12 +10,33 @@
 }
 .receipt-page button:disabled { opacity: .55; cursor: wait; }
 .receipt-page [role="alert"] { color: #9c1824; background: #fff0f1; padding: 14px; border-radius: 10px; overflow-wrap: anywhere; }
-.receipt-form { margin-top: 28px; }
-.receipt-form label { display: grid; gap: 8px; margin: 18px 0; font-weight: 600; }
-.receipt-form input:not([type="checkbox"]) { width: 100%; min-height: 46px; border: 1px solid #9bb7cb; border-radius: 8px; padding: 10px; font: inherit; background: white; color: #182c3d; }
-.receipt-form .receipt-check { display: flex; align-items: flex-start; gap: 12px; line-height: 1.5; font-weight: 400; }
-.receipt-check input { width: 20px; height: 20px; flex-shrink: 0; margin-top: 3px; }
-.receipt-form .proceed-button { padding: 13px 22px; border: 0; border-radius: 10px; background: #126fb6; color: white; font: inherit; cursor: pointer; }
-.receipt-retention { margin-top: 32px; color: #526778; }
+.receipt-confirmation .details-row input, .receipt-confirmation .details-row select { min-width: 0; }
 .receipt-page .td-field-value { overflow-wrap: anywhere; }
 @media (max-width: 760px) { .receipt-page { padding-top: 100px; } }
+
+.receipt-cleanup-error { position: relative; z-index: 20; padding: 16px; color: #9c1824; background: #fff0f1; }
+
+.receipt-form-actions { gap: 16px; flex-wrap: wrap; }
+.receipt-page .proceed-button { border: 1px solid #086dc1; background: #086dc1; color: white; transition: background-color .2s ease, color .2s ease; }
+.receipt-page .proceed-button:not(:disabled):hover { opacity: 1; background: white; color: #086dc1; }
+.receipt-page .receipt-button-outline { background: white; color: #086dc1; }
+.receipt-page .receipt-button-outline:not(:disabled):hover { background: #086dc1; color: white; }
+.receipt-actions button:not(:disabled):hover, .receipt-actions a:hover { background: #086dc1; color: white; }
+.receipt-page .proceed-button:focus-visible { outline: 3px solid #086dc1; outline-offset: 3px; }
+
+.receipt-confirmation { --receipt-control-inset: 1.25rem; }
+.receipt-amount-control { position: relative; min-width: 0; }
+.receipt-amount-control input { padding-right: 3.5rem; }
+.receipt-amount-help { position: absolute; top: 50%; right: calc(var(--receipt-control-inset, 1.25rem) - 5px); transform: translateY(-50%); }
+.receipt-amount-help .risk-tooltip-trigger,
+.receipt-amount-help .risk-tooltip-trigger:hover,
+.receipt-amount-help .risk-tooltip-trigger:focus-visible { border: none; background: transparent; color: #23272a; box-shadow: none; }
+.receipt-amount-help .risk-tooltip-trigger:focus-visible { outline: 2px solid #086dc1; outline-offset: 2px; }
+.receipt-amount-help .risk-tooltip-popover { width: min(300px, calc(100vw - 64px)); }
+.receipt-amount-help .risk-tooltip-popover::before { content: ''; position: absolute; height: 9px; top: -9px; left: 0; right: 0; }
+.receipt-amount-help p { margin: 0; font-size: 14px; line-height: 1.5; text-align: justify; }
+.receipt-confirmation .details-row select { background-position: right var(--receipt-control-inset) center; }
+.receipt-confirmation input[type="date"], .receipt-confirmation input[type="time"] { padding-right: var(--receipt-control-inset); }
+.receipt-confirmation input::-webkit-calendar-picker-indicator { margin: 0; padding: 0; width: 16px; height: 16px; }
+@media (max-width: 760px) { .receipt-confirmation { --receipt-control-inset: 1rem; } }
+@media (max-width: 380px) { .receipt-confirmation { --receipt-control-inset: .75rem; } }

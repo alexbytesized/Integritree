@@ -1,49 +1,69 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import TransactionDetails from '../components/TransactionDetails'
+import ResearchAnalysisLoading from '../components/ResearchAnalysisLoading'
+import ReceiptParticles from '../components/ReceiptParticles'
 import ScreenshotPreview from '../components/ScreenshotPreview'
 import ReturnButton from '../components/ReturnButton'
-import { receiptApi, receiptKey, clearReceipt } from '../receiptApi'
+import stars from '../assets/stars.png'
+import { receiptApi, receiptKey, clearReceipt, draftKey } from '../receiptApi'
 import { useReceipt, useReceiptImage } from '../useReceipt'
 import './UploadDetails.css'
+import './ResearcherResultsPage.css'
 import './ReceiptFlow.css'
 
-import { WORKFLOWS } from '../receiptDisplay'
+import { WORKFLOWS, TRANSACTION_TYPES, minuteTime } from '../receiptDisplay'
 
-function ConfirmationForm({ job, onSubmitted, onError }) {
-  const seed = job.confirmed_fields || job.candidates
-  const [form, setForm] = useState({ amount: seed.amount || '', date: seed.date || '', time: seed.time || '', reference: seed.reference || '' })
-  const [roles, setRoles] = useState(false)
-  const [confirmed, setConfirmed] = useState(false)
+function ConfirmationForm({ job, onSubmitted, onError, onClear, clearing }) {
+  const live = useRef(true)
+  useEffect(() => { live.current = true; return () => { live.current = false } }, [])
+  const key = draftKey(job.id, job.revision)
+  const [form, setForm] = useState(() => {
+    const seed = job.confirmed_fields || job.candidates
+    const category = job.confirmed_fields?.category || WORKFLOWS[job.workflow].category
+    const defaults = TRANSACTION_TYPES[category]
+    const value = { amount: seed.amount ?? '', date: seed.date ?? '', time: minuteTime(seed.time),
+      reference: seed.reference ?? '', category,
+      origin_role: job.confirmed_fields?.origin_role || defaults.origin_role,
+      destination_role: job.confirmed_fields?.destination_role || defaults.destination_role }
+    try {
+      const draft = JSON.parse(sessionStorage.getItem(key))
+      if (draft && Object.keys(value).every(name => typeof draft[name] === 'string') &&
+          TRANSACTION_TYPES[draft.category] && ['client', 'merchant'].includes(draft.origin_role) &&
+          ['client', 'merchant'].includes(draft.destination_role)) return { ...draft, time: minuteTime(draft.time) }
+    } catch { /* Ignore a damaged draft and use extracted/confirmed values. */ }
+    return value
+  })
   const [sending, setSending] = useState(false)
-  const workflow = WORKFLOWS[job.workflow]
+  const change = (name, value) => {
+    const next = { ...form, [name]: value }
+    if (name === 'category') {
+      next.origin_role = TRANSACTION_TYPES[value].origin_role
+      next.destination_role = TRANSACTION_TYPES[value].destination_role
+    }
+    sessionStorage.setItem(key, JSON.stringify(next))
+    setForm(next)
+  }
   const submit = async event => {
     event.preventDefault()
     setSending(true)
     try {
       const value = await receiptApi(`/${job.id}/confirm`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-        expected_revision: job.revision, confirmed,
-        fields: { ...form, reference: form.reference || null, workflow: job.workflow, category: workflow.category,
-          origin_role: 'personal_wallet', destination_role: workflow.destination, wallet_funded: roles,
+        expected_revision: job.revision, confirmed: true,
+        fields: { ...form, time: minuteTime(form.time), reference: form.reference || null, workflow: job.workflow,
           currency: 'PHP', timezone: 'Asia/Manila' },
       }) })
-      onSubmitted(value)
+      sessionStorage.removeItem(key)
+      if (live.current) onSubmitted(value)
     } catch (error) {
       onError([error.message, ...(error.issues || []).map(issue => `${issue.loc.join('.') || 'Receipt'}: ${issue.msg}`)].join(' '))
     } finally { setSending(false) }
   }
-  return <form className="receipt-form td-card" onSubmit={submit}>
-    <div className="td-card-header">Confirm transaction details</div>
-    <div className="td-card-body">
-      <p><strong>{workflow.label}</strong> maps to {workflow.category}</p>
-      <p>Check every value against your screenshot. Complete any unreadable fields. The amount must exclude fees.</p>
-      <label>Principal amount (PHP)<input name="amount" inputMode="decimal" required maxLength={32} pattern="[0-9]+([.][0-9]{1,2})?" value={form.amount} onChange={e => { setForm({ ...form, amount: e.target.value }); setConfirmed(false) }} /></label>
-      <label>Transaction date (Manila)<input name="date" type="date" required value={form.date} onChange={e => { setForm({ ...form, date: e.target.value }); setConfirmed(false) }} /></label>
-      <label>Transaction time (Manila)<input name="time" type="time" step="1" required value={form.time} onChange={e => { setForm({ ...form, time: e.target.value }); setConfirmed(false) }} /></label>
-      <label>Reference (optional)<input name="reference" maxLength={256} value={form.reference} onChange={e => { setForm({ ...form, reference: e.target.value }); setConfirmed(false) }} /></label>
-      <label className="receipt-check"><input type="checkbox" required checked={roles} onChange={e => { setRoles(e.target.checked); setConfirmed(false) }} />I confirm this completed transaction was funded from my personal GCash wallet and the destination is a {workflow.role.toLowerCase()}.</label>
-      <label className="receipt-check"><input type="checkbox" required checked={confirmed} onChange={e => setConfirmed(e.target.checked)} />I have reviewed and confirm these transaction details.</label>
-      <p>Experimental predictions use PaySim-trained models. They do not verify receipt authenticity or establish real-world fraud.</p>
-      <button className="proceed-button" disabled={sending || !roles || !confirmed}>{sending ? 'Submitting...' : 'Confirm and analyze'}</button>
+  return <form className="receipt-confirmation" onSubmit={submit}>
+    <TransactionDetails value={form} onChange={change} disabled={sending} />
+    <div className="proceed-button-container receipt-form-actions">
+      <button className="proceed-button" disabled={sending || clearing}>{sending ? 'Submitting...' : 'Proceed'}</button>
+      <button type="button" className="proceed-button receipt-button-outline" disabled={clearing} onClick={onClear}>Clear Receipt</button>
     </div>
   </form>
 }
@@ -60,27 +80,30 @@ function ReceiptDetails({ id }) {
   const { job, error: loadError } = useReceipt(id, refresh)
   const image = useReceiptImage(id, !!job?.workflow)
   const [error, setError] = useState('')
-  const action = async fn => { setError(''); try { await fn() } catch (err) { setError(err.message) } }
+  const [working, setWorking] = useState(false)
+  const action = async fn => { setWorking(true); setError(''); try { await fn() } catch (err) { setError(err.message) } finally { setWorking(false) } }
+  const clear = () => action(async () => { await clearReceipt(); navigate('/upload') })
   const ready = job && !job.busy && job.workflow && ['awaiting_confirmation', 'complete', 'failed'].includes(job.status)
+  if (!loadError && ((id && !job) || job?.busy)) return <ResearchAnalysisLoading
+    title="Receipt analysis" message={job?.busy
+      ? (['uploading', 'queued', 'extracting'].includes(job.status) ? 'Reading your receipt...' : 'Preparing your predictions and explanations...')
+      : 'Loading your receipt...'} onReturn={clear} returning={working} error={error} />
   return <div className="researcher-results-wrapper">
-    <ReturnButton to="/upload" />
+    <ReceiptParticles />
+    <ReturnButton onClick={clear} />
     <main className="user-details-page receipt-page">
-      <h1>Review your receipt</h1>
+      <div className="results-overview-title"><div className="section-heading"><h1>Confirm Details</h1><img src={stars} alt="" /></div></div>
       {(error || loadError) && <p role="alert">{error || loadError}</p>}
       {!id && <p>Upload a receipt to begin. <Link to="/upload">Choose screenshot</Link></p>}
-      {id && !job && !loadError && <p role="status">Loading receipt...</p>}
       {job && <>
         <ScreenshotPreview fileName={job.filename} imageUrl={image} />
-        {job.busy && <p role="status">{['queued', 'extracting', 'uploading'].includes(job.status) ? 'Reading the receipt locally...' : 'Preparing predictions and explanations...'}</p>}
         {job.error && <p role="alert">{job.error}</p>}
-        <div className="receipt-actions">
-          <button disabled={job.busy} onClick={() => action(async () => { await clearReceipt(id); navigate('/upload') })}>Clear receipt</button>
+        {(!ready || job.status === 'failed') && <div className="receipt-actions">
+          {!ready && <button className="proceed-button receipt-button-outline" disabled={working} onClick={clear}>Clear Receipt</button>}
           {job.status === 'failed' && !job.busy && <button onClick={() => action(async () => { await receiptApi(`/${id}/retry`, { method: 'POST' }); setRefresh(v => v + 1) })}>Retry processing</button>}
-          {job.status === 'complete' && !job.busy && <Link to={`/user-results?receipt=${id}`}>View results</Link>}
-        </div>
-        {ready && <ConfirmationForm key={`${id}-${job.revision}`} job={job} onError={setError}
+        </div>}
+        {ready && <ConfirmationForm key={`${id}-${job.revision}`} job={job} onError={setError} onClear={clear} clearing={working}
           onSubmitted={() => navigate(`/user-results?receipt=${id}`)} />}
-        <p className="receipt-retention">Temporary storage: Clear removes this receipt and its results. Backend shutdown/restart also clears them. Download results first.</p>
       </>}
     </main>
   </div>

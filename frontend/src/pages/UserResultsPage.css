@@ -1,41 +1,10 @@
-.user-results-page {
-  position: relative;
-  z-index: 1;
-  width: min(1340px, calc(100% - 64px));
-  min-height: 100vh;
-  margin: 0 auto;
-  padding: 48px 0 72px;
-  color: #23272a;
-  font-family: 'SF Pro Display', sans-serif;
-}
-
-.user-results-page * {
-  box-sizing: border-box;
-}
-
-.user-results-content {
-  margin-top: 28px;
-}
-
-.user-results-tabs-wrapper {
-  margin-top: 48px;
-}
-
-.user-results-page .td-content-section {
-  margin-top: 50px;
-}
-
-/* Match desktop density shown at 80% browser zoom */
-@media (min-width: 1200px) {
-  .user-results-page { zoom: 0.8; }
-}
-
-@media (max-width: 1050px) {
-  .user-results-page { width: min(calc(100% - 48px), 900px); }
-}
-
+.receipt-results-page .user-results-tabs-wrapper { margin-top: 48px; }
+.receipt-results-page .td-field-value { overflow-wrap: anywhere; }
+.receipt-results-page .td-field-value.receipt-amount-control { padding-right: 3.5rem; }
+.receipt-results-page [role="alert"] { color: #9c1824; background: #fff0f1; padding: 14px; border-radius: 10px; overflow-wrap: anywhere; }
+.receipt-results-actions .results-action { transition: background-color .2s ease, color .2s ease; }
+.receipt-results-actions .results-action:disabled { opacity: .55; }
+.receipt-results-actions .results-action:disabled:hover { background: white; color: var(--results-blue); }
 @media (max-width: 760px) {
-  .user-results-page { width: calc(100% - 32px); padding-top: 22px; }
-  .user-results-tabs-wrapper { margin-top: 28px; }
-  .user-results-page .td-content-section { margin-top: 32px; }
+  .receipt-results-page .user-results-tabs-wrapper { margin-top: 28px; }
 }

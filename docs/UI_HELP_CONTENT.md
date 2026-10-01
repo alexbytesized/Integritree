@@ -431,7 +431,7 @@ Sender and recipient names, phone numbers, and references are not model predicto
 Names and references are optional; masked/unavailable names need not be reconstructed.
 The approved policy is local OCR and temporary application storage of images,
 confirmed details, and results until Clear or backend shutdown/restart, with no
-permanent receipt history. Closing a browser tab alone does not guarantee deletion.
+permanent receipt history. Closing the last receipt tab clears it after the 30-second reconnection grace period; refresh preserves it. See RECEIPT_APPLICATION.md for disconnected-browser limits.
 Retained development samples are separate from application uploads and cleanup.
 Before release, verify and publish actual storage/access/cleanup behavior. These
 are requirements awaiting implementation, not current deletion/security promises.

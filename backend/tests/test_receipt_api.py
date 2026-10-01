@@ -81,7 +81,7 @@ def confirmation(revision=0, **changes):
     return {"confirmed": True, "expected_revision": revision, "fields": {
         "workflow": "express_send", "category": "TRANSFER", "amount": "100.00",
         "date": "2026-10-05", "time": "13:00", "reference": None,
-        "origin_role": "personal_wallet", "destination_role": "personal_wallet", "wallet_funded": True,
+        "origin_role": "client", "destination_role": "client",
     } | changes}
 
 
@@ -110,11 +110,13 @@ def test_upload_confirmation_results_export_revision_and_clear(client):
         metadata = json.loads(z.read("metadata.json"))
         assert metadata["scope"] == "experimental_receipt" and metadata["revision"] == 1
     assert client.post(path + "/confirm", headers=headers, json=confirmation()).status_code == 409
-    assert client.post(path + "/confirm", headers=headers, json=confirmation(1, amount="0", reference="0009")).status_code == 202
+    assert client.post(path + "/confirm", headers=headers, json=confirmation(1, amount="0", reference="0009", category="CASH_IN", origin_role="merchant")).status_code == 202
     assert client.get(path + "/download?revision=1", headers=headers).status_code == 409
     updated = wait(client, headers, identifier)["result"]
     assert updated["revision"] == 2 and updated["derived"]["is_zero_amount"] == 1
     assert updated["input_sha256"] != result["input_sha256"]
+    assert updated["derived"]["type_CASH_IN"] == 1 and updated["derived"]["is_merchant_origin"] == 1
+    assert updated["field_provenance"]["category"]["status"] == "corrected"
     folder = client.app.state.receipts.jobs[identifier]["folder"]
     assert not (folder / "revision_1").exists()
     assert client.get(path + "/waterfall/rf?revision=1", headers=headers).status_code == 409
@@ -167,7 +169,7 @@ def test_size_limits_and_upload_abort_release_slot(client, monkeypatch):
     assert job["status"] == "awaiting_confirmation"
 
 
-def test_busy_cannot_be_deleted_and_failed_ocr_can_retry(client):
+def test_busy_cannot_be_confirmed_and_failed_ocr_can_retry(client):
     start, finish = threading.Event(), threading.Event()
     def slow(_):
         start.set()
@@ -179,7 +181,6 @@ def test_busy_cannot_be_deleted_and_failed_ocr_can_retry(client):
     identifier = response.json()["id"]
     assert start.wait(5)
     try:
-        assert client.delete(f"{PREFIX}/{identifier}", headers=owner).status_code == 409
         assert client.post(f"{PREFIX}/{identifier}/confirm", headers=owner, json=confirmation()).status_code == 409
     finally:
         finish.set()
@@ -218,7 +219,7 @@ def test_bank_screen_wallet_destinations_are_not_supported(destination):
     (["Pay Online", "Paid via GCash", "Amount 125.50", "Date Oct 5, 2026 1:00 PM"],
      "pay_online", "PAYMENT", "merchant"),
     (["Bank Transfer Complete", "Bank Example Bank", "Account No. masked", "Transfer Date",
-      "Oct 5, 2026 1:00 PM", "Transfer Amount 125.50"], "bank_transfer", "DEBIT", "bank_account"),
+      "Oct 5, 2026 1:00 PM", "Transfer Amount 125.50"], "bank_transfer", "DEBIT", "merchant"),
 ])
 def test_other_supported_layouts_allow_missing_reference(client, texts, workflow, category, role):
     client.app.state.receipts.extractor = lambda _: extraction(texts)
@@ -283,3 +284,135 @@ def test_revision_cleanup_failure_releases_queue_slot(client, monkeypatch):
         assert service.status(owner["X-Receipt-Session"], identifier)["revision"] == 1
     finally:
         monkeypatch.setattr(service, "_remove", original)
+
+
+@pytest.mark.parametrize("stage", ["ocr", "predict", "explain"])
+def test_session_clear_during_work_prevents_revival_and_releases_capacity(client, stage):
+    service = client.app.state.receipts
+    owner = session(client)
+    token = owner["X-Receipt-Session"]
+    entered, finish = threading.Event(), threading.Event()
+    def block():
+        entered.set()
+        assert finish.wait(10)
+    if stage == "ocr":
+        service.extractor = lambda _: (block(), extraction())[1]
+        response = client.post(PREFIX + "?filename=x.png", content=png(), headers=owner | {"Content-Type": "image/png"})
+        identifier = response.json()["id"]
+    else:
+        identifier, _ = upload(client, owner)
+        if stage == "predict":
+            original = service.bundle_provider
+            service.bundle_provider = lambda: (block(), original())[1]
+        else:
+            class SlowExplainer(Explainer):
+                def explain(self, *args):
+                    block()
+                    return super().explain(*args)
+            service.explanation_factory = SlowExplainer
+        assert client.post(f"{PREFIX}/{identifier}/confirm", headers=owner, json=confirmation()).status_code == 202
+    assert entered.wait(5)
+    job = service.jobs[identifier]
+    folder = job["folder"]
+    try:
+        assert client.delete(PREFIX + "/sessions/current", headers=owner).status_code == 204
+        assert client.delete(PREFIX + "/sessions/current", headers=owner).status_code == 204
+        assert token not in service.sessions and identifier not in service.jobs
+        assert folder.exists()  # The active writer still owns these files.
+        assert client.get(f"{PREFIX}/{identifier}", headers=owner).status_code == 410
+    finally:
+        finish.set()
+    end = time.monotonic() + 10
+    while folder.exists() and time.monotonic() < end:
+        time.sleep(.02)
+    assert not folder.exists()
+    assert job["result"] is None and not job["slot_held"]
+    assert service.slots.acquire(blocking=False)
+    assert service.slots.acquire(blocking=False)
+    assert not service.slots.acquire(blocking=False)
+    service.slots.release()
+    service.slots.release()
+    service.extractor = lambda _: extraction()
+    upload(client, session(client))
+
+
+def test_clear_during_upload_aborts_without_double_releasing_slot(client):
+    service = client.app.state.receipts
+    owner = session(client)
+    job = service.reserve(owner["X-Receipt-Session"], "x.png")
+    with (job["folder"] / "image").open("wb") as stream:
+        stream.write(png())
+        service.delete_session(owner["X-Receipt-Session"])
+        assert job["folder"].exists()
+    from integritree.services.receipts import ReceiptError
+    with pytest.raises(ReceiptError):
+        service.submit(job, "a" * 64)
+    service.abort(job)
+    service.abort(job)
+    assert not job["folder"].exists()
+    upload(client, session(client))
+
+
+def test_presence_refresh_multi_connection_and_missed_close_cleanup(client):
+    service = client.app.state.receipts
+    owner, other = session(client), session(client)
+    identifier, _ = upload(client, owner)
+    other_id, _ = upload(client, other)
+    service.attach(other["X-Receipt-Session"])
+    token = owner["X-Receipt-Session"]
+    first = service.attach(token)
+    second = service.attach(token)
+    service.detach(token, first)
+    assert token not in service.deadlines
+    service.detach(token, second)
+    deadline = service.deadlines[token]
+    service.reap(deadline - .01)
+    assert identifier in service.jobs
+    refreshed = service.attach(token)
+    service.reap(deadline + 1)
+    assert identifier in service.jobs
+    service.detach(token, refreshed)
+    folder = service.jobs[identifier]["folder"]
+    service.reap(service.deadlines[token] + .01)
+    assert identifier not in service.jobs and not folder.exists()
+    assert other_id in service.jobs
+    orphan = service.session()  # Never establishes presence: no leaked session.
+    service.reap(service.deadlines[orphan] + .01)
+    assert orphan not in service.sessions
+
+
+def test_websocket_authentication_origin_and_disconnect(client):
+    from starlette.websockets import WebSocketDisconnect
+    service = client.app.state.receipts
+    owner = session(client)
+    token = owner["X-Receipt-Session"]
+    path = PREFIX + "/sessions/presence"
+    with pytest.raises(WebSocketDisconnect):
+        with client.websocket_connect(path, headers={"Origin": "https://untrusted.example"}):
+            pass
+    with client.websocket_connect(path, headers={"Origin": "http://localhost:5173"}) as ws:
+        ws.send_json({"token": token})
+        assert ws.receive_json() == {"status": "connected"}
+        assert token not in service.deadlines
+    assert token in service.deadlines
+    with pytest.raises(WebSocketDisconnect):
+        with client.websocket_connect(path, headers={"Origin": "http://localhost:5173"}) as ws:
+            ws.send_json({"token": "invalid"})
+            ws.receive_json()
+
+
+def test_session_cleanup_failure_is_inaccessible_and_retryable(client, monkeypatch):
+    owner = session(client)
+    identifier, _ = upload(client, owner)
+    service = client.app.state.receipts
+    folder = service.jobs[identifier]["folder"]
+    remove = service._remove
+    def fail(_):
+        raise OSError("private path")
+    monkeypatch.setattr(service, "_remove", fail)
+    response = client.delete(PREFIX + "/sessions/current", headers=owner)
+    assert response.status_code == 503 and "private path" not in response.text
+    assert client.get(f"{PREFIX}/{identifier}", headers=owner).status_code == 410
+    monkeypatch.setattr(service, "_remove", remove)
+    assert client.delete(PREFIX + "/sessions/current", headers=owner).status_code == 204
+    assert not folder.exists()

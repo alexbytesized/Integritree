@@ -80,3 +80,6 @@
 @media (prefers-reduced-motion: reduce) {
   .research-loading-placeholder, .research-loading-spinner { animation: none; }
 }
+
+button.research-loading-return { border: 0; background: transparent; font-family: inherit; cursor: pointer; }
+button.research-loading-return:disabled { opacity: .55; cursor: progress; }

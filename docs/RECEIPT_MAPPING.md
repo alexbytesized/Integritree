@@ -8,26 +8,27 @@ This milestone does not enable an image-free manual-entry workflow.
 
 ## Supported mapping boundary
 
-Mapping version: `gcash_confirmed_v1`. A confirmed personal-wallet origin and
-`wallet_funded: true` are required for every currently accepted workflow.
+Mapping version: `gcash_confirmed_v2`. Confirmed origin and destination roles are
+`client` or `merchant`, independently editable. Both merchant flags use these values.
+The form defaults are:
 
-| Workflow | Category | Confirmed destination role | Merchant flags, origin/destination |
-| --- | --- | --- | --- |
-| `express_send` | `TRANSFER` | `personal_wallet` | 0 / 0 |
-| `pay_online` | `PAYMENT` | `merchant` | 0 / 1 |
-| `bank_transfer` | `DEBIT` | `bank_account` | 0 / 0 |
+| Category | Origin | Destination |
+| --- | --- | --- |
+| PAYMENT | Client | Merchant |
+| TRANSFER | Client | Client |
+| DEBIT | Client | Merchant |
+| CASH_IN | Merchant | Client |
+| CASH_OUT | Client | Merchant |
 
-Actual bank roles are retained even though both bank accounts and personal wallets
-have a zero merchant flag. Names are never inspected to derive these flags.
-CASH_IN, CASH_OUT and merchant QR are rejected by this initial adapter, pending
-sample/layout validation and, for the cash categories, role mapping. This preserves
-the approved five-category target without claiming all receipt workflows are ready.
-
-The original workflow and confirmed category must agree. A bank-screen receipt
-with an observed personal-wallet destination cannot be confirmed as a bank-account
-DEBIT. A correction cannot turn a supported image into a different workflow.
-These checks enforce the agreed demonstration rules, not receipt authenticity or
-validated transfer of PaySim fraud patterns to GCash.
+Changing category resets both roles to these defaults; users may then override them.
+Express Send initially selects TRANSFER, Pay Online PAYMENT, and Bank Transfer DEBIT.
+All five categories may be confirmed for a supported uploaded screenshot. This does
+not enable new Cash In/Out or QR screenshot layouts. Layout recognition remains unchanged.
+The detected workflow must still match the server-owned layout, but confirmed category
+and model roles may differ from OCR candidates and observed source roles. Source
+observations remain immutable evidence, not additional model-role options.
+Wallet-funding assertions are no longer required. Proceed is explicit confirmation.
+These are user-selected demonstration assumptions, not validated GCash/PaySim equivalence.
 
 ## Internal contracts
 
@@ -39,7 +40,7 @@ validated transfer of PaySim fraud patterns to GCash.
   type, accepted layout ID, extractor/parser versions, candidates, and an optional
   observed destination role. UUIDs are separate from the payment reference.
 - `ConfirmedReceiptFields`: strict required workflow, category, principal, date,
-  time, origin/destination roles and wallet funding; optional string reference and
+  time and origin/destination roles; optional string reference and
   names. Currency is fixed to PHP and timezone to Asia/Manila.
 - `ConfirmedReceipt`: validated source and fields, explicit boolean confirmation,
   positive input revision, and mapping version. Models are frozen and revalidated
@@ -66,9 +67,8 @@ Example confirmed field payload, to be validated only within that upload context
   "time": "14:30",
   "currency": "PHP",
   "timezone": "Asia/Manila",
-  "origin_role": "personal_wallet",
+  "origin_role": "client",
   "destination_role": "merchant",
-  "wallet_funded": true,
   "reference": "00001234"
 }
 ```
@@ -97,7 +97,7 @@ a new revision. It requires an actual boolean true, not `1` or a string. The
 confirmed record retains the source/candidates and exposes per-field extracted and
 confirmed values with `unchanged`, `completed`, `corrected`, or `unavailable` status.
 Comparison is literal, so normalization such as `100` to `100.00` is recorded as a
-correction. Funding, currency and timezone are explicit confirmation/mapping facts,
+correction. Currency and timezone are explicit mapping facts,
 not inferred OCR evidence.
 
 `receipt_features(receipt)` constructs exactly the existing eleven columns in saved
@@ -131,7 +131,7 @@ combinations for each of the three mappings against equivalent raw PaySim featur
 Test-only source steps and entity IDs serve as equivalence witnesses; production
 receipt code never fabricates them. Tests compare saved/reloaded scaling and paired
 predictions, zero/fractional/out-of-training-range amounts, optional references,
-role/layout conflicts, strict input rejection, provenance and stale result detection.
+all five categories and four role combinations, layout binding, strict input rejection, provenance and stale result detection.
 At the internal mapping milestone, the backend suite passed **293 tests**, with five dependency deprecation
 warnings. Saved research models, data, threshold and dependency lock remain unchanged.
 
