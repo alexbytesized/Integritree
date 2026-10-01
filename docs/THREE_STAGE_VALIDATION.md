@@ -90,20 +90,23 @@ Run software checks before full-data training:
 & ./.venv/Scripts/python.exe -m pip check
 ```
 
-The active run completed Stages 1 and 2. Resume its authorized **Stage 3** continuation:
+The current run completed all three stages and selected a 43% cutoff; no further
+selection is needed for that pair. For an interrupted run, replace `<run-id>` with
+its ID to continue through Stage 3 using the same frozen plan:
 
 ```powershell
-& ./.venv/Scripts/python.exe scripts/select_three_stage.py --prepared data/prepared/paysim_phase2_20260918 --config configs/experiment.yaml --protocol configs/validation_three_stage.yaml --resume artifacts/paysim_three_stage_20260928_172539 --jobs 1 --stop-after-stage 3
+& ./.venv/Scripts/python.exe scripts/select_three_stage.py --prepared data/prepared/paysim_phase2_20260918 --config configs/experiment.yaml --protocol configs/validation_three_stage.yaml --resume "artifacts/<run-id>" --jobs 1 --stop-after-stage 3
 ```
 
 `integritree-select` and `integritree-select-three-stage` invoke the same selector.
 For a separate fresh study, omit `--resume` and use an unused or generated run ID;
 `--stop-after-stage 1` stops at ratio selection. Ordinary resume never changes a
-frozen plan. An explicitly authorized Stage 3 reset uses `scripts/reset_stage3.py`
-with `--run artifacts/<run-id>` to amend only the threshold candidate policy, remove
-Stage 3 outputs, and regenerate Stage 1-2 review snapshots. A reset audit records
-the cleanup and preservation hashes; retry that command after an interruption
-before resuming. The current run reuses all fitted candidates without retraining.
+frozen plan. The one-time Stage 3 reset utility has been retired. Its historical
+audit still records the protocol revision and preservation hashes; see
+[the run record](VALIDATION_RUN_STATUS.md). Resume continues to reject an incomplete
+reset journal or `resetting_stage3` manifest. Such a run requires restoration of
+verified evidence before it can resume. The completed run retains all fitted
+candidates without retraining.
 
 Stage 2 ends with `status: awaiting_next_stage`, `completed_stage: 2`, and
 `stage: forest_selected`. Its decision and candidate table are under

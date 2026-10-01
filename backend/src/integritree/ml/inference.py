@@ -1,10 +1,12 @@
 """Shared paired inference. Labels and identity columns never enter the models."""
+
 import numpy as np
 import pandas as pd
 from integritree.ml.features import FEATURE_COLUMNS
 
 
 def feature_matrix(features: pd.DataFrame) -> np.ndarray:
+    # Saved trees use positional columns; matching names in a different order is unsafe.
     if list(features.columns) != FEATURE_COLUMNS:
         raise ValueError("Feature columns/order must exactly match the saved schema")
     values = features.to_numpy(dtype="float64", copy=True)
@@ -26,14 +28,18 @@ def fraud_scores(model, values: np.ndarray) -> np.ndarray:
 def classify(scores, threshold: float) -> np.ndarray:
     if not np.isfinite(threshold) or not 0 <= threshold <= 1:
         raise ValueError("Threshold must be finite and within [0, 1]")
+    # Compare unrounded probabilities; an exact threshold tie is classified as fraud.
     return (np.asarray(scores) >= threshold).astype("uint8")
 
 
-def predict_features(models: dict, features: pd.DataFrame, transaction_ids,
-                     threshold: float, run_id: str) -> pd.DataFrame:
+def predict_features(
+    models: dict, features: pd.DataFrame, transaction_ids, threshold: float, run_id: str
+) -> pd.DataFrame:
     values = feature_matrix(features)
     ids = list(transaction_ids)
-    if len(ids) != len(values) or any(not isinstance(i, str) or not i.strip() for i in ids):
+    if len(ids) != len(values) or any(
+        not isinstance(i, str) or not i.strip() for i in ids
+    ):
         raise ValueError("A nonempty string transaction ID is required for every row")
     if len(set(ids)) != len(ids):
         raise ValueError("Transaction IDs must be unique within a batch")
@@ -49,6 +55,10 @@ def predict_features(models: dict, features: pd.DataFrame, transaction_ids,
 
 def predict_records(bundle, inputs: pd.DataFrame, transaction_ids) -> pd.DataFrame:
     """Apply the saved preprocessor without refitting; supports one or many rows."""
-    return predict_features(bundle.models, bundle.preprocessor.transform(inputs),
-                            transaction_ids, bundle.config.scoring.threshold,
-                            bundle.metadata["run_id"])
+    return predict_features(
+        bundle.models,
+        bundle.preprocessor.transform(inputs),
+        transaction_ids,
+        bundle.config.scoring.threshold,
+        bundle.metadata["run_id"],
+    )

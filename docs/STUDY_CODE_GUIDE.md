@@ -109,7 +109,6 @@ Integritree/
         ├── settings.py               Paths, environment variables, allowed origins
         ├── config.py                 Experiment configuration contracts
         ├── contracts.py              Shared typed data contracts
-        ├── commands.py               Command support
         ├── api/main.py               FastAPI factory and service lifecycle
         ├── api/schemas.py            API response contracts
         ├── api/routes/               Researcher and receipt HTTP handlers
@@ -155,9 +154,9 @@ The services close and clean their temporary data when the application shuts dow
 Models are loaded lazily. A successful `/api/v1/health` response confirms that
 the application responds; it does not prove OCR or the selected model is ready.
 
-Only research and receipt routers are registered, plus health. The files
-`api/routes/predictions.py` and `services/prediction.py` are scaffolds, not the
-active inference path.
+Only research and receipt routers are registered, plus health. Both application
+workflows use the shared inference implementation under `ml/`; there is no
+separate generic prediction endpoint or standalone batch-prediction command.
 
 ### Three kinds of configuration
 
@@ -400,6 +399,7 @@ Useful verification commands, each run from its corresponding directory:
 # backend/
 & ./.venv/Scripts/python.exe -m pytest
 & ./.venv/Scripts/python.exe -m pip check
+& ./.venv/Scripts/python.exe -m ruff format --check src scripts tests
 ```
 
 ```powershell

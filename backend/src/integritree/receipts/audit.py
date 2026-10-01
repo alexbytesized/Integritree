@@ -1,4 +1,5 @@
 """Local receipt inventory. Does not read PaySim or load fraud models."""
+
 from collections import Counter, defaultdict
 from hashlib import sha256
 from pathlib import Path
@@ -11,9 +12,12 @@ MAX_PIXELS = 20_000_000
 CATEGORIES = ("TRANSFER", "CASH_IN", "CASH_OUT", "PAYMENT", "DEBIT", "UNSURE")
 # Already inspected in planning: these cannot be unseen verification examples.
 PREVIEWED = {
-    "TRANSFER/transfer_0001.jpg", "PAYMENT/payment_0001.jpg",
-    "PAYMENT/payment_0007.jpg", "PAYMENT/payment_0019.jpg",
-    "DEBIT/debit_0001.jpg", "DEBIT/debit_0004.jpg",
+    "TRANSFER/transfer_0001.jpg",
+    "PAYMENT/payment_0001.jpg",
+    "PAYMENT/payment_0007.jpg",
+    "PAYMENT/payment_0019.jpg",
+    "DEBIT/debit_0001.jpg",
+    "DEBIT/debit_0004.jpg",
 }
 
 
@@ -52,28 +56,43 @@ def inventory(root):
                 continue
             if path.is_symlink() or not path.resolve().is_relative_to(root):
                 raise ValueError("sample_path_outside_collection")
-            row = {"path": path.relative_to(root).as_posix(), "category": category,
-                   "bytes": path.stat().st_size, "sha256": file_hash(path)}
+            row = {
+                "path": path.relative_to(root).as_posix(),
+                "category": category,
+                "bytes": path.stat().st_size,
+                "sha256": file_hash(path),
+            }
             try:
                 with load_image(path) as image:
-                    row.update(width=image.width, height=image.height,
-                               pixel_sha256=sha256(
-                                   str(image.size).encode() + image.tobytes()).hexdigest(),
-                               status="valid")
-            except (ValueError, OSError, Image.DecompressionBombError,
-                    Image.DecompressionBombWarning) as exc:
+                    row.update(
+                        width=image.width,
+                        height=image.height,
+                        pixel_sha256=sha256(
+                            str(image.size).encode() + image.tobytes()
+                        ).hexdigest(),
+                        status="valid",
+                    )
+            except (
+                ValueError,
+                OSError,
+                Image.DecompressionBombError,
+                Image.DecompressionBombWarning,
+            ) as exc:
                 row.update(status="invalid", error=type(exc).__name__)
             rows.append(row)
     groups = defaultdict(list)
     for row in rows:
         if row["status"] == "valid":
             groups[row["pixel_sha256"]].append(row["path"])
-    return {"schema_version": 1, "rows": rows,
-            "counts": {c: sum(r["category"] == c for r in rows) for c in CATEGORIES},
-            "status_counts": dict(Counter(r["status"] for r in rows)),
-            "decoded_duplicate_groups": [g for g in groups.values() if len(g) > 1],
-            "limits": {"bytes": MAX_BYTES, "decoded_pixels": MAX_PIXELS},
-            "note": "Pixel-identical duplicates grouped; near duplicates require review."}
+    return {
+        "schema_version": 1,
+        "rows": rows,
+        "counts": {c: sum(r["category"] == c for r in rows) for c in CATEGORIES},
+        "status_counts": dict(Counter(r["status"] for r in rows)),
+        "decoded_duplicate_groups": [g for g in groups.values() if len(g) > 1],
+        "limits": {"bytes": MAX_BYTES, "decoded_pixels": MAX_PIXELS},
+        "note": "Pixel-identical duplicates grouped; near duplicates require review.",
+    }
 
 
 def split_inventory(audit):
@@ -88,12 +107,24 @@ def split_inventory(audit):
             groups[row["pixel_sha256"]].append(row)
     assigned = {}
     for category in CATEGORIES:
-        candidates = [key for key, rows in groups.items()
-                      if {r["category"] for r in rows} == {category}]
-        candidates.sort(key=lambda key: sha256(("receipt-42:" + key).encode()).hexdigest())
-        eligible = [key for key in candidates
-                    if not any(r["path"] in PREVIEWED for r in groups[key])]
-        count = min(max(2, round(len(candidates) * .2)), max(0, len(candidates) - 2), len(eligible))
+        candidates = [
+            key
+            for key, rows in groups.items()
+            if {r["category"] for r in rows} == {category}
+        ]
+        candidates.sort(
+            key=lambda key: sha256(("receipt-42:" + key).encode()).hexdigest()
+        )
+        eligible = [
+            key
+            for key in candidates
+            if not any(r["path"] in PREVIEWED for r in groups[key])
+        ]
+        count = min(
+            max(2, round(len(candidates) * 0.2)),
+            max(0, len(candidates) - 2),
+            len(eligible),
+        )
         held = set(eligible[:count]) if category != "UNSURE" else set()
         for key in candidates:
             assigned[key] = "verification" if key in held else "development"

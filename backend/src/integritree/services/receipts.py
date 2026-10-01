@@ -1,4 +1,5 @@
 """Session-owned local image jobs, confirmations, paired results and temporary exports."""
+
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 import io
@@ -17,9 +18,16 @@ from pydantic import ValidationError
 
 from integritree.ml.data import file_sha256
 from integritree.ml.staged_selection import run_lock
-from integritree.receipts.audit import load_image, MAX_BYTES
+from integritree.receipts.audit import load_image
+
+# Receipt routes import the upload limit through this service boundary.
+from integritree.receipts.audit import MAX_BYTES as MAX_BYTES
 from integritree.receipts.contracts import (
-    ReceiptSource, ExtractedReceiptFields, ConfirmedReceiptFields, confirm_receipt, LAYOUT_WORKFLOWS,
+    ReceiptSource,
+    ExtractedReceiptFields,
+    ConfirmedReceiptFields,
+    confirm_receipt,
+    LAYOUT_WORKFLOWS,
 )
 from integritree.receipts.layouts import identify_layout
 from integritree.receipts.mapping import predict_receipt
@@ -34,9 +42,19 @@ class ReceiptError(Exception):
 class ReceiptService:
     presence_grace = 30.0
 
-    def __init__(self, settings, experiment, bundle_provider, extractor=None, explanation_factory=None):
+    def __init__(
+        self,
+        settings,
+        experiment,
+        bundle_provider,
+        extractor=None,
+        explanation_factory=None,
+    ):
         self.settings, self.experiment = settings, experiment
-        self.bundle_provider, self.extractor = bundle_provider, extractor or self._extract
+        self.bundle_provider, self.extractor = (
+            bundle_provider,
+            extractor or self._extract,
+        )
         self.explanation_factory = explanation_factory
         self.root = (settings.backend_root / "runtime/receipt_sessions").resolve()
         runtime = (settings.backend_root / "runtime").resolve()
@@ -56,7 +74,9 @@ class ReceiptService:
         self.closed, self.engine = False, None
         self.connections, self.deadlines, self.retired = {}, {}, {}
         self.stop_cleanup = threading.Event()
-        self.cleanup_thread = threading.Thread(target=self._cleanup_loop, name="receipt-cleanup", daemon=True)
+        self.cleanup_thread = threading.Thread(
+            target=self._cleanup_loop, name="receipt-cleanup", daemon=True
+        )
         self.cleanup_thread.start()
 
     def attach(self, token):
@@ -72,6 +92,7 @@ class ReceiptService:
             connections = self.connections.get(token, set())
             connections.discard(connection)
             if token in self.sessions and not connections:
+                # Allow refresh/reconnection before retiring a disconnected session.
                 self.deadlines[token] = time.monotonic() + self.presence_grace
 
     def _cleanup_loop(self):
@@ -116,7 +137,9 @@ class ReceiptService:
                     if job["owner"] == token:
                         self._retire(job)
             except OSError:
-                raise ReceiptError("Receipt access was cleared, but file cleanup needs a retry.", 503) from None
+                raise ReceiptError(
+                    "Receipt access was cleared, but file cleanup needs a retry.", 503
+                ) from None
 
     def _finish(self, job):
         with self.lock:
@@ -132,7 +155,11 @@ class ReceiptService:
 
     def _remove(self, path):
         resolved = path.resolve()
-        if path.is_symlink() or not resolved.is_relative_to(self.root) or resolved == self.root:
+        if (
+            path.is_symlink()
+            or not resolved.is_relative_to(self.root)
+            or resolved == self.root
+        ):
             raise ValueError("Refusing cleanup outside receipt sessions")
         if path.exists():
             shutil.rmtree(path)
@@ -170,16 +197,31 @@ class ReceiptService:
             self.check_session(token)
             # One retained receipt per browser session; Clear before replacing it.
             if any(j["owner"] == token for j in self.jobs.values()):
-                raise ReceiptError("Clear the existing receipt before uploading another.", 409)
+                raise ReceiptError(
+                    "Clear the existing receipt before uploading another.", 409
+                )
             if not self.slots.acquire(blocking=False):
                 raise ReceiptError("Receipt queue is full. Retry shortly.", 429)
             identifier = uuid.uuid4().hex
             folder = self.folder / identifier
             folder.mkdir()
-            job = dict(id=identifier, owner=token, folder=folder, filename=filename.replace("\\", "/").split("/")[-1],
-                       status="uploading", busy=True, bytes_received=0, revision=0, result=None, confirmation=None,
-                       source=None, error=None, cancelled=False, slot_held=True,
-                       created_at=datetime.now(timezone.utc).isoformat())
+            job = dict(
+                id=identifier,
+                owner=token,
+                folder=folder,
+                filename=filename.replace("\\", "/").split("/")[-1],
+                status="uploading",
+                busy=True,
+                bytes_received=0,
+                revision=0,
+                result=None,
+                confirmation=None,
+                source=None,
+                error=None,
+                cancelled=False,
+                slot_held=True,
+                created_at=datetime.now(timezone.utc).isoformat(),
+            )
             self.jobs[identifier] = job
             return job
 
@@ -204,7 +246,10 @@ class ReceiptService:
             # Do not log receipt contents, model input values or raw exception messages.
             with self.lock:
                 if not job["cancelled"]:
-                    job.update(status="failed", error="Receipt processing failed. Retry or clear this receipt.")
+                    job.update(
+                        status="failed",
+                        error="Receipt processing failed. Retry or clear this receipt.",
+                    )
         finally:
             self._finish(job)
 
@@ -220,13 +265,21 @@ class ReceiptService:
     def _extract(self, path):
         python = self.settings.receipt_ocr_python
         if not python.is_file():
-            raise ReceiptError("Local OCR is not installed. Follow the receipt setup guide, then retry.", 503)
+            raise ReceiptError(
+                "Local OCR is not installed. Follow the receipt setup guide, then retry.",
+                503,
+            )
         output = path.parent / "ocr.json"
         output.unlink(missing_ok=True)
         script = Path(__file__).resolve().parents[3] / "scripts/extract_receipt.py"
-        subprocess.run([str(python), str(script), str(path), str(output)], check=True, timeout=120,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                       creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        subprocess.run(
+            [str(python), str(script), str(path), str(output)],
+            check=True,
+            timeout=120,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
         return json.loads(output.read_text(encoding="utf-8"))
 
     def _ocr(self, job):
@@ -238,9 +291,17 @@ class ReceiptService:
                 pass
             with Image.open(path) as image:
                 media_type = "image/png" if image.format == "PNG" else "image/jpeg"
-        except (ValueError, OSError, Image.DecompressionBombError, Image.DecompressionBombWarning):
+        except (
+            ValueError,
+            OSError,
+            Image.DecompressionBombError,
+            Image.DecompressionBombWarning,
+        ):
             with self.lock:
-                job.update(status="unsupported", error="Use a valid single PNG/JPEG, at most 10 MiB and 20 million pixels.")
+                job.update(
+                    status="unsupported",
+                    error="Use a valid single PNG/JPEG, at most 10 MiB and 20 million pixels.",
+                )
             return
         try:
             extraction = self.extractor(path)
@@ -258,21 +319,40 @@ class ReceiptService:
                 return
             candidates = extraction["parsed"]["fields"]
             job["source"] = ReceiptSource(
-                analysis_id=uuid.UUID(hex=job["id"]), image_id=uuid.uuid4(), image_sha256=job["image_sha256"],
-                media_type=media_type, layout_id=layout, extractor_version=extraction["extractor_version"],
+                analysis_id=uuid.UUID(hex=job["id"]),
+                image_id=uuid.uuid4(),
+                image_sha256=job["image_sha256"],
+                media_type=media_type,
+                layout_id=layout,
+                extractor_version=extraction["extractor_version"],
                 parser_version=extraction["parsed"]["parser_version"],
-                extracted=ExtractedReceiptFields(**candidates), observed_destination_role=observed)
+                extracted=ExtractedReceiptFields(**candidates),
+                observed_destination_role=observed,
+            )
             job.update(status="awaiting_confirmation", error=None)
 
     def status(self, token, identifier):
         with self.lock:
             job = self.owned(token, identifier)
-            result = {k: job[k] for k in ("id", "filename", "status", "busy", "revision", "error", "created_at")}
+            result = {
+                k: job[k]
+                for k in (
+                    "id",
+                    "filename",
+                    "status",
+                    "busy",
+                    "revision",
+                    "error",
+                    "created_at",
+                )
+            }
             if job["source"]:
                 result["workflow"] = LAYOUT_WORKFLOWS[job["source"].layout_id]
                 result["candidates"] = job["source"].extracted.model_dump()
             if job["confirmation"]:
-                result["confirmed_fields"] = job["confirmation"].fields.model_dump(mode="json")
+                result["confirmed_fields"] = job["confirmation"].fields.model_dump(
+                    mode="json"
+                )
             if job["result"]:
                 result["result"] = job["result"]
             return result
@@ -285,13 +365,24 @@ class ReceiptService:
             if expected_revision != job["revision"]:
                 raise ReceiptError("Receipt changed. Reload before confirming.", 409)
             if file_sha256(job["folder"] / "image") != job["source"].image_sha256:
-                raise ReceiptError("Stored image changed. Clear and upload it again.", 409)
+                raise ReceiptError(
+                    "Stored image changed. Clear and upload it again.", 409
+                )
             try:
-                confirmation = confirm_receipt(job["source"], ConfirmedReceiptFields.model_validate(fields),
-                                               confirmed=confirmed, previous=job["confirmation"])
+                confirmation = confirm_receipt(
+                    job["source"],
+                    ConfirmedReceiptFields.model_validate(fields),
+                    confirmed=confirmed,
+                    previous=job["confirmation"],
+                )
             except ValidationError as exc:
-                raise ReceiptError("Check the receipt fields and confirm the supported account roles.", 422,
-                                   exc.errors(include_input=False, include_context=False, include_url=False)) from None
+                raise ReceiptError(
+                    "Check the receipt fields and confirm the supported account roles.",
+                    422,
+                    exc.errors(
+                        include_input=False, include_context=False, include_url=False
+                    ),
+                ) from None
             if not self.slots.acquire(blocking=False):
                 raise ReceiptError("Receipt queue is full. Retry shortly.", 429)
             # Retire old derived artifacts before accepting the next revision.
@@ -300,11 +391,25 @@ class ReceiptService:
                     self._remove(path)
             except Exception:
                 self.slots.release()
-                raise ReceiptError("Could not retire the previous result. Clear this receipt and try again.", 503) from None
-            job.update(confirmation=confirmation, revision=confirmation.revision, result=None,
-                       status="predicting", error=None, busy=True, slot_held=True)
+                raise ReceiptError(
+                    "Could not retire the previous result. Clear this receipt and try again.",
+                    503,
+                ) from None
+            job.update(
+                confirmation=confirmation,
+                revision=confirmation.revision,
+                result=None,
+                status="predicting",
+                error=None,
+                busy=True,
+                slot_held=True,
+            )
             self.worker.submit(self._task, job, self._predict)
-            return {"id": identifier, "revision": job["revision"], "status": job["status"]}
+            return {
+                "id": identifier,
+                "revision": job["revision"],
+                "status": job["status"],
+            }
 
     def _predict(self, job):
         bundle = self.bundle_provider()
@@ -314,13 +419,24 @@ class ReceiptService:
         revision_dir = job["folder"] / f"revision_{job['revision']}"
         revision_dir.mkdir(exist_ok=True)
         row = result.predictions.iloc[0]
-        record = dict(analysis_id=job["id"], revision=job["revision"], input_sha256=result.input_sha256,
-                      mapping_version=result.receipt.mapping_version, model_run_id=bundle.metadata["run_id"],
-                      threshold=bundle.config.scoring.threshold, original=result.receipt.fields.model_dump(mode="json"),
-                      derived=result.unscaled_features.iloc[0].to_dict(), model_inputs=result.scaled_features.iloc[0].to_dict(),
-                      field_provenance=result.receipt.field_provenance, explanation={"status": "pending"})
+        record = dict(
+            analysis_id=job["id"],
+            revision=job["revision"],
+            input_sha256=result.input_sha256,
+            mapping_version=result.receipt.mapping_version,
+            model_run_id=bundle.metadata["run_id"],
+            threshold=bundle.config.scoring.threshold,
+            original=result.receipt.fields.model_dump(mode="json"),
+            derived=result.unscaled_features.iloc[0].to_dict(),
+            model_inputs=result.scaled_features.iloc[0].to_dict(),
+            field_provenance=result.receipt.field_provenance,
+            explanation={"status": "pending"},
+        )
         for name in ("rf", "rf_smote"):
-            record[name] = {"score": float(row[f"{name}_risk_score"]), "predicted_label": int(row[f"{name}_predicted_label"])}
+            record[name] = {
+                "score": float(row[f"{name}_risk_score"]),
+                "predicted_label": int(row[f"{name}_predicted_label"]),
+            }
         with self.lock:
             if job["cancelled"]:
                 return
@@ -342,17 +458,29 @@ class ReceiptService:
                     self.engine = self.explanation_factory()
                 else:
                     from integritree.ml.explainability import ExplanationEngine
-                    self.engine = ExplanationEngine(self.settings.research_model_dir, self.settings.research_prepared_dir,
-                                                   self.experiment.shap, self.folder / "background", bundle=bundle)
+
+                    self.engine = ExplanationEngine(
+                        self.settings.research_model_dir,
+                        self.settings.research_prepared_dir,
+                        self.experiment.shap,
+                        self.folder / "background",
+                        bundle=bundle,
+                    )
             if features is None:
                 import pandas as pd
                 from integritree.ml.features import FEATURE_COLUMNS
-                features = pd.DataFrame([job["result"]["model_inputs"]], columns=FEATURE_COLUMNS)
+
+                features = pd.DataFrame(
+                    [job["result"]["model_inputs"]], columns=FEATURE_COLUMNS
+                )
             self.engine.cache_root = folder / "shap"
-            values = self.engine.explain(features, [job["id"]], f"{job['id']}:{job['revision']}")
+            values = self.engine.explain(
+                features, [job["id"]], f"{job['id']}:{job['revision']}"
+            )
             if job["cancelled"]:
                 return
             from integritree.ml.explainability import waterfall, summarize
+
             models = {}
             for value in values:
                 item = dict(value)
@@ -360,25 +488,44 @@ class ReceiptService:
                 # Preserve SHAP numbers; present the confirmed receipt clock convention.
                 for feature in item["features"]:
                     if feature["feature"] == "hour_of_day":
-                        feature["readable_value"] = f"Manila hour = {job['result']['derived']['hour_of_day']:g}"
+                        feature["readable_value"] = (
+                            f"Manila hour = {job['result']['derived']['hour_of_day']:g}"
+                        )
                     elif feature["feature"] == "day_of_week":
-                        feature["readable_value"] = f"Manila weekday (Monday=0) = {job['result']['derived']['day_of_week']:g}"
-                top, narrative = summarize([f["contribution"] for f in item["features"]],
-                                           [f["readable_value"] for f in item["features"]], self.experiment.shap.positive_tolerance)
-                item.update(top_positive_contributor=top, narrative=narrative, chart_description=narrative)
+                        feature["readable_value"] = (
+                            f"Manila weekday (Monday=0) = {job['result']['derived']['day_of_week']:g}"
+                        )
+                top, narrative = summarize(
+                    [f["contribution"] for f in item["features"]],
+                    [f["readable_value"] for f in item["features"]],
+                    self.experiment.shap.positive_tolerance,
+                )
+                item.update(
+                    top_positive_contributor=top,
+                    narrative=narrative,
+                    chart_description=narrative,
+                )
                 model = item["model"]
                 waterfall(item, folder / f"{model}.svg", display_label="Receipt")
-                item["waterfall_url"] = f"/api/v1/receipts/{job['id']}/waterfall/{model}?revision={job['revision']}"
+                item["waterfall_url"] = (
+                    f"/api/v1/receipts/{job['id']}/waterfall/{model}?revision={job['revision']}"
+                )
                 models[model] = item
             if set(models) != {"rf", "rf_smote"}:
                 raise ValueError("Both explanations required")
             with self.lock:
                 if not job["cancelled"]:
-                    job["result"]["explanation"] = {"status": "computed", "models": models}
+                    job["result"]["explanation"] = {
+                        "status": "computed",
+                        "models": models,
+                    }
         except Exception:
             with self.lock:
                 if not job["cancelled"]:
-                    job["result"]["explanation"] = {"status": "failed", "error": "Explanation unavailable. Retry is available."}
+                    job["result"]["explanation"] = {
+                        "status": "failed",
+                        "error": "Explanation unavailable. Retry is available.",
+                    }
 
     def retry(self, token, identifier):
         with self.lock:
@@ -389,7 +536,10 @@ class ReceiptService:
             elif job["status"] == "failed" and job["confirmation"]:
                 self._schedule(job, self._predict)
                 job["status"] = "predicting"
-            elif job["status"] == "complete" and job["result"]["explanation"]["status"] == "failed":
+            elif (
+                job["status"] == "complete"
+                and job["result"]["explanation"]["status"] == "failed"
+            ):
                 self._schedule(job, self._explain)
                 job["result"]["explanation"] = {"status": "pending"}
             else:
@@ -399,7 +549,9 @@ class ReceiptService:
     def current(self, token, identifier, revision):
         job = self.owned(token, identifier)
         if job["busy"] or job["status"] != "complete" or job["revision"] != revision:
-            raise ReceiptError("Result is unavailable or the receipt revision has changed.", 409)
+            raise ReceiptError(
+                "Result is unavailable or the receipt revision has changed.", 409
+            )
         return job
 
     def image(self, token, identifier):
@@ -413,7 +565,10 @@ class ReceiptService:
         with self.lock:
             job = self.current(token, identifier, revision)
             path = job["folder"] / f"revision_{revision}" / f"{model}.svg"
-            if job["result"]["explanation"]["status"] != "computed" or not path.exists():
+            if (
+                job["result"]["explanation"]["status"] != "computed"
+                or not path.exists()
+            ):
                 raise ReceiptError("Waterfall is unavailable.", 409)
             return path.read_bytes()
 
@@ -422,26 +577,47 @@ class ReceiptService:
             job = self.current(token, identifier, revision)
             bundle = self.bundle_provider()
             result = job["result"]
-            metadata = {"scope": "experimental_receipt", "analysis_id": identifier, "revision": revision,
-                        "input_sha256": result["input_sha256"], "mapping_version": result["mapping_version"],
-                        "model_run_id": result["model_run_id"], "threshold": result["threshold"],
-                        "preprocessing": bundle.preprocessor.state.model_dump(),
-                        "model_package_versions": bundle.metadata.get("package_versions"),
-                        "explanation_status": result["explanation"]["status"],
-                        "retention": "temporary until leaving the receipt flow, Clear, 30 seconds after the last browser connection disconnects, or backend shutdown/restart"}
+            metadata = {
+                "scope": "experimental_receipt",
+                "analysis_id": identifier,
+                "revision": revision,
+                "input_sha256": result["input_sha256"],
+                "mapping_version": result["mapping_version"],
+                "model_run_id": result["model_run_id"],
+                "threshold": result["threshold"],
+                "preprocessing": bundle.preprocessor.state.model_dump(),
+                "model_package_versions": bundle.metadata.get("package_versions"),
+                "explanation_status": result["explanation"]["status"],
+                "retention": "temporary until leaving the receipt flow, Clear, 30 seconds after the last browser connection disconnects, or backend shutdown/restart",
+            }
             model_meta = self.settings.research_model_dir / "metadata.json"
             if model_meta.exists():
                 metadata["model_metadata_sha256"] = file_sha256(model_meta)
             out = io.BytesIO()
             with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-                files = {"confirmed_inputs.json": job["confirmation"].model_dump(mode="json"),
-                         "results.json": {k: v for k, v in result.items() if k != "explanation"},
-                         "explanations.json": result["explanation"], "metadata.json": metadata}
+                files = {
+                    "confirmed_inputs.json": job["confirmation"].model_dump(
+                        mode="json"
+                    ),
+                    "results.json": {
+                        k: v for k, v in result.items() if k != "explanation"
+                    },
+                    "explanations.json": result["explanation"],
+                    "metadata.json": metadata,
+                }
                 for name, value in files.items():
-                    archive.writestr(name, json.dumps(value, indent=2, ensure_ascii=False, allow_nan=False))
+                    archive.writestr(
+                        name,
+                        json.dumps(
+                            value, indent=2, ensure_ascii=False, allow_nan=False
+                        ),
+                    )
                 if result["explanation"]["status"] == "computed":
                     for model in ("rf", "rf_smote"):
-                        archive.write(job["folder"] / f"revision_{revision}" / f"{model}.svg", f"{model}_waterfall.svg")
+                        archive.write(
+                            job["folder"] / f"revision_{revision}" / f"{model}.svg",
+                            f"{model}_waterfall.svg",
+                        )
             return out.getvalue()
 
     def delete(self, token, identifier):
@@ -450,4 +626,6 @@ class ReceiptService:
             try:
                 self._retire(job)
             except OSError:
-                raise ReceiptError("Receipt access was cleared, but file cleanup needs a retry.", 503) from None
+                raise ReceiptError(
+                    "Receipt access was cleared, but file cleanup needs a retry.", 503
+                ) from None

@@ -1,1 +1,1 @@
-"""Integritree backend package scaffold; functionality is not implemented yet."""
+"""HTTP application factory, routes, and response contracts."""

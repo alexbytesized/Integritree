@@ -6,17 +6,24 @@ import pytest
 from pandas.testing import assert_frame_equal
 
 from integritree.ml.features import (
-    FEATURE_COLUMNS, SOURCE_COLUMNS, SCALED_COLUMNS, DataValidationError,
+    FEATURE_COLUMNS,
+    SCALED_COLUMNS,
+    DataValidationError,
     engineer_features,
 )
 from integritree.ml.preprocessing import FittedPreprocessor
 
 
 def inputs(amounts=(0.0, 99.0)):
-    return pd.DataFrame({
-        "step": [1, 169], "type": ["TRANSFER", "PAYMENT"], "amount": amounts,
-        "nameOrig": ["C1", "M2"], "nameDest": ["C3", "M4"],
-    })
+    return pd.DataFrame(
+        {
+            "step": [1, 169],
+            "type": ["TRANSFER", "PAYMENT"],
+            "amount": amounts,
+            "nameOrig": ["C1", "M2"],
+            "nameDest": ["C3", "M4"],
+        }
+    )
 
 
 def test_hand_worked_features_and_week_wrap():
@@ -45,7 +52,9 @@ def test_only_training_values_control_median_scaling_and_no_clipping(tmp_path):
     test["step"] = [50, 100]
     transformed = fitted.transform(test)
     assert fitted.state.amount_median == 49.5
-    assert transformed.iloc[0]["log_amount"] == pytest.approx(np.log1p(49.5) / np.log(100))
+    assert transformed.iloc[0]["log_amount"] == pytest.approx(
+        np.log1p(49.5) / np.log(100)
+    )
     assert transformed.iloc[1]["log_amount"] == pytest.approx(2)
     assert transformed.iloc[1]["hour_of_day"] == 3
     assert fitted.state.model_dump() == original
@@ -76,11 +85,20 @@ def test_constant_columns_and_unknown_type():
     assert transformed.filter(like="type_").eq(0).all().all()
 
 
-@pytest.mark.parametrize("column,value", [
-    ("step", None), ("step", 1.5), ("step", True),
-    ("amount", -1), ("amount", "bad"), ("amount", np.inf),
-    ("nameOrig", None), ("nameDest", "X1"), ("type", "TRASFER"),
-])
+@pytest.mark.parametrize(
+    "column,value",
+    [
+        ("step", None),
+        ("step", 1.5),
+        ("step", True),
+        ("amount", -1),
+        ("amount", "bad"),
+        ("amount", np.inf),
+        ("nameOrig", None),
+        ("nameDest", "X1"),
+        ("type", "TRASFER"),
+    ],
+)
 def test_invalid_predictor_data_rejected(column, value):
     frame = inputs().astype(object)
     frame.loc[0, column] = value

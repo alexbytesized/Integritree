@@ -7,7 +7,7 @@ SMOTE ratio by RF-SMOTE validation Average Precision, shared forest settings by
 mean validation AP, then a common threshold by exact mean validation F1. Each
 stage freezes before the next. Both models are retained; selection does not pick
 a model winner. Stage 1 froze 1:100; Stage 2 selected 100 trees/depth 10/leaf 1.
-Stage 3 selects from exactly 1%, 2%, ..., 100%. See
+Stage 3 selected the shared 43% cutoff from exactly 1%, 2%, ..., 100%. See
 [run status](../docs/VALIDATION_RUN_STATUS.md) for measured outcomes.
 
 Preparation, paired RF/RF-SMOTE training, saved inference, evaluation, three-stage
@@ -63,16 +63,44 @@ install it, and rerun the tests:
 ```
 
 The lock was generated on Windows with Python 3.12; installation on other
-platforms has not been verified. Phase 2 adds NumPy, pandas, PyArrow, and scikit-learn. Phase 3 adds imbalanced-learn 0.14.2 and explicit joblib support.
-Phase 4 adds SHAP 0.52.0, Matplotlib, and explicit SciPy support. The constraints
-preserve saved-model dependency versions. OCR benchmark dependencies are isolated in
+platforms has not been verified. The constraints preserve saved-model dependency
+versions for preparation, training, evaluation, and explanations. Ruff is a pinned
+development-only formatter and does not change the saved-model runtime.
+OCR benchmark dependencies are isolated in
 `runtime/receipt_tools/venv`, pinned in `requirements-ocr-benchmark.lock`; do not
 install that snapshot into the ML environment.
+
+## Code formatting
+
+Run these commands from `backend/`. The [Ruff formatter](https://docs.astral.sh/ruff/formatter/)
+uses four spaces, double quotes, an 88-column target, and Python 3.12 syntax.
+Its configuration applies only to the backend. Generated data, models, reports,
+and runtime evidence are excluded; the frontend has no formatting changes.
+
+```powershell
+# Format maintained backend Python files.
+& ./.venv/Scripts/python.exe -m ruff format src scripts tests
+# Check formatting without editing files.
+& ./.venv/Scripts/python.exe -m ruff format --check src scripts tests
+```
+
+Comments explain invariants and non-obvious decisions rather than development
+history. Preserve recorded artifact hashes and dependency versions when cleaning
+source; historical fingerprints describe the code used for the recorded run.
+The OCR benchmark checks exact source hashes when reusing a development freeze.
+After source changes, create a new development benchmark before verification;
+keep earlier benchmark records and their fingerprints unchanged.
+
+The one-time Stage 3 reset utility and unused prediction scaffolds are retired.
+Use the researcher CSV or receipt APIs for application inference. Selection still
+supports pause/resume with frozen evidence, and incomplete historical resets are
+rejected. Historical reset records remain in the validation evidence.
 
 ## Test and run
 
 ```powershell
 & .\.venv\Scripts\python.exe -m pytest
+& .\.venv\Scripts\python.exe -m pip check
 & .\.venv\Scripts\python.exe -m uvicorn integritree.api.main:create_app --factory --host 127.0.0.1 --port 8000
 ```
 
@@ -127,9 +155,9 @@ approved active configuration. Available stages are `prepare`, `train`,
 
 Validation does not approve a methodology or execute research. Preparation and
 baseline training, evaluation, selection, and explanation commands execute their
-documented workflows. The general batch-export script remains a guarded
-placeholder (exit 2). No command produces mock
-research results or modifies the raw dataset.
+documented workflows. Researcher batch analysis and exports are available through
+the application API. No command produces mock research results or modifies the raw
+dataset.
 
 ## Prepare the approved PaySim dataset
 
@@ -217,23 +245,25 @@ parameters. Its standalone trainer defaults are not selected research settings.
 The three-stage protocol overrides ratio and forest candidates; 0.50 is only a
 supplementary classification checkpoint until Stage 3 freezes a threshold.
 
-Stages 1 and 2 are complete. Resume the authorized **Stage 3** continuation
-from `backend/` using the saved models and validation evidence:
+The current run completed all three stages and selected a 43% cutoff; it does
+not need another selection run. To continue an interrupted run using its saved
+models and validation evidence, replace `<run-id>` below with that run's ID:
 
 ```powershell
-& ./.venv/Scripts/python.exe scripts/select_three_stage.py --prepared data/prepared/paysim_phase2_20260918 --config configs/experiment.yaml --protocol configs/validation_three_stage.yaml --resume artifacts/paysim_three_stage_20260928_172539 --jobs 1 --stop-after-stage 3
+& ./.venv/Scripts/python.exe scripts/select_three_stage.py --prepared data/prepared/paysim_phase2_20260918 --config configs/experiment.yaml --protocol configs/validation_three_stage.yaml --resume "artifacts/<run-id>" --jobs 1 --stop-after-stage 3
 ```
 
 Installed commands `integritree-select` and `integritree-select-three-stage` invoke
 the same selector. `--stop-after-stage` accepts 1 (ratio), 2 (forest), or 3
-(threshold); default 3 runs the full workflow. Use 3 for the current authorization.
+(threshold); default 3 runs the full workflow.
 Resume the same frozen run after failure or graceful pausing; never run two workers.
 Memory checks remain enabled and the data/settings must not be changed to pass them.
 
-Request a graceful pause from a separate terminal:
+For an active selection worker, request a graceful pause from a separate terminal
+using its run ID:
 
 ```powershell
-& ./.venv/Scripts/python.exe scripts/pause_selection.py --run artifacts/paysim_three_stage_20260928_172539
+& ./.venv/Scripts/python.exe scripts/pause_selection.py --run "artifacts/<run-id>"
 ```
 
 The command reports `pause_requested`. Wait for worker metadata `status: paused`

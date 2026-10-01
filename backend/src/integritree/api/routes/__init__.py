@@ -1,1 +1,1 @@
-"""Integritree backend package scaffold; functionality is not implemented yet."""
+"""Receipt and researcher HTTP endpoints."""

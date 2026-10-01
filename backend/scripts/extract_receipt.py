@@ -1,4 +1,5 @@
 """One local OCR job in the isolated OCR environment. No network or console text."""
+
 import json
 import os
 from pathlib import Path
@@ -20,6 +21,7 @@ def main():
     from integritree.receipts.ocr import RapidEngine, extract
     from integritree.receipts.gcash import parse_candidates
     from importlib.metadata import version
+
     engine = RapidEngine()
     try:
         value = extract(engine, Path(sys.argv[1]))

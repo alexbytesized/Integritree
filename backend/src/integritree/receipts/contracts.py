@@ -3,6 +3,7 @@
 The image service creates ReceiptSource after validating a stored upload
 and its supported layout. Never accept that trusted context from a client verbatim.
 """
+
 from datetime import date, time
 from decimal import Decimal
 from hashlib import sha256
@@ -12,7 +13,14 @@ import re
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import ConfigDict, Field, StrictBool, StringConstraints, field_validator, model_validator
+from pydantic import (
+    ConfigDict,
+    Field,
+    StrictBool,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 from integritree.contracts import Contract, Sha256
 
@@ -30,12 +38,18 @@ LAYOUT_WORKFLOWS = {
 
 
 class ReceiptContract(Contract):
-    model_config = ConfigDict(extra="forbid", frozen=True, revalidate_instances="always",
-                              allow_inf_nan=False, hide_input_in_errors=True)
+    model_config = ConfigDict(
+        extra="forbid",
+        frozen=True,
+        revalidate_instances="always",
+        allow_inf_nan=False,
+        hide_input_in_errors=True,
+    )
 
 
 class ExtractedReceiptFields(ReceiptContract):
     """Untrusted OCR candidates, including invalid text, retained for comparison."""
+
     workflow: OptionalText = None
     category: OptionalText = None
     amount: OptionalText = None
@@ -54,11 +68,14 @@ class ReceiptSource(ReceiptContract):
     Layout IDs identify the initial mapping targets, not a claim that a production
     layout validator already exists. Unknown/QR/cash layouts cannot enter this path.
     """
+
     analysis_id: UUID
     image_id: UUID
     image_sha256: Sha256
     media_type: Literal["image/png", "image/jpeg"]
-    layout_id: Literal["gcash_express_send_v1", "gcash_pay_online_v1", "gcash_bank_transfer_v1"]
+    layout_id: Literal[
+        "gcash_express_send_v1", "gcash_pay_online_v1", "gcash_bank_transfer_v1"
+    ]
     extractor_version: Text
     parser_version: Text
     extracted: ExtractedReceiptFields
@@ -87,7 +104,9 @@ class ConfirmedReceiptFields(ReceiptContract):
             raise ValueError("principal_requires_decimal_string")
         text = str(value)
         if len(text) > 32 or not re.fullmatch(r"[0-9]+(?:\.[0-9]{1,2})?", text):
-            raise ValueError("principal_requires_nonnegative_decimal_with_at_most_two_places")
+            raise ValueError(
+                "principal_requires_nonnegative_decimal_with_at_most_two_places"
+            )
         amount = Decimal(text)
         numeric = float(amount)
         if not math.isfinite(numeric) or Decimal(str(numeric)) != amount:
@@ -101,7 +120,9 @@ class ConfirmedReceiptFields(ReceiptContract):
     @field_validator("date", mode="before")
     @classmethod
     def calendar_date(cls, value):
-        if not isinstance(value, str) or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value):
+        if not isinstance(value, str) or not re.fullmatch(
+            r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value
+        ):
             raise ValueError("date_requires_YYYY_MM_DD")
         try:
             date.fromisoformat(value)
@@ -112,7 +133,9 @@ class ConfirmedReceiptFields(ReceiptContract):
     @field_validator("time", mode="before")
     @classmethod
     def local_time(cls, value):
-        if not isinstance(value, str) or not re.fullmatch(r"[0-9]{2}:[0-9]{2}(?::[0-9]{2})?", value):
+        if not isinstance(value, str) or not re.fullmatch(
+            r"[0-9]{2}:[0-9]{2}(?::[0-9]{2})?", value
+        ):
             raise ValueError("time_requires_24_hour_HH_MM_or_HH_MM_SS")
         try:
             time.fromisoformat(value)
@@ -126,6 +149,7 @@ class ConfirmedReceiptFields(ReceiptContract):
         if value is not None and not value.strip():
             raise ValueError("use_null_for_unavailable_text")
         return value
+
 
 class ConfirmedReceipt(ReceiptContract):
     source: ReceiptSource
@@ -144,8 +168,12 @@ class ConfirmedReceipt(ReceiptContract):
 
     @property
     def input_sha256(self) -> str:
-        serialized = json.dumps(self.model_dump(mode="json"), sort_keys=True,
-                                separators=(",", ":"), ensure_ascii=False)
+        serialized = json.dumps(
+            self.model_dump(mode="json"),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        )
         return sha256(serialized.encode("utf-8")).hexdigest()
 
     @property
@@ -155,16 +183,30 @@ class ConfirmedReceipt(ReceiptContract):
         result = {}
         for name, extracted in self.source.extracted.model_dump().items():
             value = confirmed[name]
-            status = ("unchanged" if extracted == value else
-                      "completed" if extracted is None else "corrected")
+            status = (
+                "unchanged"
+                if extracted == value
+                else "completed"
+                if extracted is None
+                else "corrected"
+            )
             if value is None and extracted is None:
                 status = "unavailable"
-            result[name] = {"extracted": extracted, "confirmed": value, "status": status}
+            result[name] = {
+                "extracted": extracted,
+                "confirmed": value,
+                "status": status,
+            }
         return result
 
 
-def confirm_receipt(source: ReceiptSource, fields: ConfirmedReceiptFields, *,
-                    confirmed: bool, previous: ConfirmedReceipt | None = None) -> ConfirmedReceipt:
+def confirm_receipt(
+    source: ReceiptSource,
+    fields: ConfirmedReceiptFields,
+    *,
+    confirmed: bool,
+    previous: ConfirmedReceipt | None = None,
+) -> ConfirmedReceipt:
     """Create a new immutable revision. The service must retire results for older revisions."""
     source = ReceiptSource.model_validate(source)
     revision = 1
@@ -173,4 +215,6 @@ def confirm_receipt(source: ReceiptSource, fields: ConfirmedReceiptFields, *,
         if previous.source != source:
             raise ValueError("cannot_revise_a_different_receipt_source")
         revision = previous.revision + 1
-    return ConfirmedReceipt(source=source, fields=fields, confirmed=confirmed, revision=revision)
+    return ConfirmedReceipt(
+        source=source, fields=fields, confirmed=confirmed, revision=revision
+    )

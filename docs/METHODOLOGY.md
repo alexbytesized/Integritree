@@ -5,7 +5,7 @@ SMOTE ratio by RF-SMOTE validation Average Precision, shared forest settings by
 mean validation AP, then a common threshold by exact mean validation F1. Each
 stage freezes before the next. Both models are retained; selection does not pick
 a model winner. Stage 1 froze 1:100; Stage 2 selected 100 trees/depth 10/leaf 1.
-Stage 3 uses exactly 1%, 2%, ..., 100% as threshold candidates. See
+Stage 3 selected the shared 43% cutoff from exactly 1%, 2%, ..., 100%. See
 [run status](VALIDATION_RUN_STATUS.md) for measured outcomes.
 
 ## Confirmed constraints
@@ -91,8 +91,9 @@ application workflow.
 Result contracts carry both models, the run ID, predicted labels, and risk scores.
 The internal score field is bounded to 0..1. Subsequent decisions fix mean-tree
 fraud probability and a 0..100 display scale with communication bands; this does
-not establish real-world calibration. SHAP contracts name the output space but
-do not yet compute explanations or verify additivity.
+not establish real-world calibration. The initial SHAP contracts named the output
+space; the implemented explanation workflow now computes contributions and verifies
+their reconstruction against the saved model's probability.
 
 ## Approved Phase 2 preparation decisions
 
@@ -164,9 +165,13 @@ only when they do not learn from the full dataset.
 Preparation, paired training/inference, evaluation, three-stage selection, and
 SHAP are implemented. The canonical protocol supplies candidate ranges and
 selection rules. Final selected values come only from completed stages.
-The researcher application workflow is implemented. Receipt mapping/OCR and its
-approved temporary-storage lifecycle remain to be implemented; see
-[the implementation plan](BACKEND_IMPLEMENTATION_PLAN.md).
+The researcher application and receipt mapping/OCR workflows are implemented,
+including confirmation, paired inference, SHAP, downloads, and temporary-storage
+cleanup. Receipt recognition currently covers Express Send, Pay Online, and
+confirmed bank-account transfers; cash categories and merchant QR remain pending.
+See [researcher operation](RESEARCHER_WORKFLOW.md) and
+[receipt application setup and behavior](RECEIPT_APPLICATION.md). Official held-out
+evaluation remains a separate, explicitly authorized research step.
 
 ## Phase 2 implementation details
 
@@ -218,7 +223,8 @@ against held-out data influencing preprocessing were also tested synthetically.
 
 These were preparation findings, not model-performance results. At the end of
 Phase 2, RF/SMOTE training had not run; its later completion is recorded below.
-SHAP and evaluation remain pending. The manuscript itself remains unedited.
+SHAP and evaluation were pending at that point; their implemented workflows are
+described below. The manuscript itself remains unedited.
 
 ## Training and sequential selection
 
@@ -278,17 +284,20 @@ Names, reference IDs, balances, and ground truth are not predictor inputs.
 Approved mapping assumptions are Asia/Manila hour, Monday=0 weekday, and numeric
 PHP principal excluding fees, with saved transformations reused once. Local OCR,
 editable completion after image upload, explicit confirmation, optional string
-reference, and temporary application storage until Clear or backend shutdown/restart
-are settled requirements awaiting implementation. For personal-wallet origins,
+reference, and temporary application storage are implemented. Cleanup handles Clear,
+leaving the receipt workflow, disconnected-session expiry, and backend shutdown/restart.
+For personal-wallet origins,
 approved merchant flags (origin/destination) are 0/0 for TRANSFER, 0/1 for PAYMENT,
 and 0/0 for DEBIT, retaining the bank role separately. Cash-agent mappings remain
 pending. The [local OCR baseline](RECEIPT_OCR_BENCHMARK.md) provisionally selects
 RapidOCR; accept one PNG/JPEG up to 10 MiB / 20 million pixels, release
 verified workflows first, and provide an individual ZIP without images or evaluation
-metrics. Layout release checks and confirmed-role validation remain pending; the
-OCR comparison is separate from fraud evaluation. The
-[confirmed-receipt adapter](RECEIPT_MAPPING.md) now implements the approved mapping
-and shared scaling with synthetic parity tests; receipt HTTP integration remains.
+metrics. Layout checks and confirmed-role validation are implemented for the
+released workflows; broader layout coverage and unseen-sample acceptance remain
+pending. The OCR comparison is separate from fraud evaluation. The
+[confirmed-receipt adapter](RECEIPT_MAPPING.md) implements the approved mapping
+and shared scaling with synthetic parity tests, and the
+[receipt HTTP integration](RECEIPT_APPLICATION.md) connects it to the application.
 No feature semantics,
 model artifacts, or research settings are changed by this scope decision.
 See [receipt decisions and sample collection](RECEIPT_WORKFLOW.md).

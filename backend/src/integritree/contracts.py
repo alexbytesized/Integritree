@@ -3,7 +3,12 @@
 from typing import Annotated, Literal
 
 from pydantic import (
-    AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints, model_validator,
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    model_validator,
 )
 
 Label = Annotated[int, Field(strict=True, ge=0, le=1)]

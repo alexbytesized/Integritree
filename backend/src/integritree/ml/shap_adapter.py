@@ -7,6 +7,7 @@ component returns zero outside its original path. Linearity preserves the
 interventional Shapley values, including the original reference distribution.
 The trained estimator and its saved artifacts are never modified.
 """
+
 import numpy as np
 
 
@@ -17,14 +18,21 @@ def forest_representation(model, max_nodes=8192):
     for estimator in model.estimators_:
         tree = estimator.tree_
         if tree.max_depth > 24:
-            raise ValueError("SHAP adapter supports the approved depth-10/depth-20 forests")
+            raise ValueError(
+                "SHAP adapter supports the approved depth-10/depth-20 forests"
+            )
         sizes = np.ones(tree.node_count, dtype=np.int64)
         for node in range(tree.node_count - 1, -1, -1):
             if tree.children_left[node] >= 0:
-                sizes[node] += sizes[tree.children_left[node]] + sizes[tree.children_right[node]]
+                sizes[node] += (
+                    sizes[tree.children_left[node]] + sizes[tree.children_right[node]]
+                )
         thresholds = tree.threshold.astype(np.float32)
-        thresholds = np.where(thresholds.astype(np.float64) > tree.threshold,
-                              np.nextafter(thresholds, np.float32(-np.inf)), thresholds)
+        thresholds = np.where(
+            thresholds.astype(np.float64) > tree.threshold,
+            np.nextafter(thresholds, np.float32(-np.inf)),
+            thresholds,
+        )
         probabilities = tree.value[:, 0, :].astype(np.float64)
         probabilities /= probabilities.sum(axis=1, keepdims=True)
         probabilities /= len(model.estimators_)
@@ -34,10 +42,13 @@ def forest_representation(model, max_nodes=8192):
 
             def allocate(original=None):
                 index = len(left)
-                left.append(-1); right.append(-1)
+                left.append(-1)
+                right.append(-1)
                 features.append(-2 if original is None else int(tree.feature[original]))
                 cuts.append(-2.0 if original is None else float(thresholds[original]))
-                values.append(np.zeros(2) if original is None else probabilities[original])
+                values.append(
+                    np.zeros(2) if original is None else probabilities[original]
+                )
                 return index
 
             def copy_subtree(node):
@@ -63,13 +74,17 @@ def forest_representation(model, max_nodes=8192):
             gated(0)
             if len(left) > max_nodes:
                 raise ValueError("SHAP component exceeded its node limit")
-            components.append({
-                "children_left": np.asarray(left), "children_right": np.asarray(right),
-                "children_default": np.asarray(left), "features": np.asarray(features),
-                "thresholds": np.asarray(cuts, dtype=np.float64),
-                "values": np.asarray(values, dtype=np.float64),
-                "node_sample_weight": np.ones(len(left), dtype=np.float64),
-            })
+            components.append(
+                {
+                    "children_left": np.asarray(left),
+                    "children_right": np.asarray(right),
+                    "children_default": np.asarray(left),
+                    "features": np.asarray(features),
+                    "thresholds": np.asarray(cuts, dtype=np.float64),
+                    "values": np.asarray(values, dtype=np.float64),
+                    "node_sample_weight": np.ones(len(left), dtype=np.float64),
+                }
+            )
 
         def partition(node, path):
             if sizes[node] + 2 * len(path) <= max_nodes:
@@ -79,6 +94,11 @@ def forest_representation(model, max_nodes=8192):
                 partition(tree.children_right[node], path + [(node, False)])
 
         partition(0, [])
-    return {"trees": components, "tree_output": "probability",
-            "objective": "binary_crossentropy", "input_dtype": np.float32,
-            "internal_dtype": np.float64, "base_offset": 0.0}
+    return {
+        "trees": components,
+        "tree_output": "probability",
+        "objective": "binary_crossentropy",
+        "input_dtype": np.float32,
+        "internal_dtype": np.float64,
+        "base_offset": 0.0,
+    }

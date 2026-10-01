@@ -8,15 +8,28 @@ from typing import Annotated, Literal
 import yaml
 from pydantic import Field, model_validator
 
-from integritree.contracts import Contract, DatasetIdentity, NonemptyText, PositiveInteger
+from integritree.contracts import (
+    Contract,
+    DatasetIdentity,
+    NonemptyText,
+    PositiveInteger,
+)
 from integritree.settings import load_settings
 
 Seed = Annotated[int, Field(strict=True, ge=0, le=4294967295)]
 Ratio = Annotated[float, Field(strict=True, gt=0, le=1)]
 FeatureName = Literal[
-    "hour_of_day", "day_of_week", "type_CASH_IN", "type_CASH_OUT",
-    "type_DEBIT", "type_PAYMENT", "type_TRANSFER", "log_amount",
-    "is_zero_amount", "is_merchant_origin", "is_merchant_dest",
+    "hour_of_day",
+    "day_of_week",
+    "type_CASH_IN",
+    "type_CASH_OUT",
+    "type_DEBIT",
+    "type_PAYMENT",
+    "type_TRANSFER",
+    "log_amount",
+    "is_zero_amount",
+    "is_merchant_origin",
+    "is_merchant_dest",
 ]
 Stage = Literal["prepare", "train", "evaluate", "explain"]
 
@@ -66,7 +79,9 @@ class SmoteConfig(Contract):
 
 
 class ScoringConfig(Contract):
-    probability_method: Literal["mean_tree_probability", "tree_vote_fraction"] | None = None
+    probability_method: (
+        Literal["mean_tree_probability", "tree_vote_fraction"] | None
+    ) = None
     threshold: Annotated[float, Field(strict=True, ge=0, le=1)] | None = None
     tie_policy: Literal["legitimate", "fraud"] | None = None
 
@@ -77,7 +92,9 @@ class EvaluationConfig(Contract):
     discordance_edge_policy: NonemptyText | None = None
     # Preserve the legacy default when reading older configuration snapshots.
     # New experiments explicitly select the approved signed method in YAML.
-    percentage_difference: Literal["absolute_over_mean", "signed_over_mean"] = "absolute_over_mean"
+    percentage_difference: Literal["absolute_over_mean", "signed_over_mean"] = (
+        "absolute_over_mean"
+    )
     alpha: Literal[0.05] = 0.05
     undefined_metric_policy: Literal["null_with_reason"] | None = None
     absent_positive_pr_policy: Literal["null_with_reason"] | None = None
@@ -116,15 +133,20 @@ class ExperimentConfig(Contract):
     def unresolved_fields(self, stage: Stage | None = None) -> list[str]:
         groups = {
             "prepare": ["preprocessing", "seeds.split"],
-            "train": ["random_forest", "smote", "seeds.model", "seeds.smote",
-                      "scoring"],
+            "train": [
+                "random_forest",
+                "smote",
+                "seeds.model",
+                "seeds.smote",
+                "scoring",
+            ],
             "evaluate": ["evaluation"],
             "explain": ["shap"],
         }
         if stage is not None and stage not in groups:
             raise ValueError(f"Unknown stage: {stage}")
         order = list(groups)
-        needed = order if stage is None else order[:order.index(stage) + 1]
+        needed = order if stage is None else order[: order.index(stage) + 1]
         paths = [path for name in needed for path in groups[name]]
         values = self.model_dump()
         missing: set[str] = set()
@@ -147,7 +169,8 @@ class ExperimentConfig(Contract):
         missing = self.unresolved_fields(stage)
         if missing:
             raise UnresolvedConfigurationError(
-                f"Configuration is not ready for {stage}; unresolved: " + ", ".join(missing)
+                f"Configuration is not ready for {stage}; unresolved: "
+                + ", ".join(missing)
             )
 
 
@@ -175,9 +198,13 @@ _UniqueKeyLoader.add_constructor(
 
 def load_experiment(path: Path) -> ExperimentConfig:
     try:
-        contents = yaml.load(path.read_text(encoding="utf-8-sig"), Loader=_UniqueKeyLoader)
+        contents = yaml.load(
+            path.read_text(encoding="utf-8-sig"), Loader=_UniqueKeyLoader
+        )
     except (OSError, UnicodeError, yaml.YAMLError, ValueError) as exc:
-        raise ValueError(f"Cannot read experiment configuration at {path}: {exc}") from exc
+        raise ValueError(
+            f"Cannot read experiment configuration at {path}: {exc}"
+        ) from exc
     if not isinstance(contents, dict):
         raise ValueError(f"Experiment configuration at {path} must be a YAML mapping")
     try:
@@ -189,7 +216,9 @@ def load_experiment(path: Path) -> ExperimentConfig:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, help="Path relative to the backend root")
-    parser.add_argument("--require-stage", choices=["prepare", "train", "evaluate", "explain"])
+    parser.add_argument(
+        "--require-stage", choices=["prepare", "train", "evaluate", "explain"]
+    )
     args = parser.parse_args()
     try:
         settings = load_settings()
@@ -202,12 +231,17 @@ def main() -> int:
     except ValueError as exc:
         print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
         return 2
-    print(json.dumps({
-        "valid": True,
-        "experiment_name": config.experiment_name,
-        "unresolved": config.unresolved_fields(args.require_stage),
-        "note": "Configuration validation does not execute or approve a research method.",
-    }, indent=2))
+    print(
+        json.dumps(
+            {
+                "valid": True,
+                "experiment_name": config.experiment_name,
+                "unresolved": config.unresolved_fields(args.require_stage),
+                "note": "Configuration validation does not execute or approve a research method.",
+            },
+            indent=2,
+        )
+    )
     return 0
 
 

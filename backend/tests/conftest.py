@@ -40,9 +40,15 @@ def settings(tmp_path, draft):
 @pytest.fixture
 def raw_record():
     return {
-        "step": 1, "type": "TRANSFER", "amount": 100.0,
-        "nameOrig": "C_TEST_SENDER", "nameDest": "C_TEST_RECIPIENT",
-        "oldbalanceOrg": 150.0, "newbalanceOrig": 50.0,
-        "oldbalanceDest": 20.0, "newbalanceDest": 120.0,
-        "isFraud": 1, "isFlaggedFraud": 0,
+        "step": 1,
+        "type": "TRANSFER",
+        "amount": 100.0,
+        "nameOrig": "C_TEST_SENDER",
+        "nameDest": "C_TEST_RECIPIENT",
+        "oldbalanceOrg": 150.0,
+        "newbalanceOrig": 50.0,
+        "oldbalanceDest": 20.0,
+        "newbalanceDest": 120.0,
+        "isFraud": 1,
+        "isFlaggedFraud": 0,
     }

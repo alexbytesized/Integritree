@@ -22,7 +22,9 @@ def test_environment_overrides_root_local_dotenv(tmp_path, monkeypatch):
     )
     assert load_settings(tmp_path).dataset_path == tmp_path / "data/from_file.csv"
     monkeypatch.setenv("INTEGRITREE_DATASET_PATH", "data/from_environment.csv")
-    assert load_settings(tmp_path).dataset_path == tmp_path / "data/from_environment.csv"
+    assert (
+        load_settings(tmp_path).dataset_path == tmp_path / "data/from_environment.csv"
+    )
 
 
 def test_root_environment_and_absolute_dataset_path(tmp_path, monkeypatch):
@@ -47,9 +49,13 @@ def test_unknown_dotenv_setting_rejected(tmp_path):
         load_settings(tmp_path)
 
 
-@pytest.mark.parametrize("origin", ["*", "http://localhost:5173/path", "file:///tmp", "https://user:pass@host"])
+@pytest.mark.parametrize(
+    "origin",
+    ["*", "http://localhost:5173/path", "file:///tmp", "https://user:pass@host"],
+)
 def test_invalid_cors_origin_rejected(tmp_path, monkeypatch, origin):
     import json
+
     monkeypatch.setenv("INTEGRITREE_CORS_ORIGINS", json.dumps([origin]))
     with pytest.raises(ValidationError, match="cors_origins"):
         load_settings(tmp_path)

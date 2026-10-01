@@ -12,7 +12,9 @@ def test_health_without_dataset_or_models(settings):
         response = client.get("/api/v1/health")
         assert response.status_code == 200
         assert response.json() == {
-            "status": "ok", "service": "integritree-backend", "version": __version__,
+            "status": "ok",
+            "service": "integritree-backend",
+            "version": __version__,
         }
         assert str(settings.backend_root) not in response.text
         schema = client.get("/openapi.json").json()
@@ -28,7 +30,9 @@ def test_cors_for_configured_frontend_only(settings):
     with TestClient(create_app(settings)) as client:
         good = client.get("/api/v1/health", headers={"Origin": "http://localhost:5173"})
         assert good.headers["access-control-allow-origin"] == "http://localhost:5173"
-        bad = client.get("/api/v1/health", headers={"Origin": "https://unlisted.example"})
+        bad = client.get(
+            "/api/v1/health", headers={"Origin": "https://unlisted.example"}
+        )
         assert "access-control-allow-origin" not in bad.headers
 
 

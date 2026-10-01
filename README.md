@@ -4,8 +4,8 @@ A Random Forest-Based Fraud Pattern Detection and Risk Scoring System for E-Wall
 
 Validation proceeds in three stages: **SMOTE ratio -> shared tree configuration ->
 common threshold**. Stage 1 selected **1:100** from eight ratios; Stage 2 selected
-**100 trees/depth 10/minimum leaf 1** from 12 configurations. Stage 3 selects a
-shared cutoff from exactly **1%, 2%, ..., 100%** by mean validation F1.
+**100 trees/depth 10/minimum leaf 1** from 12 configurations. Stage 3 selected
+the shared **43% cutoff** from exactly **1%, 2%, ..., 100%** by mean validation F1.
 See the current run status for measured results.
 
 Preparation, training, saved inference, evaluation, selection, and SHAP code are
@@ -18,7 +18,7 @@ a suggestion.
 
 - [Study guides: terms, code, and methodology](docs/STUDY_GUIDE.md)
 - [Validation protocol](docs/THREE_STAGE_VALIDATION.md)
-- [Current run status and reset record](docs/VALIDATION_RUN_STATUS.md)
+- [Current run status and historical protocol revision](docs/VALIDATION_RUN_STATUS.md)
 - [Backend setup and commands](backend/README.md)
 - [Methodology](docs/METHODOLOGY.md)
 - [Agreed mock-up corrections](docs/MOCKUP_EVALUATION_DECISIONS.md)

@@ -1,1 +1,1 @@
-"""Integritree backend package scaffold; functionality is not implemented yet."""
+"""Shared preparation, training, selection, evaluation, and explanation workflows."""

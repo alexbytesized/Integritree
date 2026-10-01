@@ -22,7 +22,7 @@ dependencies = [
     "imbalanced-learn>=0.14.2,<0.15",
     "joblib>=1.4,<2",
     "scipy>=1.14,<2",
-  "shap==0.52.0",
+    "shap==0.52.0",
     "matplotlib>=3.10,<4",
 ]
 
@@ -32,6 +32,7 @@ dev = [
     "httpx>=0.28,<1",
     "pip-tools>=7.5,<8",
     "setuptools==80.9.0",
+    "ruff==0.16.9",
 ]
 
 [project.scripts]
@@ -49,3 +50,16 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"
+
+[tool.ruff]
+required-version = "==0.16.9"
+target-version = "py312"
+line-length = 88
+indent-width = 4
+extend-exclude = ["artifacts", "data", "reports", "runtime"]
+force-exclude = true
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"

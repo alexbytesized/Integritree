@@ -1,4 +1,5 @@
 """Shared exact selection arithmetic and candidate memory management."""
+
 from fractions import Fraction
 import gc
 

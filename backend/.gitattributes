@@ -1,0 +1,2 @@
+# Keep backend Python line endings consistent with the formatter on every platform.
+*.py text eol=lf

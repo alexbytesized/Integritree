@@ -1,1 +1,1 @@
-"""Integritree backend package scaffold; functionality is not implemented yet."""
+"""Application jobs, session lifecycle, predictions, and exports."""

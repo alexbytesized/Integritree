@@ -75,7 +75,6 @@ use separate [confirmed-image contracts](RECEIPT_APPLICATION.md); researcher rou
 | `PredictorInput` | Five source attributes: step, type, amount, origin ID, destination ID. Rejects target, flags, balance fields, and unknown extra fields. |
 | `SourceRecordIdentity` | Dataset SHA-256 plus one-based source data-row number. Its transaction ID is `<sha256>:<row>`. |
 | `LabeledTransaction` | Identity and predictor input with a separate actual label. |
-| `PredictionRequest` | Transaction ID and predictor input, without ground truth. Reserved for a future route. |
 | `ModelResult` | Model name, class label, 0..1 risk score, optional explanation. |
 | `PairedPrediction` | Transaction ID, run ID, and separately identified RF and RF-SMOTE results. |
 | `ShapExplanation` | Output space, baseline, explained output, and uniquely named feature contributions. |
@@ -238,9 +237,6 @@ These Phase 4 Python interfaces now underpin researcher and receipt HTTP service
   threshold/F1 selection on exactly 1%, 2%, ..., 100%, with frozen stage evidence and resume support.
   `stop_after_stage=1` freezes the ratio, 2 freezes the forest, and default 3
   executes all stages. Graceful pauses return a run with `status: paused`.
-- `ml.stage3_reset.reset_stage3(run, backend, protocol)`: explicitly clears Stage 3
-  outputs, preserves Stage 1-2 candidate evidence, and regenerates review snapshots;
-  its journal supports interrupted-reset recovery.
 - `ml.staged_selection.request_pause(path)`: asks an active selection worker to
   stop after its current candidate checkpoint; returns `pause_requested`.
 - `ml.staged_selection.export_forest_stage(...)`: verifies and exports a completed

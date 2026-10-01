@@ -19,11 +19,14 @@ from integritree.services.receipts import ReceiptService, ReceiptError
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or load_settings()
     experiment = load_experiment(settings.experiment_config)
+
     @asynccontextmanager
     async def lifespan(app):
         app.state.research = ResearchService(settings, experiment)
         try:
-            app.state.receipts = ReceiptService(settings, experiment, app.state.research.get_bundle)
+            app.state.receipts = ReceiptService(
+                settings, experiment, app.state.research.get_bundle
+            )
             try:
                 yield
             finally:
@@ -54,11 +57,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.exception_handler(ReceiptError)
     async def receipt_error(request, exc):
-        return JSONResponse(status_code=exc.status, content={"detail": str(exc), "issues": exc.issues})
+        return JSONResponse(
+            status_code=exc.status, content={"detail": str(exc), "issues": exc.issues}
+        )
 
     @app.exception_handler(ResearchError)
     async def research_error(request, exc):
-        return JSONResponse(status_code=exc.status, content={"detail": str(exc), "issues": exc.issues})
+        return JSONResponse(
+            status_code=exc.status, content={"detail": str(exc), "issues": exc.issues}
+        )
 
     @app.get("/api/v1/health", response_model=HealthResponse, tags=["health"])
     def health() -> HealthResponse:

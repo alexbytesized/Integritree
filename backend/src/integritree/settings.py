@@ -55,14 +55,24 @@ class Settings(BaseSettings):
                 or parts.fragment
                 or parts.username is not None
             ):
-                raise ValueError("cors_origins must be explicit HTTP(S) origins without paths")
+                raise ValueError(
+                    "cors_origins must be explicit HTTP(S) origins without paths"
+                )
         return values
 
     @model_validator(mode="after")
     def resolve_paths(self) -> Self:
         for field in (
-            "dataset_path", "experiment_config", "prepared_dir", "artifacts_dir",
-            "reports_dir", "uploads_dir", "exports_dir", "research_model_dir", "research_prepared_dir", "receipt_ocr_python",
+            "dataset_path",
+            "experiment_config",
+            "prepared_dir",
+            "artifacts_dir",
+            "reports_dir",
+            "uploads_dir",
+            "exports_dir",
+            "research_model_dir",
+            "research_prepared_dir",
+            "receipt_ocr_python",
         ):
             path = getattr(self, field)
             if not path.is_absolute():
@@ -73,7 +83,9 @@ class Settings(BaseSettings):
 
 def load_settings(backend_root: Path | None = None) -> Settings:
     """Use a root-local .env, with process environment overriding that file."""
-    root = backend_root or Path(os.environ.get("INTEGRITREE_BACKEND_ROOT", BACKEND_ROOT))
+    root = backend_root or Path(
+        os.environ.get("INTEGRITREE_BACKEND_ROOT", BACKEND_ROOT)
+    )
     if not root.is_absolute():
         raise ValueError("INTEGRITREE_BACKEND_ROOT must be an absolute directory")
     root = root.resolve()

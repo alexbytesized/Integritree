@@ -2,8 +2,9 @@
 
 Run with the isolated OCR Python. Sensitive outputs belong under runtime/receipt_checks.
 """
+
 import argparse
-from collections import Counter, defaultdict
+from collections import Counter
 from datetime import datetime, timezone
 import importlib.metadata
 import json
@@ -46,6 +47,7 @@ def no_network(*args, **kwargs):
 
 def model_hashes(tessdata):
     import rapidocr
+
     weights = Path(rapidocr.__file__).parent / "models"
     paths = list(weights.glob("*.onnx")) + [Path(tessdata) / "eng.traineddata"]
     if not paths[-1].is_file():
@@ -72,34 +74,69 @@ def run(args):
     weights = model_hashes(args.tessdata)
     if args.split == "verification":
         if not args.freeze_from:
-            raise ValueError("Verification requires --freeze-from completed development run")
+            raise ValueError(
+                "Verification requires --freeze-from completed development run"
+            )
         frozen = read_json(Path(args.freeze_from) / "run.json")
-        if frozen["split"] != "development" or not (Path(args.freeze_from) / "complete.json").exists():
+        if (
+            frozen["split"] != "development"
+            or not (Path(args.freeze_from) / "complete.json").exists()
+        ):
             raise ValueError("Freeze source is not a completed development run")
-        if frozen["code_sha256"] != hashes or frozen["model_sha256"] != weights or frozen["audit_sha256"] != file_hash(args.audit):
-            raise ValueError("Code, weights, or sample split changed since development freeze")
+        if (
+            frozen["code_sha256"] != hashes
+            or frozen["model_sha256"] != weights
+            or frozen["audit_sha256"] != file_hash(args.audit)
+        ):
+            raise ValueError(
+                "Code, weights, or sample split changed since development freeze"
+            )
     out = Path(args.output).resolve()
     if out == root or out.is_relative_to(root):
         raise ValueError("Benchmark output must not be inside source samples")
     out.mkdir(parents=True, exist_ok=False)
-    versions = {key: importlib.metadata.version(key) for key in
-                ("rapidocr", "onnxruntime", "tesserocr", "Pillow", "numpy", "opencv-python", "omegaconf")}
+    versions = {
+        key: importlib.metadata.version(key)
+        for key in (
+            "rapidocr",
+            "onnxruntime",
+            "tesserocr",
+            "Pillow",
+            "numpy",
+            "opencv-python",
+            "omegaconf",
+        )
+    }
     import tesserocr
-    metadata = {"created_utc": datetime.now(timezone.utc).isoformat(), "split": args.split,
-                "count": len(rows), "audit_sha256": file_hash(args.audit), "code_sha256": hashes,
-                "model_sha256": weights, "versions": versions,
-                "tesseract_version": tesserocr.tesseract_version(),
-                "tesseract_psm": 11, "tesseract_oem": "LSTM_ONLY", "tesseract_language": "eng",
-                "input_policy": "original RGB image, no engine-specific cropping or tuning",
-                "freeze_from": str(Path(args.freeze_from).resolve()) if args.freeze_from else None,
-                "network": "socket connections disabled for all receipt processing"}
+
+    metadata = {
+        "created_utc": datetime.now(timezone.utc).isoformat(),
+        "split": args.split,
+        "count": len(rows),
+        "audit_sha256": file_hash(args.audit),
+        "code_sha256": hashes,
+        "model_sha256": weights,
+        "versions": versions,
+        "tesseract_version": tesserocr.tesseract_version(),
+        "tesseract_psm": 11,
+        "tesseract_oem": "LSTM_ONLY",
+        "tesseract_language": "eng",
+        "input_policy": "original RGB image, no engine-specific cropping or tuning",
+        "freeze_from": str(Path(args.freeze_from).resolve())
+        if args.freeze_from
+        else None,
+        "network": "socket connections disabled for all receipt processing",
+    }
     write_json(out / "run.json", metadata)
     # All weights must be provisioned in setup. A missing model cannot trigger a download.
     socket.socket.connect = no_network
     socket.socket.connect_ex = no_network
     socket.create_connection = no_network
     summary = {}
-    for name, factory in (("rapidocr", RapidEngine), ("tesseract", lambda: TesseractEngine(args.tessdata))):
+    for name, factory in (
+        ("rapidocr", RapidEngine),
+        ("tesseract", lambda: TesseractEngine(args.tessdata)),
+    ):
         start = perf_counter()
         engine = factory()
         initialization = perf_counter() - start
@@ -107,28 +144,45 @@ def run(args):
         try:
             with (out / (name + ".jsonl")).open("x", encoding="utf-8") as stream:
                 for index, row in enumerate(rows, 1):
-                    result = {"path": row["path"], "sha256": row["sha256"], "split": row["split"]}
+                    result = {
+                        "path": row["path"],
+                        "sha256": row["sha256"],
+                        "split": row["split"],
+                    }
                     try:
                         extracted = extract(engine, checked_path(root, row))
                         result.update(extracted)
                         result["parsed"] = parse_candidates(extracted["lines"])
                         result["status"] = "complete"
-                        layouts[result["parsed"]["fields"]["workflow"] or "unresolved"] += 1
+                        layouts[
+                            result["parsed"]["fields"]["workflow"] or "unresolved"
+                        ] += 1
                         times.append(result["seconds"])
                     except Exception as exc:
                         # No supplied text or raw exception message in console/log summary.
                         result.update(status="failed", error_type=type(exc).__name__)
                         errors += 1
-                    stream.write(json.dumps(result, ensure_ascii=False, allow_nan=False) + "\n")
+                    stream.write(
+                        json.dumps(result, ensure_ascii=False, allow_nan=False) + "\n"
+                    )
                     stream.flush()
                     if index % 10 == 0 or index == len(rows):
-                        print(f"{name}: {index}/{len(rows)} complete; failures={errors}", flush=True)
+                        print(
+                            f"{name}: {index}/{len(rows)} complete; failures={errors}",
+                            flush=True,
+                        )
         finally:
             engine.close()
-        summary[name] = {"initialization_seconds": initialization, "images": len(rows),
-                         "failed": errors, "median_seconds": statistics.median(times) if times else None,
-                         "p95_seconds": sorted(times)[min(len(times)-1, int(.95 * len(times)))] if times else None,
-                         "provisional_workflows": dict(layouts)}
+        summary[name] = {
+            "initialization_seconds": initialization,
+            "images": len(rows),
+            "failed": errors,
+            "median_seconds": statistics.median(times) if times else None,
+            "p95_seconds": sorted(times)[min(len(times) - 1, int(0.95 * len(times)))]
+            if times
+            else None,
+            "provisional_workflows": dict(layouts),
+        }
     write_json(out / "complete.json", summary)
     print(json.dumps(summary, indent=2))
 
@@ -150,7 +204,9 @@ def score_records(results, annotations):
             expected = annotation["fields"][field]
             observed = actual.get(field)
             if expected is None:
-                status = "unexpected" if observed is not None else "correctly_unavailable"
+                status = (
+                    "unexpected" if observed is not None else "correctly_unavailable"
+                )
             elif observed is None:
                 status = "missing"
             elif expected == observed:
@@ -158,12 +214,18 @@ def score_records(results, annotations):
             else:
                 status = "wrong"
             counters[field][status] += 1
-            if field != "reference" and status not in {"correct", "correctly_unavailable"}:
+            if field != "reference" and status not in {
+                "correct",
+                "correctly_unavailable",
+            }:
                 required_ok = False
         all_required += required_ok
-    return {"annotated_images": len(annotations), "engine_failures": failures,
-            "all_required_fields_match": all_required,
-            "fields": {k: dict(v) for k, v in counters.items()}}
+    return {
+        "annotated_images": len(annotations),
+        "engine_failures": failures,
+        "all_required_fields_match": all_required,
+        "fields": {k: dict(v) for k, v in counters.items()},
+    }
 
 
 def main():
@@ -187,9 +249,17 @@ def main():
         report["rows"] = split_inventory(report)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         write_json(args.output, report)
-        print(json.dumps({"counts": report["counts"], "status": report["status_counts"],
-                          "duplicate_groups": len(report["decoded_duplicate_groups"]),
-                          "splits": dict(Counter(r["split"] for r in report["rows"]))}, indent=2))
+        print(
+            json.dumps(
+                {
+                    "counts": report["counts"],
+                    "status": report["status_counts"],
+                    "duplicate_groups": len(report["decoded_duplicate_groups"]),
+                    "splits": dict(Counter(r["split"] for r in report["rows"])),
+                },
+                indent=2,
+            )
+        )
     elif args.command == "run":
         run(args)
     else:
@@ -202,11 +272,19 @@ def main():
         selected = [r for r in annotations["rows"] if r["split"] == metadata["split"]]
         if not selected or len({r["path"] for r in selected}) != len(selected):
             raise ValueError("Empty or duplicate annotation rows")
-        result = {"run_sha256": file_hash(args.run / "run.json"),
-                  "annotations_sha256": file_hash(args.annotations), "split": metadata["split"],
-                  "coverage": f"{len(selected)} visually annotated images of {metadata['count']} processed"}
+        result = {
+            "run_sha256": file_hash(args.run / "run.json"),
+            "annotations_sha256": file_hash(args.annotations),
+            "split": metadata["split"],
+            "coverage": f"{len(selected)} visually annotated images of {metadata['count']} processed",
+        }
         for name in ("rapidocr", "tesseract"):
-            rows = [json.loads(line) for line in (args.run / (name + ".jsonl")).read_text(encoding="utf-8").splitlines()]
+            rows = [
+                json.loads(line)
+                for line in (args.run / (name + ".jsonl"))
+                .read_text(encoding="utf-8")
+                .splitlines()
+            ]
             result[name] = score_records(rows, selected)
         write_json(args.output, result)
         print(json.dumps(result, indent=2))

@@ -1,4 +1,5 @@
 """Local session-owned receipt HTTP boundary; source context is never client-supplied."""
+
 import asyncio
 import hashlib
 import json
@@ -68,10 +69,17 @@ async def presence(socket: WebSocket):
 
 
 @router.post("", status_code=202)
-async def upload(request: Request, filename: str = Query(min_length=1, max_length=255), x_session: Session = None):
+async def upload(
+    request: Request,
+    filename: str = Query(min_length=1, max_length=255),
+    x_session: Session = None,
+):
     service = request.app.state.receipts
     service.check_session(x_session)
-    if request.headers.get("content-type", "").split(";")[0] not in ("image/png", "image/jpeg"):
+    if request.headers.get("content-type", "").split(";")[0] not in (
+        "image/png",
+        "image/jpeg",
+    ):
         raise ReceiptError("Send one PNG/JPEG as the request body.", 415)
     length = request.headers.get("content-length")
     if length and (not length.isdigit() or int(length) > MAX_BYTES):
@@ -114,10 +122,19 @@ async def confirm(request: Request, identifier: str, x_session: Session = None):
     try:
         value = ConfirmationRequest.model_validate_json(body)
     except ValidationError as exc:
-        raise ReceiptError("Check the confirmation fields.", 422,
-                           exc.errors(include_input=False, include_context=False, include_url=False)) from None
-    return await run_in_threadpool(service.confirm, x_session, identifier, value.fields,
-                                   value.confirmed, value.expected_revision)
+        raise ReceiptError(
+            "Check the confirmation fields.",
+            422,
+            exc.errors(include_input=False, include_context=False, include_url=False),
+        ) from None
+    return await run_in_threadpool(
+        service.confirm,
+        x_session,
+        identifier,
+        value.fields,
+        value.confirmed,
+        value.expected_revision,
+    )
 
 
 @router.post("/{identifier}/retry", status_code=202)
@@ -132,15 +149,33 @@ def image(request: Request, identifier: str, x_session: Session = None):
 
 
 @router.get("/{identifier}/waterfall/{model}")
-def waterfall(request: Request, identifier: str, model: Literal["rf", "rf_smote"],
-              revision: int = Query(ge=1), x_session: Session = None):
-    return Response(request.app.state.receipts.chart(x_session, identifier, model, revision), media_type="image/svg+xml")
+def waterfall(
+    request: Request,
+    identifier: str,
+    model: Literal["rf", "rf_smote"],
+    revision: int = Query(ge=1),
+    x_session: Session = None,
+):
+    return Response(
+        request.app.state.receipts.chart(x_session, identifier, model, revision),
+        media_type="image/svg+xml",
+    )
 
 
 @router.get("/{identifier}/download")
-def download(request: Request, identifier: str, revision: int = Query(ge=1), x_session: Session = None):
-    return Response(request.app.state.receipts.export(x_session, identifier, revision), media_type="application/zip",
-                    headers={"Content-Disposition": 'attachment; filename="integritree_receipt.zip"'})
+def download(
+    request: Request,
+    identifier: str,
+    revision: int = Query(ge=1),
+    x_session: Session = None,
+):
+    return Response(
+        request.app.state.receipts.export(x_session, identifier, revision),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": 'attachment; filename="integritree_receipt.zip"'
+        },
+    )
 
 
 @router.delete("/{identifier}", status_code=204)

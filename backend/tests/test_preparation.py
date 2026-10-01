@@ -16,23 +16,41 @@ from integritree.ml.preprocessing import FittedPreprocessor
 
 @pytest.fixture
 def source_config(tmp_path, raw_record):
-    frame = pd.DataFrame([raw_record | {
-        "nameOrig": f"C_{i}", "step": i + 1, "amount": float(i),
-        "isFraud": int(i % 5 == 0),
-    } for i in range(200)]).loc[:, RAW_COLUMNS]
+    frame = pd.DataFrame(
+        [
+            raw_record
+            | {
+                "nameOrig": f"C_{i}",
+                "step": i + 1,
+                "amount": float(i),
+                "isFraud": int(i % 5 == 0),
+            }
+            for i in range(200)
+        ]
+    ).loc[:, RAW_COLUMNS]
     frame = pd.concat([frame, frame.iloc[[0]]], ignore_index=True)
     path = tmp_path / "synthetic.csv"
     frame.to_csv(path, index=False)
-    config = load_experiment(BACKEND_ROOT / "configs/experiment.yaml").model_copy(deep=True)
-    config.dataset = config.dataset.model_copy(update={
-        "filename": path.name, "sha256": file_sha256(path), "row_count": len(frame),
-    })
+    config = load_experiment(BACKEND_ROOT / "configs/experiment.yaml").model_copy(
+        deep=True
+    )
+    config.dataset = config.dataset.model_copy(
+        update={
+            "filename": path.name,
+            "sha256": file_sha256(path),
+            "row_count": len(frame),
+        }
+    )
     return path, config
 
 
-def test_end_to_end_bundle_alignment_reload_and_reproducibility(source_config, tmp_path):
+def test_end_to_end_bundle_alignment_reload_and_reproducibility(
+    source_config, tmp_path
+):
     source, config = source_config
-    output = prepare_dataset(source, config, tmp_path / "prepared", "first", progress=lambda _: None)
+    output = prepare_dataset(
+        source, config, tmp_path / "prepared", "first", progress=lambda _: None
+    )
     metadata = json.loads((output / "metadata.json").read_text())
     assert metadata["status"] == "complete"
     assert metadata["removed_duplicate_rows"] == 1
@@ -49,17 +67,27 @@ def test_end_to_end_bundle_alignment_reload_and_reproducibility(source_config, t
         np.testing.assert_allclose(X, expected)
         identities.extend(ids.tolist())
         if split == "train":
-            assert preprocessor.state.amount_median == retained.loc[ids, "amount"].median()
+            assert (
+                preprocessor.state.amount_median == retained.loc[ids, "amount"].median()
+            )
     assert len(set(identities)) == 200
     assert 201 not in identities
     original_metadata = (output / "metadata.json").read_bytes()
     with pytest.raises(FileExistsError):
-        prepare_dataset(source, config, tmp_path / "prepared", "first", progress=lambda _: None)
+        prepare_dataset(
+            source, config, tmp_path / "prepared", "first", progress=lambda _: None
+        )
     assert (output / "metadata.json").read_bytes() == original_metadata
-    second = prepare_dataset(source, config, tmp_path / "prepared", "second", progress=lambda _: None)
-    assert (output / "preprocessing.json").read_bytes() == (second / "preprocessing.json").read_bytes()
-    pd.testing.assert_frame_equal(pd.read_parquet(output / "split_manifest.parquet"),
-                                  pd.read_parquet(second / "split_manifest.parquet"))
+    second = prepare_dataset(
+        source, config, tmp_path / "prepared", "second", progress=lambda _: None
+    )
+    assert (output / "preprocessing.json").read_bytes() == (
+        second / "preprocessing.json"
+    ).read_bytes()
+    pd.testing.assert_frame_equal(
+        pd.read_parquet(output / "split_manifest.parquet"),
+        pd.read_parquet(second / "split_manifest.parquet"),
+    )
     with (output / "train_features.parquet").open("ab") as handle:
         handle.write(b"modified")
     with pytest.raises(ValueError, match="fingerprint"):
@@ -70,7 +98,9 @@ def test_failure_never_publishes_complete_bundle(source_config, tmp_path):
     source, config = source_config
     config.dataset = config.dataset.model_copy(update={"row_count": 202})
     with pytest.raises(ValueError, match="row count"):
-        prepare_dataset(source, config, tmp_path / "prepared", "failed", progress=lambda _: None)
+        prepare_dataset(
+            source, config, tmp_path / "prepared", "failed", progress=lambda _: None
+        )
     metadata = json.loads((tmp_path / "prepared/failed/metadata.json").read_text())
     assert metadata["status"] == "failed"
     with pytest.raises(ValueError, match="incomplete"):
@@ -87,15 +117,30 @@ def test_unsupported_policy_rejected_before_creating_outputs(source_config, tmp_
 
 def test_held_out_values_do_not_change_fitted_training_state(source_config, tmp_path):
     source, config = source_config
-    first = prepare_dataset(source, config, tmp_path / "prepared", "baseline", progress=lambda _: None)
+    first = prepare_dataset(
+        source, config, tmp_path / "prepared", "baseline", progress=lambda _: None
+    )
     manifest = pd.read_parquet(first / "split_manifest.parquet")
-    held_id = int(manifest.loc[(manifest["split"] == "test") & (manifest["source_row_number"] > 1), "source_row_number"].iloc[0])
+    held_id = int(
+        manifest.loc[
+            (manifest["split"] == "test") & (manifest["source_row_number"] > 1),
+            "source_row_number",
+        ].iloc[0]
+    )
     frame = pd.read_csv(source)
     frame.loc[held_id - 1, "amount"] = 1e12
     frame.to_csv(source, index=False)
     config.dataset = config.dataset.model_copy(update={"sha256": file_sha256(source)})
-    second = prepare_dataset(source, config, tmp_path / "prepared", "changed_held_out", progress=lambda _: None)
-    assert (first / "preprocessing.json").read_bytes() == (second / "preprocessing.json").read_bytes()
+    second = prepare_dataset(
+        source,
+        config,
+        tmp_path / "prepared",
+        "changed_held_out",
+        progress=lambda _: None,
+    )
+    assert (first / "preprocessing.json").read_bytes() == (
+        second / "preprocessing.json"
+    ).read_bytes()
     old_X, old_y, old_ids = load_prepared_split(first, "train")
     new_X, new_y, new_ids = load_prepared_split(second, "train")
     pd.testing.assert_frame_equal(old_X, new_X)

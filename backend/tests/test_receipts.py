@@ -1,4 +1,5 @@
 """Synthetic receipt checks; no personal samples or OCR weights required."""
+
 from PIL import Image
 import pytest
 
@@ -12,12 +13,24 @@ def parse(*texts):
 
 
 def test_bank_principal_and_reference_are_separate_from_total_invoice_status_bar():
-    result = parse("08:59", "Bank Transfer", "Transfer Amount 1,234.50",
-                   "+Fee 15.00", "Total 1,249.50", "InstaPay Invoice No. 987654",
-                   "Transfer Date Jan 31, 2026 06:14 PM", "Ref No. 000123")
+    result = parse(
+        "08:59",
+        "Bank Transfer",
+        "Transfer Amount 1,234.50",
+        "+Fee 15.00",
+        "Total 1,249.50",
+        "InstaPay Invoice No. 987654",
+        "Transfer Date Jan 31, 2026 06:14 PM",
+        "Ref No. 000123",
+    )
     assert result["fields"] == {
-        "workflow": "bank_transfer", "category": "DEBIT", "amount": "1234.50",
-        "date": "2026-01-31", "time": "18:14", "reference": "000123"}
+        "workflow": "bank_transfer",
+        "category": "DEBIT",
+        "amount": "1234.50",
+        "date": "2026-01-31",
+        "time": "18:14",
+        "reference": "000123",
+    }
     assert result["requires_confirmation"] is True
 
 
@@ -30,11 +43,23 @@ def test_parser_does_not_fill_missing_principal_or_date_from_other_values():
 
 
 def test_conflicting_candidates_remain_unresolved():
-    result = parse("Express Send", "Bank Transfer", "Amount 10.00", "Amount 11.00",
-                   "Ref No. 001", "Ref No. 002", "Jan 1, 2026 12:00 AM",
-                   "Jan 2, 2026 12:00 PM")
+    result = parse(
+        "Express Send",
+        "Bank Transfer",
+        "Amount 10.00",
+        "Amount 11.00",
+        "Ref No. 001",
+        "Ref No. 002",
+        "Jan 1, 2026 12:00 AM",
+        "Jan 2, 2026 12:00 PM",
+    )
     assert all(value is None for value in result["fields"].values())
-    assert set(result["ambiguous_fields"]) == {"workflow", "amount", "reference", "datetime"}
+    assert set(result["ambiguous_fields"]) == {
+        "workflow",
+        "amount",
+        "reference",
+        "datetime",
+    }
 
 
 @pytest.mark.parametrize("date", ["Feb 30, 2026 01:00 PM", "Jan 1, 2026 13:00 PM"])
@@ -43,8 +68,14 @@ def test_impossible_calendar_date_or_twelve_hour_time_is_rejected(date):
 
 
 def test_split_lines_preserve_reference_zeros_and_decimal_principal():
-    fields = parse("Paid and linked via GCash", "Amount", "P 0.00",
-                   "Reference No.", "00001234", "Feb 1, 2026 12:00 AM")["fields"]
+    fields = parse(
+        "Paid and linked via GCash",
+        "Amount",
+        "P 0.00",
+        "Reference No.",
+        "00001234",
+        "Feb 1, 2026 12:00 AM",
+    )["fields"]
     assert fields["workflow"] == "pay_online"
     assert fields["amount"] == "0.00"
     assert fields["reference"] == "00001234"
@@ -56,13 +87,15 @@ def test_payment_alone_does_not_prove_a_supported_workflow():
 
 
 def test_geometric_reading_order_joins_labels_and_values_without_joining_rows():
-    lines = ordered_lines([
-        TextLine("35.00", .8, [100, 11, 130, 21]),
-        TextLine("Total 50.00", .9, [0, 40, 130, 50]),
-        TextLine("Amount", .95, [0, 10, 50, 20]),
-    ])
+    lines = ordered_lines(
+        [
+            TextLine("35.00", 0.8, [100, 11, 130, 21]),
+            TextLine("Total 50.00", 0.9, [0, 40, 130, 50]),
+            TextLine("Amount", 0.95, [0, 10, 50, 20]),
+        ]
+    )
     assert [r.text for r in lines] == ["Amount 35.00", "Total 50.00"]
-    assert lines[0].confidence == .8
+    assert lines[0].confidence == 0.8
 
 
 def make_image(root, relative, color):
@@ -74,7 +107,7 @@ def make_image(root, relative, color):
 
 def test_inventory_groups_duplicates_and_keeps_conflicts_out_of_both_splits(tmp_path):
     for n in range(12):
-        make_image(tmp_path, f"TRANSFER/transfer_{n+1:04d}.jpg", (n * 20, 0, 0))
+        make_image(tmp_path, f"TRANSFER/transfer_{n + 1:04d}.jpg", (n * 20, 0, 0))
     first = tmp_path / "TRANSFER/transfer_0001.jpg"
     (first.parent / "copy.jpg").write_bytes(first.read_bytes())
     conflict = make_image(tmp_path, "PAYMENT/conflict.png", (0, 255, 0))

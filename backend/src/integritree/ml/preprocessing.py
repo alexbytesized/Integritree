@@ -11,7 +11,11 @@ from sklearn.preprocessing import MinMaxScaler
 
 from integritree.contracts import Contract, NonnegativeNumber, PositiveInteger
 from integritree.ml.features import (
-    FEATURE_COLUMNS, SCALED_COLUMNS, TIME_CONVENTION, engineer_features, validate_predictors,
+    FEATURE_COLUMNS,
+    SCALED_COLUMNS,
+    TIME_CONVENTION,
+    engineer_features,
+    validate_predictors,
 )
 
 Triple = Annotated[list[float], Field(min_length=3, max_length=3)]
@@ -32,7 +36,10 @@ class PreprocessingState(Contract):
 
     @model_validator(mode="after")
     def consistent_state(self):
-        if self.feature_order != FEATURE_COLUMNS or self.scaled_columns != SCALED_COLUMNS:
+        if (
+            self.feature_order != FEATURE_COLUMNS
+            or self.scaled_columns != SCALED_COLUMNS
+        ):
             raise ValueError("Unsupported preprocessing feature schema/order")
         low, high = np.array(self.data_min), np.array(self.data_max)
         if np.any(low < 0) or np.any(high < low) or np.any(np.array(self.scale) <= 0):
@@ -46,13 +53,17 @@ class FittedPreprocessor:
 
     @classmethod
     def fit(cls, training_inputs: pd.DataFrame):
+        """Learn imputation and scaling from the original training partition only."""
         inputs = validate_predictors(training_inputs)
         if not inputs["amount"].notna().any():
             raise ValueError("Training amount column is entirely missing")
         return cls.fit_batches(float(inputs["amount"].median()), [inputs])
 
     @classmethod
-    def fit_batches(cls, amount_median: float, training_batches: Iterable[pd.DataFrame]):
+    def fit_batches(
+        cls, amount_median: float, training_batches: Iterable[pd.DataFrame]
+    ):
+        # The supplied median and every batch must come from the training split.
         scaler = MinMaxScaler(clip=False)
         rows = 0
         for frame in training_batches:
@@ -63,12 +74,18 @@ class FittedPreprocessor:
             rows += len(frame)
         if rows == 0:
             raise ValueError("Cannot fit preprocessing without training records")
-        return cls(PreprocessingState(
-            feature_order=FEATURE_COLUMNS, scaled_columns=SCALED_COLUMNS,
-            amount_median=amount_median, scale=scaler.scale_.tolist(),
-            offset=scaler.min_.tolist(), data_min=scaler.data_min_.tolist(),
-            data_max=scaler.data_max_.tolist(), training_rows=rows,
-        ))
+        return cls(
+            PreprocessingState(
+                feature_order=FEATURE_COLUMNS,
+                scaled_columns=SCALED_COLUMNS,
+                amount_median=amount_median,
+                scale=scaler.scale_.tolist(),
+                offset=scaler.min_.tolist(),
+                data_min=scaler.data_min_.tolist(),
+                data_max=scaler.data_max_.tolist(),
+                training_rows=rows,
+            )
+        )
 
     def transform(self, inputs: pd.DataFrame) -> pd.DataFrame:
         features = engineer_features(inputs, self.state.amount_median)
@@ -82,7 +99,9 @@ class FittedPreprocessor:
         Saved state/schema and the order of arithmetic remain unchanged.
         """
         if list(features.columns) != self.state.feature_order:
-            raise ValueError("Unscaled feature columns/order must match the saved schema")
+            raise ValueError(
+                "Unscaled feature columns/order must match the saved schema"
+            )
         if not np.isfinite(features.to_numpy(dtype="float64")).all():
             raise ValueError("Unscaled features must be finite")
         features = features.copy(deep=True)
@@ -98,4 +117,6 @@ class FittedPreprocessor:
 
     @classmethod
     def load(cls, path: Path):
-        return cls(PreprocessingState.model_validate_json(path.read_text(encoding="utf-8")))
+        return cls(
+            PreprocessingState.model_validate_json(path.read_text(encoding="utf-8"))
+        )
