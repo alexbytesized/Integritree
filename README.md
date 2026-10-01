@@ -16,6 +16,7 @@ Pay Online and confirmed bank-account transfers. Cash categories and merchant QR
 remain pending. Expanded SHAP details use a waterfall graph; a numerical table remains
 a suggestion.
 
+- [Study guides: terms, code, and methodology](docs/STUDY_GUIDE.md)
 - [Validation protocol](docs/THREE_STAGE_VALIDATION.md)
 - [Current run status and reset record](docs/VALIDATION_RUN_STATUS.md)
 - [Backend setup and commands](backend/README.md)
