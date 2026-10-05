@@ -13,7 +13,7 @@ implemented, including researcher CSV and receipt APIs with frontend integration
 The receipt demonstration connects local RapidOCR, explicit confirmation, saved
 paired predictions, SHAP, ZIP downloads and temporary cleanup for Express Send,
 Pay Online and confirmed bank-account transfers. Cash categories and merchant QR
-remain pending. Expanded SHAP details use a waterfall graph; a numerical table remains
+remain pending. Expanded SHAP details use a signed contribution bar chart; a numerical table remains
 a suggestion.
 
 - [Study guides: terms, code, and methodology](docs/STUDY_GUIDE.md)

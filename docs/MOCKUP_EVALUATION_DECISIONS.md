@@ -1,5 +1,7 @@
 # Integritree mock-up evaluation and implementation decisions
 
+> Presentation update (2026-10-06): Signed horizontal SHAP contribution bars replace all waterfall presentations below, including receipt chart exports. Green negative values decrease the fraud score; red positive values increase it. The axis is fixed at -100 to +100 percentage points. Features follow the fixed schema order with friendly labels, and exact-zero rows remain blank. All features, reference/final scores, and existing numerical SHAP calculations are retained. Historical waterfall-only decisions below are superseded; legacy API names remain compatible. See [API chart presentation](API.md#shap-chart-presentation-2026-10-06).
+
 Updated: 2026-10-01 (receipt decisions and local OCR baseline)
 
 The approved [five-category receipt workflow](RECEIPT_WORKFLOW.md) supersedes the

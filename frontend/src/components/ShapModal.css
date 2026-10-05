@@ -1,40 +1,45 @@
-.shap-modal {
-  --info-modal-max-height: min(880px, calc(100dvh - 32px));
-  width: min(920px, 100%);
+.info-modal-dialog.shap-modal { width: min(1024px, 100%); }
+.shap-chart-section { overflow-x: auto; }
+.shap-chart-layout {
+  display: grid;
+  grid-template-columns: 208px minmax(680px, 760px);
+  column-gap: 8px;
+  min-width: 896px;
 }
-
-.shap-modal .info-modal-scroll {
-  padding: 32px 28px 24px;
+.shap-feature-labels { padding-top: var(--shap-top-padding); }
+.shap-feature-labels > div {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: var(--shap-row-height);
+  font-size: 15px;
+  font-weight: 400;
+  text-align: right;
 }
-
-.shap-modal p {
-  line-height: 1.5;
+.shap-modal .shap-chart-scroll { overflow-x: scroll; overscroll-behavior-x: contain; min-width: 0; }
+.shap-chart-scroll,
+.shap-chart-section { scrollbar-color: #7a8791 #edf0f2; }
+@supports selector(::-webkit-scrollbar) {
+  /* Keep the explicit scrollbar track visible even with overlay scrollbars. */
+  .shap-chart-scroll,
+  .shap-chart-section { scrollbar-color: auto; }
 }
-
-.shap-modal .shap-reconstruction {
-  margin: 16px 0 0;
-}
-
-.shap-modal .shap-top-contributor {
-  margin: 10px 0 0;
-}
-
-.shap-modal .shap-chart-scroll {
-  overflow-x: auto;
-}
-
+.shap-chart-scroll::-webkit-scrollbar,
+.shap-chart-section::-webkit-scrollbar { height: 12px; }
+.shap-chart-scroll::-webkit-scrollbar-track,
+.shap-chart-section::-webkit-scrollbar-track { background: #edf0f2; border-radius: 8px; }
+.shap-chart-scroll::-webkit-scrollbar-thumb,
+.shap-chart-section::-webkit-scrollbar-thumb { background: #7a8791; border-radius: 8px; }
+.shap-modal .shap-chart-scroll:focus-visible,
+.shap-chart-section:focus-visible { outline: 2px solid #086dc1; outline-offset: -2px; }
 .shap-modal .shap-chart-scroll img {
   display: block;
-  width: 100%;
-  min-width: 580px;
-  max-width: 820px;
-  margin: 0 auto;
-  height: auto;
+  max-width: none;
 }
-
-@media (max-width: 540px) {
-  .shap-modal .info-modal-scroll {
-    padding: 28px 16px 20px;
-  }
+.shap-direction-captions { grid-column: 2; display: flex; justify-content: space-between; gap: 16px; padding: 12px 0 16px; font-size: 16px; }
+.shap-direction-captions span:first-child { color: #009900; }
+.shap-direction-captions span:last-child { color: #A00000; }
+.shap-summary-sections { margin-top: 28px; }
+@media (max-width: 760px) {
+  .shap-summary-sections { margin-top: 24px; }
 }
-

@@ -1,7 +1,7 @@
 # Connected receipt application
 
 Implemented 2026-10-01. The receipt flow now connects an uploaded image to local
-RapidOCR, editable confirmation, both saved models, SHAP waterfalls, ZIP download
+RapidOCR, editable confirmation, both saved models, SHAP contribution bar charts, ZIP download
 and temporary cleanup. Ground Truth and Outcome are absent from receipt results;
 researcher records retain them. Both screens share the threshold marker, score
 bands, model tabs and SHAP modal. The current saved common cutoff is 43%.
@@ -79,7 +79,7 @@ result, chart and download checks ownership. Responses use `Cache-Control: no-st
 | `GET /{id}/image` | Authenticated validated source-image preview. |
 | `POST /{id}/confirm` | JSON `{fields, confirmed: true, expected_revision}`; 202 starts paired prediction and SHAP. Initial revision is 0. |
 | `POST /{id}/retry` | 202 retries failed OCR, prediction or explanation work. |
-| `GET /{id}/waterfall/{rf\|rf_smote}?revision=N` | Current computed SVG only. |
+| `GET /{id}/waterfall/{rf\|rf_smote}?revision=N` | Current contribution SVG; optional `layout=modal` omits standalone summary cards (legacy route name). |
 | `GET /{id}/download?revision=N` | Current completed result ZIP. |
 | `DELETE /{id}` | 204 retires a receipt, including busy jobs; active writers finish before physical deletion. |
 | `DELETE /sessions/current` | Idempotent 204 invalidates the session and retires all owned receipt data. |
@@ -110,11 +110,34 @@ the predictions available and allows retry; it does not become a fabricated char
 
 ## Download and retention
 
-The ZIP contains `confirmed_inputs.json`, `results.json`, `explanations.json` and
-`metadata.json`. Computed explanations add `rf_waterfall.svg` and
-`rf_smote_waterfall.svg`. Metadata identifies the mapping, revision, input fingerprint,
+The downloaded `integritree_receipt.zip` contains `confirmed_inputs.json`,
+`results.json`, `explanations.json`, `metadata.json`, and
+`Transaction-Results_YYYY-MM-DD.pdf`. The filename uses the Philippine date (UTC+8),
+captured once when each export starts. The PDF has two A4 landscape pages:
+Benchmark RF first, then RF-SMOTE, regardless of the selected results tab. Each page
+contains the transaction reference, risk gauge and threshold, prediction, score,
+interpretation, and SHAP explanation summary. It uses a white background and omits
+interactive controls and full SHAP charts. Missing references show `Not provided`;
+failed SHAP explanations show an unavailable message with instructions to retry
+in the application. Predictions remain available.
+
+Computed explanations also add `rf_shap_contributions.svg` and
+`rf_smote_shap_contributions.svg`. Metadata identifies the mapping, revision, input fingerprint,
 model run, preprocessing, threshold and explanation state. An unavailable explanation
 is explicit in the JSON. The ZIP excludes the original image and evaluation metrics.
+
+PDFs use ReportLab and embedded DejaVu Sans fonts from the existing Matplotlib
+installation. Install the updated backend dependencies with
+`.venv/Scripts/python.exe -m pip install --require-hashes -r requirements-dev.lock`
+from `backend/`, then restart the backend. No LibreOffice or browser converter is
+needed for receipt PDFs. `pypdf` is a development dependency for export checks.
+
+Export captures the completed revision and chart bytes under the session lock,
+then renders entirely in memory outside that lock. It does not repeat prediction
+or SHAP calculations. Ownership and revision are checked again before returning
+the ZIP, so a cleared, expired, or edited receipt cannot deliver a stale export.
+PDF failure returns a retryable download error instead of a partial ZIP. No PDF
+or ZIP is saved in the session directory. Researcher exports are unchanged.
 
 Private application files live under ignored `backend/runtime/receipt_sessions/`.
 Return from confirmation to Upload, browser navigation out of the flow, and Clear

@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     research_model_dir: Path = Path("artifacts/paysim_three_stage_20260928_172539")
     research_prepared_dir: Path = Path("data/prepared/paysim_phase2_20260918")
     receipt_ocr_python: Path = Path("runtime/receipt_tools/venv/Scripts/python.exe")
+    research_pdf_converter: Path = Path(
+        "runtime/document_tools/libreoffice/program/soffice.com"
+    )
     cors_origins: list[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
@@ -73,6 +76,7 @@ class Settings(BaseSettings):
             "research_model_dir",
             "research_prepared_dir",
             "receipt_ocr_python",
+            "research_pdf_converter",
         ):
             path = getattr(self, field)
             if not path.is_absolute():

@@ -1,10 +1,7 @@
 """Session-owned local image jobs, confirmations, paired results and temporary exports."""
 
-from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
 import io
 import json
-from pathlib import Path
 import secrets
 import shutil
 import subprocess
@@ -12,22 +9,26 @@ import threading
 import time
 import uuid
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
+from datetime import UTC, datetime, timezone
+from pathlib import Path
 
 from PIL import Image
 from pydantic import ValidationError
 
 from integritree.ml.data import file_sha256
 from integritree.ml.staged_selection import run_lock
-from integritree.receipts.audit import load_image
 
 # Receipt routes import the upload limit through this service boundary.
 from integritree.receipts.audit import MAX_BYTES as MAX_BYTES
+from integritree.receipts.audit import load_image
 from integritree.receipts.contracts import (
-    ReceiptSource,
-    ExtractedReceiptFields,
-    ConfirmedReceiptFields,
-    confirm_receipt,
     LAYOUT_WORKFLOWS,
+    ConfirmedReceiptFields,
+    ExtractedReceiptFields,
+    ReceiptSource,
+    confirm_receipt,
 )
 from integritree.receipts.layouts import identify_layout
 from integritree.receipts.mapping import predict_receipt
@@ -468,6 +469,7 @@ class ReceiptService:
                     )
             if features is None:
                 import pandas as pd
+
                 from integritree.ml.features import FEATURE_COLUMNS
 
                 features = pd.DataFrame(
@@ -479,7 +481,11 @@ class ReceiptService:
             )
             if job["cancelled"]:
                 return
-            from integritree.ml.explainability import waterfall, summarize
+            from integritree.ml.explainability import (
+                chart_description,
+                summarize,
+                waterfall,
+            )
 
             models = {}
             for value in values:
@@ -503,7 +509,7 @@ class ReceiptService:
                 item.update(
                     top_positive_contributor=top,
                     narrative=narrative,
-                    chart_description=narrative,
+                    chart_description=chart_description({"narrative": narrative}),
                 )
                 model = item["model"]
                 waterfall(item, folder / f"{model}.svg", display_label="Receipt")
@@ -561,22 +567,32 @@ class ReceiptService:
                 raise ReceiptError("Image preview is not ready.", 409)
             return (job["folder"] / "image").read_bytes(), job["media_type"]
 
-    def chart(self, token, identifier, model, revision):
+    def chart(self, token, identifier, model, revision, *, layout="standalone"):
         with self.lock:
             job = self.current(token, identifier, revision)
-            path = job["folder"] / f"revision_{revision}" / f"{model}.svg"
-            if (
-                job["result"]["explanation"]["status"] != "computed"
-                or not path.exists()
-            ):
-                raise ReceiptError("Waterfall is unavailable.", 409)
-            return path.read_bytes()
+            return self._contribution_chart(
+                job, model, revision, layout=layout
+            ).read_bytes()
+
+    def _contribution_chart(self, job, model, revision, *, layout="standalone"):
+        from integritree.ml.explainability import cached_contribution_chart
+
+        explanation = job["result"]["explanation"]
+        if explanation["status"] != "computed" or model not in explanation["models"]:
+            raise ReceiptError("SHAP contribution chart is unavailable.", 409)
+        return cached_contribution_chart(
+            explanation["models"][model],
+            job["folder"] / f"revision_{revision}",
+            display_label="Receipt",
+            layout=layout,
+        )
 
     def export(self, token, identifier, revision):
         with self.lock:
             job = self.current(token, identifier, revision)
+            exported_at = datetime.now(UTC)
             bundle = self.bundle_provider()
-            result = job["result"]
+            result = deepcopy(job["result"])
             metadata = {
                 "scope": "experimental_receipt",
                 "analysis_id": identifier,
@@ -593,31 +609,45 @@ class ReceiptService:
             model_meta = self.settings.research_model_dir / "metadata.json"
             if model_meta.exists():
                 metadata["model_metadata_sha256"] = file_sha256(model_meta)
-            out = io.BytesIO()
-            with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-                files = {
-                    "confirmed_inputs.json": job["confirmation"].model_dump(
-                        mode="json"
-                    ),
-                    "results.json": {
-                        k: v for k, v in result.items() if k != "explanation"
-                    },
-                    "explanations.json": result["explanation"],
-                    "metadata.json": metadata,
-                }
-                for name, value in files.items():
-                    archive.writestr(
-                        name,
-                        json.dumps(
-                            value, indent=2, ensure_ascii=False, allow_nan=False
-                        ),
+            files = {
+                "confirmed_inputs.json": job["confirmation"].model_dump(mode="json"),
+                "results.json": {k: v for k, v in result.items() if k != "explanation"},
+                "explanations.json": result["explanation"],
+                "metadata.json": metadata,
+            }
+            charts = {}
+            if result["explanation"]["status"] == "computed":
+                for model in ("rf", "rf_smote"):
+                    charts[f"{model}_shap_contributions.svg"] = (
+                        self._contribution_chart(job, model, revision).read_bytes()
                     )
-                if result["explanation"]["status"] == "computed":
-                    for model in ("rf", "rf_smote"):
-                        archive.write(
-                            job["folder"] / f"revision_{revision}" / f"{model}.svg",
-                            f"{model}_waterfall.svg",
-                        )
+            files = deepcopy(files)
+
+        # Rendering uses only this snapshot and memory. Clear/reconfirmation and
+        # other sessions must remain responsive while the PDF is built.
+        try:
+            from integritree.services import receipt_pdf
+
+            pdf = receipt_pdf.generate_pdf(result)
+        except Exception:  # noqa: BLE001 - PDF errors must use the retryable API boundary.
+            raise ReceiptError(
+                "The transaction PDF could not be generated. Try Download Results "
+                "again. If the problem persists, ask the administrator to check "
+                "the backend PDF dependencies and result layout.",
+                503,
+            ) from None
+        out = io.BytesIO()
+        with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for name, value in files.items():
+                archive.writestr(
+                    name,
+                    json.dumps(value, indent=2, ensure_ascii=False, allow_nan=False),
+                )
+            for name, value in charts.items():
+                archive.writestr(name, value)
+            archive.writestr(receipt_pdf.pdf_filename(exported_at), pdf)
+        with self.lock:
+            self.current(token, identifier, revision)
             return out.getvalue()
 
     def delete(self, token, identifier):

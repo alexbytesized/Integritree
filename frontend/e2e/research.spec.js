@@ -1,4 +1,8 @@
 import { test, expect } from '@playwright/test'
+import { execFileSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+
+const backendPython = fileURLToPath(new URL('../../backend/.venv/Scripts/python.exe', import.meta.url))
 
 // Allows validation against an isolated backend without restarting an active session.
 test.beforeEach(async ({ page }) => {
@@ -16,10 +20,12 @@ test('upload, refresh, search, pagination, details, real SHAP, download and anal
   const errors = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('/researcher-upload')
+  await page.getByRole('button', { name: 'Upload Instructions' }).click()
   await expect(page.getByText('Required columns:', { exact: false })).toBeVisible()
   const template = page.waitForEvent('download')
-  await page.getByRole('link', { name: 'Download demonstration CSV template' }).click()
+  await page.getByRole('link', { name: 'Download Demonstration CSV Template' }).click()
   expect((await template).suggestedFilename()).toBe('research_template.csv')
+  await page.getByRole('button', { name: 'Close dataset instructions' }).click()
   await page.locator('input[type=file]').setInputFiles({ name: 'browser_demo.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) })
   await page.getByRole('button', { name: 'ANALYZE FILE' }).click()
   await expect(page.getByRole('heading', { name: 'Results Overview' })).toBeVisible()
@@ -41,15 +47,16 @@ test('upload, refresh, search, pagination, details, real SHAP, download and anal
   await expect(page.getByRole('heading', { name: 'Transaction Record', exact: true })).toBeVisible()
   await expect(page.locator('.td-field-value').filter({ hasText: /^C_DEMO_22$/ })).toBeVisible()
   await page.getByRole('tab', { name: 'RF-SMOTE', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'SHAP waterfall' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'SHAP contribution bar chart' })).toHaveCount(0)
   await page.getByRole('button', { name: 'See Full SHAP Evaluation' }).click()
   await expect(page.getByRole('dialog', { name: 'RF-SMOTE — SHAP Evaluation' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'SHAP waterfall' })).toHaveCount(0)
-  await expect(page.locator('img[alt*="waterfall from"]')).toBeVisible()
-  await expect(page.getByText(/Reconstruction error:/)).toBeVisible()
-  await page.locator('img[alt*="waterfall from"]').scrollIntoViewIfNeeded()
+  await expect(page.getByRole('heading', { name: 'SHAP contribution bar chart' })).toHaveCount(0)
+  await expect(page.locator('img[alt*="SHAP contribution bar chart"]')).toBeVisible()
+  await expect(page.getByText(/Reconstruction error:/)).toHaveCount(0)
+  await expect(page.locator('.shap-summary-sections')).toBeVisible()
+  await page.locator('img[alt*="SHAP contribution bar chart"]').scrollIntoViewIfNeeded()
   await page.screenshot({ path: testInfo.outputPath('details.png') })
-  await page.locator('.shap-top-contributor').scrollIntoViewIfNeeded()
+  await page.locator('.shap-summary-sections section:last-child').scrollIntoViewIfNeeded()
   await page.screenshot({ path: testInfo.outputPath('shap-footer.png') })
   await page.setViewportSize({ width: 390, height: 844 })
   await page.screenshot({ path: testInfo.outputPath('real-shap-mobile.png') })
@@ -57,11 +64,18 @@ test('upload, refresh, search, pagination, details, real SHAP, download and anal
   await page.getByRole('button', { name: 'Close SHAP evaluation' }).click()
   await page.getByRole('link', { name: 'Return', exact: true }).click()
   await expect(page.getByPlaceholder('Search Transaction ID')).toHaveValue('23')
-  const downloadPromise = page.waitForEvent('download')
+  const downloadPromise = page.waitForEvent('download', { timeout: 150000 })
   await page.getByRole('button', { name: 'Download Results', exact: true }).click()
   const download = await downloadPromise
   expect(download.suggestedFilename()).toBe('integritree_results.zip')
   await download.saveAs(testInfo.outputPath('results.zip'))
+  const exportedFiles = JSON.parse(execFileSync(backendPython, ['-c',
+    'import json,re,sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); names=[n for n in z.namelist() if re.fullmatch(r"Experiment-Paper_[0-9]{4}-[0-9]{2}-[0-9]{2}[.]pdf",n)]; assert len(names)==1; p=z.read(names[0]); assert p.startswith(b"%PDF-") and b"%%EOF" in p[-1024:]; print(json.dumps(z.namelist()))',
+    testInfo.outputPath('results.zip')], { encoding: 'utf8' }))
+  const paperName = exportedFiles.find(name => /^Experiment-Paper_\d{4}-\d{2}-\d{2}\.pdf$/.test(name))
+  expect(exportedFiles.sort()).toEqual([
+    paperName, 'evaluation.json', 'metadata.json', 'report.html', 'results.csv',
+  ])
   await page.getByRole('heading', { name: 'Results Overview' }).scrollIntoViewIfNeeded()
   await page.screenshot({ path: testInfo.outputPath('results.png') })
   await page.setViewportSize({ width: 390, height: 844 })

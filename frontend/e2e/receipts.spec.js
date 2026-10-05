@@ -6,8 +6,8 @@ const fields = { workflow: 'express_send', category: 'TRANSFER', amount: '100.00
 const derived = { hour_of_day: 13, day_of_week: 0, type_TRANSFER: 1, type_PAYMENT: 0, type_DEBIT: 0,
   type_CASH_IN: 0, type_CASH_OUT: 0, log_amount: 4.615, is_zero_amount: 0, is_merchant_origin: 0, is_merchant_dest: 0 }
 const makeExplanation = revision => ({ status: 'computed', models: Object.fromEntries(['rf', 'rf_smote'].map(model => [model, {
-  waterfall_url: `/api/v1/receipts/demo/waterfall/${model}?revision=${revision}`, chart_description: `${model} receipt waterfall`,
-  additivity_error: 0, features: [{ feature: 'hour_of_day', readable_value: 'Manila hour = 13', contribution: .1 }],
+  waterfall_url: `/api/v1/receipts/demo/waterfall/${model}?revision=${revision}`, chart_description: `${model} receipt contribution bar chart`,
+  base_value: .1, output_value: .2, additivity_error: 0, features: [{ feature: 'hour_of_day', readable_value: 'Manila hour = 13', contribution: .1 }],
   top_positive_contributor: { status: 'available', feature: 'hour_of_day' },
 }])) })
 
@@ -50,7 +50,7 @@ async function mockReceipts(page, unsupported = false, changes = {}) {
 async function begin(page, sample = null) {
   await page.goto('/upload')
   await page.locator('input[type=file]').setInputFiles(sample || { name: 'receipt.png', mimeType: 'image/png', buffer: image })
-  await page.getByRole('button', { name: 'Extract transaction details' }).click()
+  await page.getByRole('button', { name: 'ANALYZE FILE' }).click()
   await expect(page.getByRole('heading', { name: 'Confirm Details' })).toBeVisible()
 }
 
@@ -84,6 +84,8 @@ test('receipt confirmation, refresh, user model designs without labels, SHAP, re
     await expect(page.getByRole('dialog').locator('img')).toBeVisible()
     expect(state.charts.at(-1).token).toBe('receipt-test')
     expect(state.charts.at(-1).url.searchParams.get('revision')).toBe('1')
+    expect(state.charts.at(-1).url.searchParams.get('layout')).toBe('modal')
+    await expect(page.locator('.shap-summary-sections li')).toHaveText(['10.00%', '20.00%', 'Hour of the Day'])
     expect(state.charts.at(-1).url.searchParams.has('presentation')).toBe(false)
     await page.keyboard.press('Escape')
   }
@@ -150,9 +152,9 @@ test('original form, all role defaults, overrides and drafts survive refresh', a
   const state = await mockReceipts(page)
   await begin(page)
   await expect(page.locator('.details-row')).toHaveCount(7)
-  await expect(page.locator('#receipt-particles canvas')).toBeVisible()
+  await expect(page.locator('.particles-background canvas')).toBeVisible()
   await expect.poll(() => page.evaluate(() => window.pJSDom?.some(entry => entry.pJS.particles.array.length > 0))).toBe(true)
-  expect(await page.locator('#receipt-particles canvas').evaluate(canvas => canvas.width > 0 && canvas.height > 0)).toBeTruthy()
+  expect(await page.locator('.particles-background canvas').evaluate(canvas => canvas.width > 0 && canvas.height > 0)).toBeTruthy()
   await expect(page.getByRole('checkbox')).toHaveCount(0)
   await expect(page.getByText(/Temporary storage:/)).toHaveCount(0)
   for (const [category, origin, destination] of [
@@ -245,7 +247,7 @@ test('receipt loading reuses researcher skeleton and preserves clear and edit na
   const state = await mockReceipts(page, false, { busy: true, status: 'extracting' })
   await page.goto('/upload')
   await page.locator('input[type=file]').setInputFiles({ name: 'receipt.png', mimeType: 'image/png', buffer: image })
-  await page.getByRole('button', { name: 'Extract transaction details' }).click()
+  await page.getByRole('button', { name: 'ANALYZE FILE' }).click()
   await expect(page.getByRole('status')).toHaveText('Reading your receipt...')
   await expect(page.locator('.research-loading-spinner')).toBeVisible()
   await expect(page.locator('.research-loading-skeleton')).toBeVisible()
@@ -309,7 +311,7 @@ test('receipt controls, amount tooltip, minute time and particle sizing', async 
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1100 })
     await expect.poll(() => page.evaluate(() => {
-      const canvas = document.querySelector('#receipt-particles canvas')
+      const canvas = document.querySelector('.particles-background canvas')
       if (!canvas) return false
       const bounds = canvas.getBoundingClientRect()
       return Math.abs(canvas.width / bounds.width - canvas.height / bounds.height) < .01

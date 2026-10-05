@@ -19,6 +19,13 @@ From `frontend`, run `npm.cmd run dev -- --host 127.0.0.1`, then open
 Use one backend process; multiple workers cannot share temporary analyses. An OS
 lock prevents a second process from deleting the first process's session files.
 
+A backend restart invalidates browser session tokens. If a new CSV upload receives
+HTTP 410, the browser clears the expired session and analysis reference, creates a
+new session, and retries the selected file once automatically. A second 410 remains
+a visible, manually retryable error. Validation, size, queue, and connection errors
+are not automatically retried, avoiding duplicate analyses after uncertain network
+failures. Previously completed temporary analyses cannot survive a backend restart.
+
 The trusted model path defaults to `artifacts/paysim_three_stage_20260928_172539`;
 the training-background preparation defaults to `data/prepared/paysim_phase2_20260918`.
 Override them with `INTEGRITREE_RESEARCH_MODEL_DIR` and
@@ -59,7 +66,7 @@ predictions; it is not automatically computed for an entire large upload.
 The interface displays Transaction IDs as one-based row numbers scoped to the
 current upload. Its search matches those row numbers. Internal and exported IDs
 remain `<upload SHA-256>:<row number>`. The records API defaults to full-ID search;
-`search_field=row_number` selects the interface behavior. The waterfall endpoint
+`search_field=row_number` selects the interface behavior. The contribution chart endpoint (legacy `/waterfall/` route)
 accepts `presentation=row_number` for a separately cached display chart without
 changing the original chart or recomputing SHAP. Full charts open only through
 the model's “See Full SHAP Evaluation” modal.
@@ -95,12 +102,60 @@ Download results creates an asynchronous ZIP for the complete upload:
 - `metadata.json`: upload fingerprint, model run and fingerprint, settings,
   threshold, timestamp, evaluated population, and actual SHAP coverage.
 - `report.html`: escaped, offline evaluation and provenance report.
+- `Experiment-Paper_YYYY-MM-DD.pdf`: the supplied experiment paper with its five
+  tables filled from the same full-upload evaluation. All explanatory notes are
+  placed under the template's final **Notes:** heading.
+  The filename uses the Philippine date (UTC+8), captured once when building the
+  ZIP, for example `Experiment-Paper_2026-10-05.pdf`. Downloading the same analysis
+  on a later date uses that later export date. The ZIP remains `integritree_results.zip`.
 
 Exports state `scope: uploaded_dataset` and `held_out_membership_verified: false`.
 The researcher establishes final-test provenance in the research record. Scores
 are model outputs; display risk bands do not establish real-world calibration.
 CSV text that could execute as a spreadsheet formula is prefixed with an apostrophe.
-Filtered exports and PDF/XLSX are not implemented in this milestone.
+Filtered exports and XLSX are not implemented. The paper is exported as PDF;
+the intermediate Word document is temporary and is not included in the ZIP.
+
+### Experiment paper PDF setup
+
+The retained template is
+`backend/src/integritree/templates/Experiment-Paper-Template.docx` and is included
+in the Python package. Keep its five result tables, their labels and blank answer
+cells, and the final `Notes:` heading followed by an empty paragraph. The exporter
+changes only answer cells and the Notes area in a temporary copy. It preserves
+the supplied wording, equations, headers, styles, and page settings. Replacing the
+template with a different structure requires updating the table mapping.
+
+From the project root on Windows, run:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File backend/scripts/setup_research_pdf.ps1
+```
+
+This downloads the pinned LibreOffice installer, verifies its SHA-256 and signed
+publisher, and extracts a dedicated runtime under `backend/runtime/document_tools`.
+It does not install LibreOffice system-wide or change the persistent PowerShell
+execution policy. Windows Installer must be able to use its temporary directories.
+The converter default is `runtime/document_tools/libreoffice/program/soffice.com`,
+relative to the backend root. An alternate LibreOffice executable can be selected
+with `INTEGRITREE_RESEARCH_PDF_CONVERTER` in the environment or backend `.env`.
+Restart the backend after changing settings. No Word installation is required.
+
+Conversion runs in the existing export worker with a separate temporary LibreOffice
+profile and a 120-second timeout. A missing converter, incompatible template, or
+failed conversion fails the export with an actionable message; it never produces
+a successful ZIP without the paper. Correct the problem and retry Download Results.
+Temporary document/profile files are removed after each conversion, including
+failure. They use short temporary `session_*` directories directly under the
+research session root to avoid Windows path-length limits; startup removes any
+left by an interrupted process. Normal session cleanup covers other generated files.
+
+Counts are integers; percentage metrics and percentage comparisons use two decimal
+places, MCC and chi-squared use four. Small nonzero p-values use scientific notation
+when four decimals would round them to zero. `N/A` cells are explained only in
+Notes, as are coefficient differences for negative MCC and McNemar edge cases.
+The primary McNemar result remains in Table 5; any applicable exact-binomial
+supplement is in Notes. This formatting does not change the full-precision JSON.
 
 ## Capacity evidence
 
@@ -131,7 +186,7 @@ From `frontend`, run `npm.cmd run lint` and `npm.cmd run build`. With both local
 servers running, `npm.cmd run test:e2e` runs Playwright using installed Microsoft
 Edge and isolated browser contexts. It uses synthetic CSVs with the real frozen
 models: template/upload, refresh, pagination/filter/search, original record details,
-real SHAP waterfalls, return navigation, ZIP download, clear results, malformed
+real SHAP contribution bar charts, return navigation, ZIP download, clear results, malformed
 input/retry, and expired sessions. Browser diagnostics go to ignored `test-results`.
 
 Final verification passed **208 backend tests** (five upstream warnings), all

@@ -1,14 +1,15 @@
 import { test, expect } from '@playwright/test'
-import { booleanText, weekdayText, riskBand, scoreText, shapSummary } from '../src/researchDisplay.js'
+import { booleanText, weekdayText, riskBand, scoreText, shapSummary, SHAP_FEATURE_LABELS } from '../src/researchDisplay.js'
+
+// Headless Chromium hides native scrollbars by default; exercise their real layout.
+test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } })
 
 const fingerprint = '23c03e6b' + 'a'.repeat(56)
 const makeItem = model => ({
+  base_value: .1, output_value: model === 'rf_smote' ? .535176 : .145,
   waterfall_url: `/api/v1/research/analyses/display/records/1/waterfall/${model}`,
-  chart_description: `${model} waterfall from reference to prediction`, additivity_error: 0,
-  features: [
-    { feature: 'hour_of_day', readable_value: 'Simulation hour = 5', contribution: .3995 },
-    { feature: 'day_of_week', readable_value: 'Simulation day index = 0', contribution: -.05118 },
-  ],
+  chart_description: `${model} contribution bar chart from reference to prediction`, additivity_error: 0,
+  features: Object.keys(SHAP_FEATURE_LABELS).map((feature, index) => ({ feature, readable_value: `${feature} = 0`, contribution: index === 0 ? .3995 : index === 1 ? -.05118 : 0 })),
   top_positive_contributor: { status: 'available', feature: 'hour_of_day' },
 })
 const recordFixture = () => ({
@@ -30,7 +31,7 @@ async function setup(page, record, options = {}) {
         options.chartFailure = false
         return route.fulfill({ status: 503, json: { detail: 'Chart temporarily unavailable.' } })
       }
-      return route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="700"><rect width="1000" height="700" fill="white"/><text x="40" y="60">Transaction 1 SHAP waterfall</text></svg>' })
+      return route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="488"><rect width="1800" height="488" fill="white"/><text x="40" y="60">Transaction 1 SHAP contribution bar chart</text></svg>' })
     }
     if (route.request().method() === 'POST') {
       record.explanation = { status: 'computed', models: { rf: makeItem('rf'), rf_smote: makeItem('rf_smote') } }
@@ -88,24 +89,21 @@ test('all model views use display IDs, colored interpretations and model-specifi
     await expect(page.getByRole('dialog').locator('img')).toBeVisible()
     const dialog = page.getByRole('dialog')
     await expect(dialog.getByText(/Transaction ID:/)).toHaveCount(0)
-    await expect(dialog.getByRole('heading', { name: 'SHAP waterfall' })).toHaveCount(0)
+    await expect(dialog.getByRole('heading', { name: 'SHAP contribution bar chart' })).toHaveCount(0)
     const desktopBox = await dialog.boundingBox()
-    expect(desktopBox.width).toBeCloseTo(860 * .8)
-    expect(desktopBox.height).toBeLessThanOrEqual(620 * .8)
-    expect(desktopBox.width).toBeGreaterThan(desktopBox.height)
-    await expect(dialog.locator('.shap-top-contributor')).toHaveCSS('margin-top', '12px')
-    const contentOrder = await dialog.locator('.shap-reconstruction').evaluate(element => ({
-      nextClass: element.nextElementSibling.className,
-      gap: element.nextElementSibling.getBoundingClientRect().top - element.getBoundingClientRect().bottom,
-    }))
-    expect(contentOrder.nextClass).toBe('shap-top-contributor')
-    expect(contentOrder.gap).toBeCloseTo(12 * .8, 1)
+    expect(desktopBox.width).toBeCloseTo(819.2, 1)
+    expect(desktopBox.height).toBeLessThanOrEqual(496)
+    await expect(dialog.locator('.shap-reconstruction')).toHaveCount(0)
+    await expect(dialog.locator('.shap-summary-sections li')).toHaveText(['10.00%', `${score}%`, 'Hour of the Day'])
     expect(requests.length).toBe(before + 1)
     expect(requests.at(-1).pathname).toContain(`/waterfall/${model}`)
     expect(requests.at(-1).searchParams.get('presentation')).toBe('row_number')
+    expect(requests.at(-1).searchParams.get('layout')).toBe('modal')
     await expect(page.getByRole('button', { name: 'Close SHAP evaluation' })).toBeFocused()
     await page.keyboard.press('Shift+Tab')
-    await expect(page.getByRole('region', { name: 'SHAP waterfall chart; scroll horizontally for details', exact: true })).toBeFocused()
+    await expect(dialog.locator('.shap-chart-scroll')).toBeFocused()
+    await page.keyboard.press('Tab')
+    await expect(page.getByRole('button', { name: 'Close SHAP evaluation' })).toBeFocused()
     await page.keyboard.press('Escape')
     await expect(open).toBeFocused()
     await expect(page.getByRole('dialog')).toHaveCount(0)
@@ -126,9 +124,9 @@ test('all model views use display IDs, colored interpretations and model-specifi
   await page.getByRole('button', { name: 'See Full SHAP Evaluation' }).first().click()
   await expect(page.getByRole('dialog').locator('img')).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('mobile-modal.png') })
-  await page.locator('.shap-top-contributor').scrollIntoViewIfNeeded()
-  await expect(page.locator('.shap-top-contributor')).toBeInViewport()
-  await expect(page.locator('.shap-reconstruction')).toBeInViewport()
+  await page.locator('.shap-summary-sections section:last-child').scrollIntoViewIfNeeded()
+  await expect(page.locator('.shap-summary-sections section:last-child')).toBeInViewport()
+  await expect(page.locator('.shap-summary-sections section:last-child')).toContainText('Hour of the Day')
   await page.screenshot({ path: testInfo.outputPath('mobile-modal-footer.png') })
   const box = await page.getByRole('dialog').boundingBox()
   expect(box.x).toBeGreaterThanOrEqual(0)
@@ -176,6 +174,76 @@ test('pending, explanation retry and chart retry work inside the modal', async (
   await expect(page.getByRole('dialog')).toHaveCount(0)
 })
 
+test('compact SHAP plot centers nine gridlines, scrolls independently and preserves position on updates', async ({ page }) => {
+  const record = recordFixture()
+  record.explanation.status = 'pending' // Keep the ordinary record polling active.
+  await setup(page, record)
+  await page.getByRole('tab', { name: 'RF-SMOTE', exact: true }).click()
+  const open = page.getByRole('button', { name: 'See Full SHAP Evaluation' })
+  await open.click()
+  const plot = page.locator('.shap-chart-scroll')
+  const geometry = () => plot.evaluate(element => {
+    const { scrollLeft, clientWidth, scrollWidth } = element
+    return { scrollLeft, clientWidth, scrollWidth,
+      visible: Array.from({ length: 21 }, (_, i) => i * 10 - 100)
+        .filter(value => 900 + value * 8 >= scrollLeft && 900 + value * 8 <= scrollLeft + clientWidth) }
+  })
+  await expect.poll(async () => (await geometry()).visible).toEqual([-40, -30, -20, -10, 0, 10, 20, 30, 40])
+  const initial = await geometry()
+  expect(initial.clientWidth).toBeGreaterThanOrEqual(680)
+  expect(initial.clientWidth).toBeLessThanOrEqual(760)
+  expect(initial.scrollWidth).toBe(1800)
+  const chartSection = page.locator('.shap-chart-section')
+  expect(await chartSection.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await expect(page.getByRole('heading', { name: 'SHAP Feature Contributions', exact: true })).toHaveCSS('color', 'rgb(8, 109, 193)')
+  await expect(page.getByRole('heading', { name: 'Contribution to Fraud Risk Score (Percentage Points)', exact: true })).toHaveCount(0)
+  // The shared desktop zoom rounds scrollbar thickness; it must still occupy space.
+  expect(await plot.evaluate(element => element.offsetHeight - element.clientHeight)).toBeGreaterThan(0)
+  // Native scrolling rounds half-pixels when the viewport has an odd width.
+  expect(Math.abs(initial.scrollLeft + initial.clientWidth / 2 - 900)).toBeLessThanOrEqual(.5)
+  const labels = page.locator('.shap-feature-labels > div')
+  await expect(labels).toHaveText(Object.values(SHAP_FEATURE_LABELS))
+  await expect(labels.first()).toHaveCSS('font-weight', '400')
+  await expect(page.locator('.shap-direction-captions span').first()).toHaveCSS('color', 'rgb(0, 153, 0)')
+  await expect(page.locator('.shap-direction-captions span').last()).toHaveCSS('color', 'rgb(160, 0, 0)')
+  await expect(page.locator('.shap-summary-sections li').first()).toHaveCSS('font-weight', '400')
+  const before = await labels.first().boundingBox()
+  expect(await labels.first().evaluate(element => element.offsetHeight)).toBe(40)
+  const chartBox = await plot.locator('img').boundingBox()
+  expect(before.y - chartBox.y).toBeCloseTo(6.4, 1)
+  await plot.evaluate(element => { element.scrollLeft = 0 })
+  expect((await geometry()).visible).toContain(-100)
+  expect(await labels.first().boundingBox()).toEqual(before)
+  record.explanation.models.rf_smote.output_value = .6
+  record.explanation.status = 'computed'
+  await expect(page.locator('.shap-summary-sections li').nth(1)).toHaveText('60.00%')
+  expect((await geometry()).scrollLeft).toBe(0)
+  await plot.evaluate(element => { element.scrollLeft = element.scrollWidth })
+  expect((await geometry()).visible).toContain(100)
+  await page.keyboard.press('Escape')
+  await open.click()
+  await expect.poll(async () => (await geometry()).visible).toEqual(initial.visible)
+  await page.keyboard.press('Escape')
+  await page.getByRole('tab', { name: 'Benchmark RF', exact: true }).click()
+  await open.click()
+  await expect.poll(async () => (await geometry()).visible).toEqual(initial.visible)
+  await page.keyboard.press('Escape')
+  await page.setViewportSize({ width: 390, height: 640 })
+  await open.click()
+  await expect.poll(async () => (await geometry()).visible).toEqual(initial.visible)
+  const modal = await page.getByRole('dialog').boundingBox()
+  expect(modal.width).toBeLessThanOrEqual(390)
+  expect(modal.height).toBeLessThanOrEqual(620)
+  const section = page.locator('.shap-chart-section')
+  expect(await section.evaluate(element => element.scrollWidth > element.clientWidth)).toBe(true)
+  await section.evaluate(element => { element.scrollLeft = element.scrollWidth })
+  await expect(plot).toBeInViewport()
+  const centered = await geometry()
+  expect(Math.abs(centered.scrollLeft + centered.clientWidth / 2 - 900)).toBeLessThanOrEqual(.5)
+  await page.locator('.shap-summary-sections section:last-child').scrollIntoViewIfNeeded()
+  await expect(page.locator('.shap-summary-sections section:last-child')).toBeInViewport()
+})
+
 test('doughnut hover, shared modal sizing and results actions', async ({ page }, testInfo) => {
   const metrics = Object.fromEntries(['precision', 'recall', 'f1', 'mcc', 'pr_auc'].map(key => [key, { value: 1 }]))
   const model = { metrics, actual_fraud: 1, confusion_matrix: { tp: 1, tn: 2, fp: 0, fn: 0 } }
@@ -211,12 +279,24 @@ test('doughnut hover, shared modal sizing and results actions', async ({ page },
   await expect(donuts.last()).toHaveCSS('transform', 'none')
   await expect(donuts.last()).toHaveCSS('transition-duration', '0s')
   await page.emulateMedia({ reducedMotion: 'no-preference' })
-  const info = page.getByRole('button', { name: 'About MCC', exact: true }).first()
+  const info = page.getByRole('button', { name: "About McNemar's Test", exact: true }).first()
   await info.focus()
   await expect(info).toBeVisible()
   await expect(info).toHaveCSS('outline-style', 'solid')
   await info.press('Enter')
-  const formulaBox = await page.getByRole('dialog').boundingBox()
+  const sharedModalStyles = []
+  const modalStyles = () => page.getByRole('dialog').evaluate(element => {
+    const styles = getComputedStyle(element)
+    const content = getComputedStyle(element.querySelector('.info-modal-scroll'))
+    const heading = getComputedStyle(element.querySelector('.info-modal-section h3'))
+    return { width: element.getBoundingClientRect().width, maxHeight: styles.maxHeight,
+      zoom: styles.zoom, padding: content.padding, headingColor: heading.color, headingSize: heading.fontSize }
+  })
+  for (const width of [1440, 900, 390]) {
+    await page.setViewportSize({ width, height: 1000 })
+    sharedModalStyles.push(await modalStyles())
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 })
   await page.keyboard.press('Escape')
   const footer = page.locator('.results-actions')
   const download = page.getByRole('button', { name: 'Download Results', exact: true })
@@ -256,7 +336,14 @@ test('doughnut hover, shared modal sizing and results actions', async ({ page },
   await page.getByRole('tab', { name: 'RF-SMOTE', exact: true }).click()
   await page.getByRole('button', { name: 'See Full SHAP Evaluation' }).click()
   await expect(page.getByRole('dialog').locator('img')).toBeVisible()
-  expect((await page.getByRole('dialog').boundingBox()).width).toBeCloseTo(formulaBox.width)
+  for (const [index, width] of [1440, 900, 390].entries()) {
+    await page.setViewportSize({ width, height: 1000 })
+    const { width: shapWidth, ...shapStyles } = await modalStyles()
+    const { width: referenceWidth, ...referenceStyles } = sharedModalStyles[index]
+    expect(shapStyles).toEqual(referenceStyles)
+    expect(shapWidth).toBeGreaterThanOrEqual(referenceWidth)
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 })
   await page.screenshot({ path: testInfo.outputPath('shared-size-shap-modal.png') })
 })
 
@@ -309,4 +396,65 @@ test('table badges fit boundary scores without changing gaps, and search request
   await expect(page.locator('.transactionTable tbody th')).toHaveText(['3'])
   expect(searches.at(-1).searchParams.get('search_field')).toBe('row_number')
   await expect(page.getByRole('button', { name: 'View transaction 3', exact: true })).toBeVisible()
+})
+
+
+test('SHAP summaries show blue headings, help paragraphs and bulleted values, including missing and no-positive cases', async ({ page }, testInfo) => {
+  const record = recordFixture()
+  await setup(page, record)
+  await page.getByRole('tab', { name: 'RF-SMOTE', exact: true }).click()
+  await page.getByRole('button', { name: 'See Full SHAP Evaluation' }).click()
+  const dialog = page.getByRole('dialog')
+  const summary = dialog.locator('.shap-summary-sections')
+  await expect(summary.locator('h3')).toHaveText(['Reference', 'Output', 'Top Risk-Increasing Contributor'])
+  await expect(summary.locator('li')).toHaveText(['10.00%', '53.52%', 'Hour of the Day'])
+  await expect(summary.locator('p')).toHaveText([
+    'The model’s average fraud score for the SHAP reference sample. This is the starting score before this transaction’s feature contributions are added.',
+    'The model’s fraud score for this transaction. It equals the reference score plus all SHAP contributions, within numerical tolerance.',
+    'The feature with the largest positive SHAP contribution above the numerical tolerance. It increased the model’s score the most; it is not a proven cause of fraud.',
+  ])
+  await expect(summary.locator('button')).toHaveCount(0)
+  await expect(dialog.getByRole('tooltip')).toHaveCount(0)
+  for (const section of await summary.locator('section').all()) {
+    await expect(section.locator('h3')).toHaveCSS('color', 'rgb(8, 109, 193)')
+    await expect(section.locator('ul > li')).toHaveCount(1)
+    expect(await section.evaluate(element => [...element.children].map(child => child.tagName))).toEqual(['H3', 'P', 'UL'])
+  }
+  await summary.scrollIntoViewIfNeeded()
+  await page.screenshot({ path: testInfo.outputPath('desktop-summary-sections.png') })
+  await page.keyboard.press('Escape')
+  record.explanation.models.rf_smote.top_positive_contributor = { status: 'no_positive_contributor' }
+  record.explanation.models.rf_smote.base_value = null
+  record.explanation.models.rf_smote.output_value = null
+  await page.reload()
+  await page.getByRole('tab', { name: 'RF-SMOTE', exact: true }).click()
+  await page.getByRole('button', { name: 'See Full SHAP Evaluation' }).click()
+  await expect(summary.locator('li')).toHaveText(['Unavailable', 'Unavailable', 'No transaction details meaningfully increased the score.'])
+})
+
+test('SHAP summary explanations and values remain readable on touch screens without information buttons', async ({ browser, baseURL }, testInfo) => {
+  const context = await browser.newContext({ baseURL, hasTouch: true, viewport: { width: 390, height: 844 } })
+  try {
+    const page = await context.newPage()
+    await setup(page, recordFixture())
+    await page.getByRole('tab', { name: 'RF-SMOTE', exact: true }).tap()
+    await page.getByRole('button', { name: 'See Full SHAP Evaluation' }).tap()
+    const dialog = page.getByRole('dialog')
+    const summary = dialog.locator('.shap-summary-sections')
+    for (const section of await summary.locator('section').all()) {
+      await section.scrollIntoViewIfNeeded()
+      await expect(section).toBeInViewport()
+      const bounds = await section.boundingBox()
+      expect(bounds.x).toBeGreaterThanOrEqual(0)
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(390)
+      await expect(section.locator('p')).toBeVisible()
+      await expect(section.locator('li')).toBeVisible()
+    }
+    await expect(summary.locator('button')).toHaveCount(0)
+    await page.screenshot({ path: testInfo.outputPath('mobile-summary-sections.png') })
+    await dialog.getByRole('button', { name: 'Close SHAP evaluation' }).tap()
+    await expect(dialog).toHaveCount(0)
+  } finally {
+    await context.close()
+  }
 })

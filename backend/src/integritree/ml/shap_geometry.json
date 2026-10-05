@@ -1,0 +1,9 @@
+{
+  "axisLimit": 100,
+  "tickStep": 10,
+  "tickSpacing": 80,
+  "endpointPadding": 100,
+  "rowHeight": 40,
+  "topPadding": 8,
+  "tickHeight": 40
+}

@@ -1,6 +1,7 @@
 """Synthetic integration and numerical parity; never opens held-out data."""
 
 import csv
+from datetime import datetime, timezone
 import hashlib
 import io
 import json
@@ -71,7 +72,13 @@ def bundle(experiment):
 
 
 @pytest.fixture
-def client(settings, bundle, experiment):
+def client(settings, bundle, experiment, monkeypatch):
+    # Unit/integration tests exercise template filling without an office runtime.
+    # Real conversion and PDF layout are checked separately with synthetic data.
+    monkeypatch.setattr(
+        "integritree.services.experiment_paper.convert_pdf",
+        lambda *args: b"%PDF-1.4\nsynthetic converter test double\n%%EOF",
+    )
     app = create_app(settings)
     with TestClient(app) as client:
         app.state.research.bundle = bundle
@@ -100,6 +107,11 @@ def upload(client, headers, content=CSV, name="demo.csv"):
 
 
 def test_complete_flow_isolation_and_cleanup(client, bundle, monkeypatch):
+    monkeypatch.setattr(
+        "integritree.services.research.paper_filename",
+        lambda timestamp: "Experiment-Paper_2026-10-05.pdf",
+    )
+
     def no_fit(*args, **kwargs):
         raise AssertionError("Inference must not fit")
 
@@ -155,7 +167,9 @@ def test_complete_flow_isolation_and_cleanup(client, bundle, monkeypatch):
             "metadata.json",
             "evaluation.json",
             "report.html",
+            "Experiment-Paper_2026-10-05.pdf",
         }
+        assert archive.read("Experiment-Paper_2026-10-05.pdf").startswith(b"%PDF-")
         metadata = json.loads(archive.read("metadata.json"))
         assert (
             metadata["scope"] == "uploaded_dataset"
@@ -169,6 +183,84 @@ def test_complete_flow_isolation_and_cleanup(client, bundle, monkeypatch):
     folder = client.app.state.research.jobs[identifier]["folder"]
     assert client.delete(path, headers=owner).status_code == 204
     assert not folder.exists()
+
+
+def test_paper_export_failure_can_retry(client, monkeypatch):
+    from integritree.services.experiment_paper import PaperExportError
+
+    owner = session(client)
+    identifier, _ = upload(client, owner)
+    path = PREFIX + f"/analyses/{identifier}"
+
+    def failed(*args):
+        raise PaperExportError("PDF converter is missing. Configure it and retry.")
+
+    monkeypatch.setattr("integritree.services.experiment_paper.convert_pdf", failed)
+    assert client.post(path + "/exports", headers=owner).status_code == 202
+    job = wait_for(
+        lambda: client.get(path, headers=owner).json(),
+        lambda job: job["export"]["status"] == "failed",
+    )
+    assert "PDF converter is missing" in job["export"]["error"]
+    folder = client.app.state.research.jobs[identifier]["folder"]
+    service = client.app.state.research
+    assert list(service.root.glob("session_*")) == [service.folder]
+    assert not (folder / "results.zip").exists()
+    assert not (folder / "results.partial.zip").exists()
+    assert client.get(path + "/exports/download", headers=owner).status_code == 409
+    monkeypatch.setattr(
+        "integritree.services.experiment_paper.convert_pdf",
+        lambda *args: b"%PDF-1.4\nretry\n%%EOF",
+    )
+    client.post(path + "/exports", headers=owner)
+    wait_for(
+        lambda: client.get(path, headers=owner).json(),
+        lambda job: job["export"]["status"] == "complete",
+    )
+    assert client.get(path + "/exports/download", headers=owner).status_code == 200
+    assert list(service.root.glob("session_*")) == [service.folder]
+
+
+def test_repeated_exports_use_current_date_not_analysis_date(client, monkeypatch):
+    owner = session(client)
+    identifier, original = upload(client, owner)
+    path = PREFIX + f"/analyses/{identifier}"
+    current = datetime(2026, 10, 4, 15, 59, 59, tzinfo=timezone.utc)
+    calls = []
+
+    class ExportClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            calls.append(current)
+            return current.astimezone(tz)
+
+    monkeypatch.setattr("integritree.services.research.datetime", ExportClock)
+    for instant, date in (
+        ("2026-10-04T15:59:59+00:00", "2026-10-04"),
+        ("2026-10-04T16:00:00+00:00", "2026-10-05"),
+    ):
+        current = datetime.fromisoformat(instant)
+        assert client.post(path + "/exports", headers=owner).status_code == 202
+        job = wait_for(
+            lambda: client.get(path, headers=owner).json(),
+            lambda job: job["export"]["status"] == "complete",
+        )
+        response = client.get(path + "/exports/download", headers=owner)
+        assert (
+            'filename="integritree_results.zip"'
+            in response.headers["content-disposition"]
+        )
+        with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+            name = f"Experiment-Paper_{date}.pdf"
+            assert sorted(archive.namelist()) == sorted(
+                [name, "results.csv", "metadata.json", "evaluation.json", "report.html"]
+            )
+            assert archive.read(name).startswith(b"%PDF-")
+        assert job["evaluation"] == original["evaluation"]
+        assert job["completed_at"] == original["completed_at"]
+    assert (
+        len(calls) == 2
+    )  # One date snapshot per export, including repeated downloads.
 
 
 @pytest.mark.parametrize(
@@ -431,13 +523,37 @@ def test_explanation_failure_retry_cache_and_export_coverage(client, tmp_path):
         path + "/records/1/waterfall/rf?presentation=row_number", headers=owner
     )
     assert display.status_code == 200
-    assert "Benchmark RF | 1" in display.text and "output 43.00%" in display.text
+    modal = client.get(
+        path + "/records/1/waterfall/rf?presentation=row_number&layout=modal",
+        headers=owner,
+    )
+    assert modal.status_code == 200
+    assert "Reference" not in modal.text and "Benchmark RF | 1" not in modal.text
+    assert "Hour of the Day" not in modal.text
+    assert (
+        client.get(
+            path + "/records/1/waterfall/rf?layout=invalid", headers=owner
+        ).status_code
+        == 422
+    )
+    assert "Benchmark RF | 1" in display.text and "43.00%" in display.text
     fingerprint = hashlib.sha256(CSV.encode()).hexdigest()
     assert fingerprint not in display.text and fingerprint[:12] not in display.text
     assert (
         client.get(path + "/records/1/waterfall/rf", headers=owner).content == original
     )
-    chart_path = service.jobs[identifier]["folder"] / "1_rf_display_v1.svg"
+    from integritree.ml.explainability import cached_contribution_chart
+
+    assert "Contribution to Fraud Risk Score (Percentage Points)" in original.decode()
+    assert (
+        "SHAP contribution bar chart"
+        in record["explanation"]["models"]["rf"]["chart_description"]
+    )
+    chart_path = cached_contribution_chart(
+        record["explanation"]["models"]["rf"],
+        service.jobs[identifier]["folder"],
+        display_label="1",
+    )
     rendered_at = chart_path.stat().st_mtime_ns
     assert (
         client.get(

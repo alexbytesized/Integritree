@@ -22,15 +22,34 @@ export async function api(path, options = {}) {
 }
 
 export async function uploadCsv(file, onProgress) {
-  if (!sessionStorage.getItem(tokenKey)) {
-    const { token } = await api('/sessions', { method: 'POST' })
-    sessionStorage.setItem(tokenKey, token)
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (!sessionStorage.getItem(tokenKey)) {
+      const { token } = await api('/sessions', { method: 'POST' })
+      sessionStorage.setItem(tokenKey, token)
+    }
+    const token = sessionStorage.getItem(tokenKey)
+    try {
+      return await sendCsv(file, token, onProgress)
+    } catch (error) {
+      if (error.status !== 410) throw error
+      // A restarted backend rejects the session before accepting the upload.
+      // Retry only that rejection, never an ambiguous connection failure.
+      if (sessionStorage.getItem(tokenKey) === token) {
+        sessionStorage.removeItem(tokenKey)
+        sessionStorage.removeItem(analysisKey)
+      }
+      if (attempt === 1) throw error
+      onProgress(0)
+    }
   }
+}
+
+function sendCsv(file, token, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
     xhr.open('POST', `${base}/analyses?filename=${encodeURIComponent(file.name)}`)
     xhr.setRequestHeader('Content-Type', 'text/csv')
-    xhr.setRequestHeader('X-Research-Session', sessionStorage.getItem(tokenKey))
+    xhr.setRequestHeader('X-Research-Session', token)
     xhr.upload.onprogress = (event) => onProgress(event.lengthComputable ? Math.round(event.loaded / event.total * 100) : null)
     xhr.onerror = () => reject(new Error('Upload connection failed. Please retry.'))
     xhr.onload = () => {
@@ -40,8 +59,9 @@ export async function uploadCsv(file, onProgress) {
         sessionStorage.setItem(analysisKey, data.id)
         resolve(data)
       } else {
-        if (xhr.status === 410) sessionStorage.removeItem(tokenKey)
-        reject(new Error(data.detail || 'Upload failed. Please retry.'))
+        const error = new Error(data.detail || 'Upload failed. Please retry.')
+        error.status = xhr.status
+        reject(error)
       }
     }
     xhr.send(file)

@@ -155,9 +155,12 @@ def waterfall(
     model: Literal["rf", "rf_smote"],
     revision: int = Query(ge=1),
     x_session: Session = None,
+    layout: Literal["modal", "standalone"] = "standalone",
 ):
     return Response(
-        request.app.state.receipts.chart(x_session, identifier, model, revision),
+        request.app.state.receipts.chart(
+            x_session, identifier, model, revision, layout=layout
+        ),
         media_type="image/svg+xml",
     )
 

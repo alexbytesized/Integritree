@@ -29,6 +29,11 @@ from integritree.ml.inference import predict_features
 from integritree.ml import inference, features as feature_module, preprocessing
 from integritree.ml.staged_selection import run_lock
 from integritree.services.research_metrics import evaluate_database
+from integritree.services.experiment_paper import (
+    PaperExportError,
+    generate_paper,
+    paper_filename,
+)
 
 REQUIRED = SOURCE_COLUMNS + ["isFraud"]
 OPTIONAL = [
@@ -344,6 +349,10 @@ class ResearchService:
             else job["explanations"].get(number, {"status": "not_requested"}),
         }
         if detail:
+            from integritree.ml.explainability import chart_description
+
+            for item in result["explanation"].get("models", {}).values():
+                item["chart_description"] = chart_description(item)
             result["original"] = json.loads(original)
             result["model_inputs"] = dict(zip(FEATURE_COLUMNS, json.loads(features)))
             inputs = pd.DataFrame([result["original"]])[SOURCE_COLUMNS]
@@ -402,19 +411,25 @@ class ResearchService:
             "page_size": 10,
         }
 
-    def display_waterfall(self, job, number, model, explanation):
-        """Cache a presentation-only chart; keep canonical IDs and artifacts intact."""
-        from integritree.ml.explainability import waterfall
+    def display_waterfall(
+        self,
+        job,
+        number,
+        model,
+        explanation,
+        *,
+        presentation="row_number",
+        layout="standalone",
+    ):
+        """Legacy route uses versioned contribution bars from stored SHAP values."""
+        from integritree.ml.explainability import cached_contribution_chart
 
-        target = job["folder"] / f"{number}_{model}_display_v1.svg"
-        if not target.exists():
-            temporary = job["folder"] / f"{uuid.uuid4().hex}.svg"
-            try:
-                waterfall(explanation, temporary, display_label=str(number))
-                temporary.replace(target)
-            finally:
-                temporary.unlink(missing_ok=True)
-        return target
+        return cached_contribution_chart(
+            explanation,
+            job["folder"],
+            display_label=str(number) if presentation == "row_number" else None,
+            layout=layout,
+        )
 
     def record(self, token, identifier, number):
         job = self.owned(token, identifier, True)
@@ -513,6 +528,9 @@ class ResearchService:
 
     def _export(self, job):
         try:
+            paper = generate_paper(
+                job["evaluation"], self.root, self.settings.research_pdf_converter
+            )
             with connect(job["folder"] / "records.sqlite") as db:
                 covered = db.execute(
                     "SELECT count(*) FROM records WHERE explanation IS NOT NULL"
@@ -565,6 +583,7 @@ class ResearchService:
                 if model_meta.exists():
                     metadata["model_metadata_sha256"] = file_sha256(model_meta)
                 output = job["folder"] / "results.partial.zip"
+                paper_name = paper_filename(datetime.now(timezone.utc))
                 with zipfile.ZipFile(
                     output, "w", compression=zipfile.ZIP_DEFLATED
                 ) as archive:
@@ -687,15 +706,19 @@ class ResearchService:
                         + "</pre></body></html>"
                     )
                     archive.writestr("report.html", report)
+                    archive.writestr(paper_name, paper)
                 output.replace(job["folder"] / "results.zip")
             with self.lock:
                 job["export"] = {"status": "complete", "metadata": metadata}
-        except Exception:
+        except Exception as exc:
             LOG.exception("Export failed")
+            (job["folder"] / "results.partial.zip").unlink(missing_ok=True)
             with self.lock:
                 job["export"] = {
                     "status": "failed",
-                    "error": "Export failed. Retry the download.",
+                    "error": str(exc)
+                    if isinstance(exc, PaperExportError)
+                    else "Export failed. Retry the download.",
                 }
 
     def delete(self, token, identifier):

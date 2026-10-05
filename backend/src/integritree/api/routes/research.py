@@ -99,17 +99,21 @@ def waterfall(
     model: Literal["rf", "rf_smote"],
     x_session: Session = None,
     presentation: Literal["original", "row_number"] = "original",
+    layout: Literal["modal", "standalone"] = "standalone",
 ):
     service = request.app.state.research
     job = service.owned(x_session, identifier, True)
     item = service.record(x_session, identifier, number)
-    path = job["folder"] / f"{number}_{model}.svg"
-    if item["explanation"]["status"] != "computed" or not path.exists():
-        raise ResearchError("Waterfall is not ready.", 409)
-    if presentation == "row_number":
-        path = service.display_waterfall(
-            job, number, model, item["explanation"]["models"][model]
-        )
+    if item["explanation"]["status"] != "computed":
+        raise ResearchError("SHAP contribution chart is not ready.", 409)
+    path = service.display_waterfall(
+        job,
+        number,
+        model,
+        item["explanation"]["models"][model],
+        presentation=presentation,
+        layout=layout,
+    )
     return FileResponse(
         path, media_type="image/svg+xml", headers={"Cache-Control": "no-store"}
     )

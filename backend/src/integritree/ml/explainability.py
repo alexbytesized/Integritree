@@ -1,24 +1,27 @@
 """Shared probability-space TreeSHAP with reproducible background, provenance, and coverage."""
 
 import argparse
-from datetime import datetime, timezone
-from importlib.metadata import version
 import hashlib
 import json
 import os
-from pathlib import Path
 import sys
 import threading
 import time
+import uuid
+from datetime import UTC, datetime
+from importlib.metadata import version
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
+
 from integritree.config import load_experiment
 from integritree.ml.artifacts import load_bundle
 from integritree.ml.data import file_sha256, write_json
 from integritree.ml.features import FEATURE_COLUMNS
 from integritree.ml.inference import feature_matrix, fraud_scores
-from integritree.ml.research import new_run, verify_prepared, load_report
+from integritree.ml.research import load_report, new_run, verify_prepared
 from integritree.ml.shap_adapter import forest_representation
 from integritree.settings import load_settings
 
@@ -213,73 +216,259 @@ def summarize(values, readable, tolerance):
     return top, " ".join(parts)
 
 
+CHART_VERSION = "contribution_bars_v3"
+# Shared with React; see docs/API.md for the pixel coordinate contract.
+CHART_GEOMETRY = json.loads(Path(__file__).with_name("shap_geometry.json").read_text())
+FEATURE_LABELS = dict(
+    zip(
+        FEATURE_COLUMNS,
+        [
+            "Hour of the Day",
+            "Day of the Week",
+            "Transaction is Cash In",
+            "Transaction is Cash Out",
+            "Transaction is Debit",
+            "Transaction is Payment",
+            "Transaction is Transfer",
+            "Transaction Log Amount",
+            "Transaction Amount is 0",
+            "Origin is Merchant",
+            "Destination is Merchant",
+        ],
+    )
+)
+CHART_TITLE = "Contribution to Fraud Risk Score (Percentage Points)"
+INCREASE_COLOR = "#A00000"
+DECREASE_COLOR = "#009900"
 _WATERFALL_LOCK = threading.Lock()
 
 
-def waterfall(explanation, output, *, display_label=None):
-    # HTTP display rendering and the explanation worker share Matplotlib state.
+def chart_description(explanation):
+    return (
+        "SHAP contribution bar chart in fixed feature order. Green, negative contributions "
+        "decrease the fraud risk score; red, positive contributions increase it. "
+        "The axis spans -100 to +100 percentage points with gridlines every 10. Blank rows have exactly zero contribution. "
+        + explanation.get("narrative", "")
+    )
+
+
+def cached_contribution_chart(
+    explanation, directory, *, display_label=None, layout="standalone"
+):
+    """Render stored values without rerunning SHAP; version every presentation."""
+    if layout not in ("modal", "standalone"):
+        raise ValueError("Unknown SHAP chart layout")
+    identity = {
+        key: explanation[key]
+        for key in ("model", "transaction_id", "features", "base_value", "output_value")
+    }
+    identity.update(
+        display_label=display_label,
+        layout=layout,
+        top_positive_contributor=explanation.get("top_positive_contributor"),
+    )
+    target = Path(directory) / f"{CHART_VERSION}_{digest(identity)}.svg"
+    if not target.exists():
+        temporary = target.with_name(f"{uuid.uuid4().hex}.svg")
+        try:
+            waterfall(
+                explanation, temporary, display_label=display_label, layout=layout
+            )
+            temporary.replace(target)
+        finally:
+            temporary.unlink(missing_ok=True)
+    return target
+
+
+def waterfall(explanation, output, *, display_label=None, layout="standalone"):
+    """Legacy entry point for signed contribution charts."""
+    if layout not in ("modal", "standalone"):
+        raise ValueError("Unknown SHAP chart layout")
     with _WATERFALL_LOCK:
-        _render_waterfall(explanation, output, display_label=display_label)
+        _render_waterfall(
+            explanation, output, display_label=display_label, layout=layout
+        )
 
 
-def _render_waterfall(explanation, output, *, display_label=None):
+def _render_waterfall(explanation, output, *, display_label=None, layout="standalone"):
     import matplotlib
 
     matplotlib.use("Agg")
     from matplotlib import pyplot as plt
+    from matplotlib.patches import FancyBboxPatch
 
-    values = [f["contribution"] * 100 for f in explanation["features"]]
-    names = [f["readable_value"] for f in explanation["features"]]
-    # Show all eleven effects; order by magnitude, with deterministic ties.
-    order = sorted(range(len(values)), key=lambda i: (-abs(values[i]), i))
-    fig, ax = plt.subplots(figsize=(10, 7))
-    start = explanation["base_value"] * 100
-    endpoints = [start, explanation["output_value"] * 100]
-    for row, i in enumerate(order):
-        end = start + values[i]
-        ax.barh(
-            row,
-            abs(values[i]),
-            left=min(start, end),
-            color="#c83e4d" if values[i] > 0 else "#2874a6",
-        )
-        ax.plot([end, end], [row - 0.4, row + 0.4], color="black", linewidth=0.5)
-        ax.text(max(start, end), row, f" {values[i]:+.3g} pp", va="center", fontsize=8)
-        start = end
-        endpoints.append(end)
-    ax.set_yticks(range(len(order)), [names[i] for i in order])
-    ax.invert_yaxis()
-    ax.axvline(
-        explanation["base_value"] * 100, color="gray", linestyle="--", label="Reference"
+    ranks = {name: i for i, name in enumerate(FEATURE_COLUMNS)}
+    features = sorted(
+        explanation["features"], key=lambda f: ranks.get(f["feature"], len(ranks))
     )
-    ax.axvline(
-        explanation["output_value"] * 100,
-        color="black",
-        linestyle=":",
-        label="Prediction",
+    values = [f["contribution"] * 100 for f in features]
+    names = [
+        FEATURE_LABELS.get(f["feature"], f["feature"].replace("_", " "))
+        for f in features
+    ]
+    geometry = CHART_GEOMETRY
+    limit = geometry["axisLimit"]
+    plot_width = 2 * limit / geometry["tickStep"] * geometry["tickSpacing"]
+    plot_height = len(features) * geometry["rowHeight"]
+    standalone = layout == "standalone"
+    # Modal SVG is only the plot plus endpoint padding and ticks. HTML owns labels.
+    left = 420 if standalone else geometry["endpointPadding"]
+    top = 110 if standalone else geometry["topPadding"]
+    bottom = 250 if standalone else geometry["tickHeight"]
+    width = left + plot_width + geometry["endpointPadding"]
+    height = top + plot_height + bottom
+    fig = plt.figure(figsize=(width / 100, height / 100), dpi=100)
+    ax = fig.add_axes(
+        (left / width, bottom / height, plot_width / width, plot_height / height)
     )
-    span = max(max(endpoints) - min(endpoints), 1.0)
-    ax.set_xlim(min(endpoints) - 0.08 * span, max(endpoints) + 0.25 * span)
-    ax.set_xlabel("Model fraud score (%) — contributions in percentage points")
-    record_label = (
-        explanation["transaction_id"] if display_label is None else display_label
-    )
-    if len(record_label) > 35:
-        record_label = record_label[:12] + "..." + record_label[-16:]
-    model_label = (
-        explanation["model"]
-        if display_label is None
-        else {"rf": "Benchmark RF", "rf_smote": "RF-SMOTE"}[explanation["model"]]
-    )
-    precision = ".4g" if display_label is None else ".2f"
-    ax.set_title(
-        f"{model_label} | {record_label}\n"
-        f"Reference {explanation['base_value'] * 100:{precision}}% → output {explanation['output_value'] * 100:{precision}}%"
-    )
-    ax.legend()
-    fig.tight_layout()
-    fig.savefig(output, format=Path(output).suffix.lstrip("."))
-    plt.close(fig)
+    try:
+        ax.set_xlim(-limit, limit)
+        ax.set_ylim(len(features) - 0.5, -0.5)
+        if standalone:
+            ax.set_yticks(range(len(features)), names, fontsize=12, fontweight="normal")
+        else:
+            ax.set_yticks([])
+        # Reserve endpoint annotation space between standalone names and the axis.
+        ax.tick_params(axis="y", length=0, pad=90, colors="#222222")
+        ticks = range(-limit, limit + 1, geometry["tickStep"])
+        ax.set_xticks(list(ticks), [str(tick) for tick in ticks], fontweight="normal")
+        ax.tick_params(axis="x", length=0, pad=10, labelsize=11, colors="#666666")
+        for tick in ticks:
+            ax.axvline(
+                tick,
+                color="#888888" if tick == 0 else "#dddddd",
+                linewidth=1.2 if tick == 0 else 0.6,
+                zorder=1,
+            )
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+        # Correct corner radii for data coordinates, without changing bar endpoints.
+        aspect = len(features) / ax.bbox.height * ax.bbox.width / (2 * limit)
+        for row, (feature, value) in enumerate(zip(features, values)):
+            if value == 0:
+                continue
+            bar = FancyBboxPatch(
+                (min(0, value), row - 0.3),
+                abs(value),
+                0.6,
+                boxstyle=f"round,pad=0,rounding_size={min(abs(value) / 2, 0.6)}",
+                mutation_aspect=aspect,
+                facecolor=INCREASE_COLOR if value > 0 else DECREASE_COLOR,
+                edgecolor="none",
+                zorder=3,
+            )
+            bar.set_gid(f"shap-{feature['feature']}")
+            ax.add_patch(bar)
+            if abs(value) * plot_width / (2 * limit) < 1:
+                # A hairline keeps nonzero effects visible without inflating bar lengths.
+                ax.plot(
+                    [value, value],
+                    [row - 0.3, row + 0.3],
+                    color=bar.get_facecolor(),
+                    linewidth=0.7,
+                    zorder=3,
+                )
+            ax.annotate(
+                f"{value:+.3g} pp",
+                (value, row),
+                xytext=(-7 if value < 0 else 7, 0),
+                textcoords="offset points",
+                ha="right" if value < 0 else "left",
+                va="center",
+                fontsize=11,
+                color="#222222",
+            )
+        if standalone:
+            ax.set_title(CHART_TITLE, fontsize=17, fontweight="bold", pad=30)
+            ax.text(
+                0,
+                -55 / plot_height,
+                "\u2190 Decrease Fraud Risk Score",
+                transform=ax.transAxes,
+                ha="left",
+                va="top",
+                fontsize=14,
+                color=DECREASE_COLOR,
+            )
+            ax.text(
+                1,
+                -55 / plot_height,
+                "Increase Fraud Risk Score \u2192",
+                transform=ax.transAxes,
+                ha="right",
+                va="top",
+                fontsize=14,
+                color=INCREASE_COLOR,
+            )
+            model_label = {"rf": "Benchmark RF", "rf_smote": "RF-SMOTE"}[
+                explanation["model"]
+            ]
+            record_label = (
+                explanation["transaction_id"]
+                if display_label is None
+                else display_label
+            )
+            if len(record_label) > 55:
+                record_label = record_label[:20] + "..." + record_label[-24:]
+            fig.suptitle(
+                f"{model_label} | {record_label}",
+                fontsize=19,
+                y=0.97,
+                fontweight="bold",
+            )
+            # The summary has its own axes, aligned with the chart's plotting area.
+            summary = fig.add_axes(
+                (left / width, 22 / height, plot_width / width, 140 / height)
+            )
+            summary.set_axis_off()
+
+            def card(x, y, width, label, value):
+                summary.add_patch(
+                    FancyBboxPatch(
+                        (x, y),
+                        width,
+                        0.4,
+                        boxstyle="round,pad=0,rounding_size=0.016",
+                        mutation_aspect=summary.bbox.width / summary.bbox.height,
+                        linewidth=0.8,
+                        edgecolor="#dddddd",
+                        facecolor="white",
+                    )
+                )
+                summary.text(
+                    x + 0.018,
+                    y + 0.20,
+                    label,
+                    fontsize=14,
+                    va="center",
+                    weight="normal",
+                    color="#292929",
+                )
+                summary.text(
+                    x + width - 0.018,
+                    y + 0.20,
+                    value,
+                    fontsize=14,
+                    va="center",
+                    ha="right",
+                    color="#444444",
+                )
+
+            card(0, 0.57, 0.46, "Reference", f"{explanation['base_value'] * 100:.2f}%")
+            card(
+                0.54, 0.57, 0.46, "Output", f"{explanation['output_value'] * 100:.2f}%"
+            )
+            top = explanation.get("top_positive_contributor", {})
+            name = top.get("feature")
+            top_label = (
+                "No transaction details meaningfully increased the score."
+                if top.get("status") == "no_positive_contributor"
+                else FEATURE_LABELS.get(name, name or "Unavailable")
+            )
+            card(0, 0.02, 1, "Top risk-increasing contributor:", top_label)
+        fig.savefig(output, format=Path(output).suffix.lstrip("."))
+    finally:
+        plt.close(fig)
 
 
 class ExplanationEngine:
@@ -419,8 +608,8 @@ class ExplanationEngine:
                     ],
                     "top_positive_contributor": top,
                     "narrative": narrative,
-                    "chart_description": f"{name} waterfall from {base:.8g} to {score:.8g}. "
-                    + narrative,
+                    "chart_description": chart_description({"narrative": narrative}),
+                    "chart_version": CHART_VERSION,
                     "additivity_error": difference,
                     "elapsed_seconds": time.monotonic() - started,
                     "explainer_identity": self.identity,
@@ -523,7 +712,7 @@ def explain_report(
         "model_metadata_sha256": file_sha256(model_path / "metadata.json"),
         "report_metadata_sha256": file_sha256(report_path / "metadata.json"),
         "reference": engine.identity,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
     write_json(output / "metadata.json", manifest)
     totals = {m: np.zeros(len(FEATURE_COLUMNS)) for m in ("rf", "rf_smote")}

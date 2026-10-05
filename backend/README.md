@@ -13,11 +13,21 @@ Stage 3 selected the shared 43% cutoff from exactly 1%, 2%, ..., 100%. See
 Preparation, paired RF/RF-SMOTE training, saved inference, evaluation, three-stage
 selection, SHAP, and the researcher HTTP/frontend workflow are implemented.
 See [researcher operation and retention](../docs/RESEARCHER_WORKFLOW.md).
+Researcher ZIP downloads include the completed experiment paper PDF. Run
+`powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/setup_research_pdf.ps1`
+from `backend` once to provision the dedicated converter; see the workflow guide
+for template and `INTEGRITREE_RESEARCH_PDF_CONVERTER` settings.
 The local receipt audit/OCR comparison and internal confirmed-input mapping/paired
 prediction are implemented. See [receipt mapping contracts](../docs/RECEIPT_MAPPING.md).
 The [receipt API/frontend connection](../docs/RECEIPT_APPLICATION.md) now includes local
 OCR, confirmation, paired predictions/SHAP, downloads and temporary cleanup. Final test evaluation waits
 until the complete tool is ready and the researcher explicitly authorizes it.
+
+Receipt downloads include `Transaction-Results_YYYY-MM-DD.pdf` with two A4
+landscape model summaries (Benchmark RF, then RF-SMOTE). The filename uses the
+Philippine export date. Update the locked dependencies using the install command
+below and restart the backend. Receipt PDFs use ReportLab with Matplotlib's
+embedded DejaVu Sans fonts; they do not require the researcher LibreOffice runtime.
 
 The approved receipt scope now targets selected GCash app workflows across all five PaySim categories,
 with local OCR and temporary application storage. Save development screenshots in

@@ -1,4 +1,12 @@
 export const MODEL_NAMES = { rf_smote: 'RF-SMOTE', rf: 'Benchmark RF' }
+export const SHAP_FEATURE_LABELS = {
+  hour_of_day: 'Hour of the Day', day_of_week: 'Day of the Week',
+  type_CASH_IN: 'Transaction is Cash In', type_CASH_OUT: 'Transaction is Cash Out',
+  type_DEBIT: 'Transaction is Debit', type_PAYMENT: 'Transaction is Payment',
+  type_TRANSFER: 'Transaction is Transfer', log_amount: 'Transaction Log Amount',
+  is_zero_amount: 'Transaction Amount is 0', is_merchant_origin: 'Origin is Merchant',
+  is_merchant_dest: 'Destination is Merchant',
+}
 export const RISK_BANDS = [
   { label: 'Minimal Risk', range: 'Below 20', limit: 20, color: '#1DB954' },
   { label: 'Low Risk', range: '20 to <40', limit: 40, color: '#F9C923' },

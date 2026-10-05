@@ -5,18 +5,23 @@ import json
 import threading
 import time
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime
 
+import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
-import pytest
-
-from integritree.api.main import create_app
-from integritree.receipts.gcash import parse_candidates
-from integritree.receipts.layouts import identify_layout
-from integritree.ml.features import FEATURE_COLUMNS
+from pypdf import PdfReader
 
 # Re-export synthetic fixtures so pytest can resolve them in this module.
-from test_research_api import bundle as bundle, experiment as experiment
+from test_research_api import bundle as bundle
+from test_research_api import experiment as experiment
+
+from integritree.api.main import create_app
+from integritree.ml.features import FEATURE_COLUMNS
+from integritree.receipts.gcash import parse_candidates
+from integritree.receipts.layouts import identify_layout
+from integritree.services import receipt_pdf, receipts
 
 PREFIX = "/api/v1/receipts"
 TEXTS = [
@@ -129,6 +134,185 @@ def confirmation(revision=0, **changes):
     }
 
 
+def completed_receipt(client):
+    owner = session(client)
+    identifier, _ = upload(client, owner)
+    path = f"{PREFIX}/{identifier}"
+    client.post(path + "/confirm", headers=owner, json=confirmation())
+    assert wait(client, owner, identifier)["status"] == "complete"
+    return owner, identifier, path
+
+
+def test_pdf_export_failure_is_retryable_without_recomputing(client, monkeypatch):
+    owner, _, path = completed_receipt(client)
+    before = client.get(path, headers=owner).json()
+    original = receipt_pdf.generate_pdf
+
+    def broken(_):
+        raise RuntimeError("private PDF failure")
+
+    monkeypatch.setattr(receipt_pdf, "generate_pdf", broken)
+    response = client.get(path + "/download?revision=1", headers=owner)
+    assert response.status_code == 503
+    assert "Try Download Results again" in response.json()["detail"]
+    assert "private PDF failure" not in response.text
+    assert client.get(path, headers=owner).json() == before
+    monkeypatch.setattr(receipt_pdf, "generate_pdf", original)
+    service = client.app.state.receipts
+    monkeypatch.setattr(service, "_predict", broken)
+    monkeypatch.setattr(service, "_explain", broken)
+    response = client.get(path + "/download?revision=1", headers=owner)
+    assert response.status_code == 200
+    assert len(zipfile.ZipFile(io.BytesIO(response.content)).namelist()) == 7
+    assert client.get(path, headers=owner).json() == before
+    assert not list(service.folder.rglob("*.pdf"))
+    assert not list(service.folder.rglob("*.zip"))
+
+
+def test_chart_layouts_preserve_receipt_revision_and_ownership(client):
+    owner, _, path = completed_receipt(client)
+    endpoint = path + "/waterfall/rf?revision=1"
+    standalone = client.get(endpoint, headers=owner)
+    modal = client.get(endpoint + "&layout=modal", headers=owner)
+    assert standalone.status_code == modal.status_code == 200
+    assert "Reference" in standalone.text and "Reference" not in modal.text
+    assert "Hour of the Day" not in modal.text and "#a00000" in modal.text
+    assert client.get(endpoint + "&layout=bad", headers=owner).status_code == 422
+    assert (
+        client.get(endpoint + "&layout=modal", headers=session(client)).status_code
+        == 404
+    )
+    assert (
+        client.get(
+            path + "/waterfall/rf?revision=2&layout=modal", headers=owner
+        ).status_code
+        == 409
+    )
+
+
+def test_concurrent_pdf_exports_keep_session_snapshots_separate(client, monkeypatch):
+    receipts_to_export = []
+    for reference in ("FIRST-OWNER", "SECOND-OWNER"):
+        owner = session(client)
+        identifier, _ = upload(client, owner)
+        path = f"{PREFIX}/{identifier}"
+        client.post(
+            path + "/confirm", headers=owner, json=confirmation(reference=reference)
+        )
+        assert wait(client, owner, identifier)["status"] == "complete"
+        receipts_to_export.append((owner, path, reference))
+    barrier = threading.Barrier(2)
+    original = receipt_pdf.generate_pdf
+
+    def simultaneous(result):
+        barrier.wait(timeout=10)
+        return original(result)
+
+    monkeypatch.setattr(receipt_pdf, "generate_pdf", simultaneous)
+    with ThreadPoolExecutor() as pool:
+        futures = [
+            pool.submit(client.get, path + "/download?revision=1", headers=owner)
+            for owner, path, _ in receipts_to_export
+        ]
+        responses = [future.result(timeout=15) for future in futures]
+    for response, (_, _, reference) in zip(responses, receipts_to_export):
+        assert response.status_code == 200
+        with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+            assert (
+                json.loads(archive.read("results.json"))["original"]["reference"]
+                == reference
+            )
+            name = next(n for n in archive.namelist() if n.endswith(".pdf"))
+            reader = PdfReader(io.BytesIO(archive.read(name)))
+            assert len(reader.pages) == 2
+            for page in reader.pages:
+                text = page.extract_text()
+                assert reference in text
+                assert (
+                    "SECOND-OWNER" if reference == "FIRST-OWNER" else "FIRST-OWNER"
+                ) not in text
+
+
+def test_repeated_exports_capture_philippine_date_once(client, monkeypatch):
+    owner, _, path = completed_receipt(client)
+
+    class Clock:
+        instant = datetime(2026, 10, 5, 15, 59, 59, tzinfo=UTC)
+        calls = 0
+
+        @classmethod
+        def now(cls, zone):
+            cls.calls += 1
+            return cls.instant.astimezone(zone)
+
+    monkeypatch.setattr(receipts, "datetime", Clock)
+    original = receipt_pdf.generate_pdf
+
+    def crossing_midnight(result):
+        Clock.instant = datetime(2026, 10, 5, 16, tzinfo=UTC)
+        return original(result)
+
+    monkeypatch.setattr(receipt_pdf, "generate_pdf", crossing_midnight)
+    for day in ("05", "06"):
+        response = client.get(path + "/download?revision=1", headers=owner)
+        assert response.status_code == 200
+        with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+            assert [n for n in archive.namelist() if n.endswith(".pdf")] == [
+                f"Transaction-Results_2026-10-{day}.pdf"
+            ]
+    assert Clock.calls == 2
+
+
+@pytest.mark.parametrize("change", ["clear", "edit", "expire"])
+def test_pdf_export_revalidates_after_render_and_does_not_block_clear(
+    client, monkeypatch, change
+):
+    owner, identifier, path = completed_receipt(client)
+    service = client.app.state.receipts
+    folder = service.jobs[identifier]["folder"]
+    entered, release = threading.Event(), threading.Event()
+    original = receipt_pdf.generate_pdf
+
+    def delayed(result):
+        entered.set()
+        assert release.wait(10)
+        return original(result)
+
+    monkeypatch.setattr(receipt_pdf, "generate_pdf", delayed)
+    with ThreadPoolExecutor() as pool:
+        exporting = pool.submit(
+            client.get, path + "/download?revision=1", headers=owner
+        )
+        try:
+            assert entered.wait(10)
+            outsider = session(client)
+            assert (
+                client.get(path + "/download?revision=1", headers=outsider).status_code
+                == 404
+            )
+            if change == "edit":
+                assert (
+                    client.post(
+                        path + "/confirm",
+                        headers=owner,
+                        json=confirmation(1, reference="updated"),
+                    ).status_code
+                    == 202
+                )
+                assert wait(client, owner, identifier)["revision"] == 2
+            elif change == "clear":
+                assert client.delete(path, headers=owner).status_code == 204
+                assert not folder.exists()
+            else:
+                service.reap(now=time.monotonic() + 60)
+                assert not folder.exists()
+        finally:
+            release.set()
+        response = exporting.result(timeout=10)
+    assert response.status_code == {"edit": 409, "clear": 404, "expire": 410}[change]
+    assert not response.content.startswith(b"PK")
+
+
 def test_upload_confirmation_results_export_revision_and_clear(client):
     headers = session(client)
     identifier, status = upload(client, headers)
@@ -161,16 +345,30 @@ def test_upload_confirmation_results_export_revision_and_clear(client):
     archive = client.get(path + "/download?revision=1", headers=headers)
     assert archive.status_code == 200
     with zipfile.ZipFile(io.BytesIO(archive.content)) as z:
+        pdfs = [name for name in z.namelist() if name.endswith(".pdf")]
+        assert len(pdfs) == 1
+        assert pdfs[0] == receipt_pdf.pdf_filename(datetime.now(UTC))
         assert set(z.namelist()) == {
             "confirmed_inputs.json",
             "results.json",
             "explanations.json",
             "metadata.json",
-            "rf_waterfall.svg",
-            "rf_smote_waterfall.svg",
+            "rf_shap_contributions.svg",
+            "rf_smote_shap_contributions.svg",
+            pdfs[0],
         }
+        assert len(PdfReader(io.BytesIO(z.read(pdfs[0]))).pages) == 2
         metadata = json.loads(z.read("metadata.json"))
         assert metadata["scope"] == "experimental_receipt" and metadata["revision"] == 1
+        for model in ("rf", "rf_smote"):
+            chart = z.read(f"{model}_shap_contributions.svg")
+            assert b"Contribution to Fraud Risk Score (Percentage Points)" in chart
+            assert (
+                chart
+                == client.get(
+                    path + f"/waterfall/{model}?revision=1", headers=headers
+                ).content
+            )
     assert (
         client.post(path + "/confirm", headers=headers, json=confirmation()).status_code
         == 409
@@ -431,6 +629,11 @@ def test_explanation_failure_keeps_predictions_and_can_retry(client):
     response = client.get(path + "/download?revision=1", headers=owner)
     with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
         assert not any(name.endswith(".svg") for name in archive.namelist())
+        assert len(archive.namelist()) == 5
+        pdf_name = next(name for name in archive.namelist() if name.endswith(".pdf"))
+        reader = PdfReader(io.BytesIO(archive.read(pdf_name)))
+        assert len(reader.pages) == 2
+        assert "SHAP explanation is unavailable" in reader.pages[0].extract_text()
         assert json.loads(archive.read("explanations.json"))["status"] == "failed"
     service.engine = Explainer()
     assert client.post(path + "/retry", headers=owner).status_code == 202
