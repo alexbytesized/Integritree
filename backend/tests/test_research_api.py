@@ -4,7 +4,6 @@ import csv
 from datetime import datetime, timezone
 import hashlib
 import io
-import json
 import sqlite3
 import time
 from types import SimpleNamespace
@@ -107,11 +106,6 @@ def upload(client, headers, content=CSV, name="demo.csv"):
 
 
 def test_complete_flow_isolation_and_cleanup(client, bundle, monkeypatch):
-    monkeypatch.setattr(
-        "integritree.services.research.paper_filename",
-        lambda timestamp: "Experiment-Paper_2026-10-05.pdf",
-    )
-
     def no_fit(*args, **kwargs):
         raise AssertionError("Inference must not fit")
 
@@ -156,30 +150,42 @@ def test_complete_flow_isolation_and_cleanup(client, bundle, monkeypatch):
     assert filtered["total"] == 1 and filtered["records"][0]["row_number"] == 2
     assert client.get(path, headers=owner).json()["evaluation"] == job["evaluation"]
     assert client.post(path + "/exports", headers=owner).status_code == 202
-    wait_for(
+    exported = wait_for(
         lambda: client.get(path, headers=owner).json(),
         lambda j: j["export"]["status"] == "complete",
     )
     response = client.get(path + "/exports/download", headers=owner)
     with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
-        assert set(archive.namelist()) == {
-            "results.csv",
-            "metadata.json",
-            "evaluation.json",
-            "report.html",
-            "Experiment-Paper_2026-10-05.pdf",
-        }
-        assert archive.read("Experiment-Paper_2026-10-05.pdf").startswith(b"%PDF-")
-        metadata = json.loads(archive.read("metadata.json"))
-        assert (
-            metadata["scope"] == "uploaded_dataset"
-            and not metadata["held_out_membership_verified"]
+        raw_name = next(n for n in archive.namelist() if n.startswith("Raw-Data_"))
+        paper_name = raw_name.replace("Raw-Data_", "Experiment-Paper_").replace(
+            ".csv", ".pdf"
         )
+        assert set(archive.namelist()) == {raw_name, paper_name}
+        assert archive.read(paper_name).startswith(b"%PDF-")
+        metadata = exported["export"]["metadata"]
+        assert metadata["scope"] == "uploaded_dataset"
+        assert not metadata["held_out_membership_verified"]
         assert metadata["shap_coverage"]["computed_records"] == 0
-        assert (
-            len(list(csv.DictReader(io.StringIO(archive.read("results.csv").decode()))))
-            == 2
-        )
+        records = list(csv.DictReader(io.StringIO(archive.read(raw_name).decode())))
+        assert len(records) == 2
+        assert list(records[0]) == [
+            "transaction_id",
+            "upload_row_number",
+            *HEADER.strip().split(","),
+            "rf_score",
+            "rf_predicted_label",
+            "rf_smote_score",
+            "rf_smote_predicted_label",
+            "explanation_status",
+            "rf_narrative",
+            "rf_smote_narrative",
+        ]
+        source = list(csv.DictReader(io.StringIO(CSV)))
+        for i, record in enumerate(records):
+            assert record["upload_row_number"] == str(i + 1)
+            assert {c: record[c] for c in source[i]} == source[i]
+            assert float(record["rf_score"]) == direct.rf_risk_score.iloc[i]
+            assert float(record["rf_smote_score"]) == direct.rf_smote_risk_score.iloc[i]
     folder = client.app.state.research.jobs[identifier]["folder"]
     assert client.delete(path, headers=owner).status_code == 204
     assert not folder.exists()
@@ -235,6 +241,16 @@ def test_repeated_exports_use_current_date_not_analysis_date(client, monkeypatch
             return current.astimezone(tz)
 
     monkeypatch.setattr("integritree.services.research.datetime", ExportClock)
+    from integritree.services import research
+
+    original_generate = research.generate_paper
+
+    def crossing_midnight(*args):
+        nonlocal current
+        current = datetime.fromisoformat("2026-10-04T16:00:00+00:00")
+        return original_generate(*args)
+
+    monkeypatch.setattr(research, "generate_paper", crossing_midnight)
     for instant, date in (
         ("2026-10-04T15:59:59+00:00", "2026-10-04"),
         ("2026-10-04T16:00:00+00:00", "2026-10-05"),
@@ -252,9 +268,7 @@ def test_repeated_exports_use_current_date_not_analysis_date(client, monkeypatch
         )
         with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
             name = f"Experiment-Paper_{date}.pdf"
-            assert sorted(archive.namelist()) == sorted(
-                [name, "results.csv", "metadata.json", "evaluation.json", "report.html"]
-            )
+            assert sorted(archive.namelist()) == sorted([name, f"Raw-Data_{date}.csv"])
             assert archive.read(name).startswith(b"%PDF-")
         assert job["evaluation"] == original["evaluation"]
         assert job["completed_at"] == original["completed_at"]
@@ -582,13 +596,32 @@ def test_explanation_failure_retry_cache_and_export_coverage(client, tmp_path):
     assert exported["export"]["metadata"]["shap_coverage"]["computed_records"] == 1
     exported_zip = client.get(path + "/exports/download", headers=owner)
     with zipfile.ZipFile(io.BytesIO(exported_zip.content)) as archive:
-        rows = list(csv.DictReader(io.StringIO(archive.read("results.csv").decode())))
+        rows = list(
+            csv.DictReader(
+                io.StringIO(
+                    archive.read(
+                        next(n for n in archive.namelist() if n.startswith("Raw-Data_"))
+                    ).decode()
+                )
+            )
+        )
         assert rows[0]["transaction_id"] == fingerprint + ":1"
 
 
-def test_offline_html_escapes_filename_and_optional_source_text(client):
+def test_raw_data_preserves_csv_formula_protection_and_precision(
+    client, bundle, monkeypatch
+):
+    scores = np.array([0.12345678901234568, 0.9876543210987654])
+    for model in bundle.models.values():
+        monkeypatch.setattr(
+            model, "predict_proba", lambda matrix: np.column_stack([1 - scores, scores])
+        )
     owner = session(client)
-    source = HEADER.rstrip() + ",oldbalanceOrg\n1,TRANSFER,1,C_A,C_B,0,=1+1\n"
+    source = (
+        HEADER.rstrip()
+        + ",oldbalanceOrg\n1,TRANSFER,1.123456789012345,C_A,C_B,0,=1+1\n"
+        + "2,PAYMENT,2.987654321098765,C_C,M_D,1, +SUM(1)\n"
+    )
     identifier, _ = upload(client, owner, source, "<script>alert(1)</script>.csv")
     path = PREFIX + f"/analyses/{identifier}"
     client.post(path + "/exports", headers=owner)
@@ -599,8 +632,24 @@ def test_offline_html_escapes_filename_and_optional_source_text(client):
     with zipfile.ZipFile(
         io.BytesIO(client.get(path + "/exports/download", headers=owner).content)
     ) as archive:
-        assert b"<script>" not in archive.read("report.html")
+        assert len(archive.namelist()) == 2
+        assert "report.html" not in archive.namelist()
         records = list(
-            csv.DictReader(io.StringIO(archive.read("results.csv").decode()))
+            csv.DictReader(
+                io.StringIO(
+                    archive.read(
+                        next(n for n in archive.namelist() if n.startswith("Raw-Data_"))
+                    ).decode()
+                )
+            )
         )
         assert records[0]["oldbalanceOrg"] == "'=1+1"
+        assert records[1]["oldbalanceOrg"] == "' +SUM(1)"
+        assert [record["upload_row_number"] for record in records] == ["1", "2"]
+        assert [record["amount"] for record in records] == [
+            "1.123456789012345",
+            "2.987654321098765",
+        ]
+        for i, record in enumerate(records):
+            assert float(record["rf_score"]) == scores[i]
+            assert float(record["rf_smote_score"]) == scores[i]

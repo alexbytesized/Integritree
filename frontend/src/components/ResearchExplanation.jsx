@@ -75,9 +75,9 @@ export default function ResearchExplanation({ explanation, model, onRetry, chart
       {item.waterfall_url ? <ContributionChart key={item.waterfall_url} item={item} chartApi={chartApi} chartPresentation={chartPresentation} /> : <p role="status">The contribution chart is not available yet.</p>}
     </section>
     <div className="shap-summary-sections">
-      <SummarySection label="Reference" value={percentage(item.base_value)} help="The model’s average fraud score for the SHAP reference sample. This is the starting score before this transaction’s feature contributions are added." />
-      <SummarySection label="Output" value={percentage(item.output_value)} help="The model’s fraud score for this transaction. It equals the reference score plus all SHAP contributions, within numerical tolerance." />
-      <SummarySection label="Top Risk-Increasing Contributor" value={topName} help="The feature with the largest positive SHAP contribution above the numerical tolerance. It increased the model’s score the most; it is not a proven cause of fraud." />
+      <SummarySection label="Reference Score" value={percentage(item.base_value)} help="The model’s average fraud score for the SHAP reference sample. This is the starting score before this transaction’s feature contributions are added." />
+      <SummarySection label="Output Score" value={percentage(item.output_value)} help="The model’s fraud score for this transaction. It equals the reference score plus all SHAP contributions." />
+      <SummarySection label="Top Risk-Increasing Contributor" value={topName} help="The feature with the largest positive SHAP contribution. It increased the model’s score the most, but it is not a proven cause of fraud." />
     </div>
   </div>
 }

@@ -4,7 +4,6 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import datetime, timezone
 import csv
-import html
 import io
 import json
 import logging
@@ -31,6 +30,7 @@ from integritree.ml.staged_selection import run_lock
 from integritree.services.research_metrics import evaluate_database
 from integritree.services.experiment_paper import (
     PaperExportError,
+    PHILIPPINE_TIME,
     generate_paper,
     paper_filename,
 )
@@ -528,6 +528,7 @@ class ResearchService:
 
     def _export(self, job):
         try:
+            exported_at = datetime.now(timezone.utc)
             paper = generate_paper(
                 job["evaluation"], self.root, self.settings.research_pdf_converter
             )
@@ -583,18 +584,14 @@ class ResearchService:
                 if model_meta.exists():
                     metadata["model_metadata_sha256"] = file_sha256(model_meta)
                 output = job["folder"] / "results.partial.zip"
-                paper_name = paper_filename(datetime.now(timezone.utc))
+                paper_name = paper_filename(exported_at)
+                csv_name = (
+                    f"Raw-Data_{exported_at.astimezone(PHILIPPINE_TIME):%Y-%m-%d}.csv"
+                )
                 with zipfile.ZipFile(
                     output, "w", compression=zipfile.ZIP_DEFLATED
                 ) as archive:
-                    archive.writestr(
-                        "metadata.json", json.dumps(metadata, indent=2, allow_nan=False)
-                    )
-                    archive.writestr(
-                        "evaluation.json",
-                        json.dumps(job["evaluation"], indent=2, allow_nan=False),
-                    )
-                    with archive.open("results.csv", "w", force_zip64=True) as binary:
+                    with archive.open(csv_name, "w", force_zip64=True) as binary:
                         with io.TextIOWrapper(
                             binary, encoding="utf-8", newline=""
                         ) as text:
@@ -660,52 +657,6 @@ class ResearchService:
                                         ]
                                     ]
                                 )
-                    report = "<!doctype html><html lang='en'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Integritree analysis</title><style>body{font:16px system-ui;margin:2rem auto;padding:1rem;max-width:70rem;color:#123}table{border-collapse:collapse;width:100%}td,th{padding:.6rem;border:1px solid #ccd;text-align:left}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f7fa;padding:1rem}h1,h2{color:#086dc1}</style><body><h1>Uploaded dataset evaluation</h1>"
-                    report += "<p>Held-out membership was not verified. Metrics cover the complete upload, irrespective of table filters.</p>"
-                    report += f"<p>File: {html.escape(job['filename'])}. Records: {job['rows_processed']:,}. Shared threshold: {job['threshold']:.0%}.</p>"
-                    report += "<h2>Model metrics (coefficients on their original scale)</h2><table><tr><th>Metric</th><th>RF</th><th>RF-SMOTE</th></tr>"
-                    for metric_name in (
-                        "precision",
-                        "recall",
-                        "f1",
-                        "mcc",
-                        "pr_auc",
-                        "accuracy",
-                    ):
-                        report += (
-                            "<tr><th>"
-                            + (
-                                "PR-AUC (Average Precision)"
-                                if metric_name == "pr_auc"
-                                else metric_name.upper()
-                            )
-                            + "</th>"
-                        )
-                        for model in ("rf", "rf_smote"):
-                            measured = job["evaluation"]["models"][model]["metrics"][
-                                metric_name
-                            ]
-                            report += (
-                                "<td>"
-                                + html.escape(
-                                    str(measured["value"])
-                                    if measured["value"] is not None
-                                    else "Unavailable: " + measured["reason"]
-                                )
-                                + "</td>"
-                            )
-                        report += "</tr>"
-                    report += (
-                        "</table><h2>Confusion matrices, comparisons and McNemar test</h2><pre>"
-                        + html.escape(json.dumps(job["evaluation"], indent=2))
-                        + "</pre>"
-                    )
-                    report += (
-                        "<h2>Provenance and explanation coverage</h2><pre>"
-                        + html.escape(json.dumps(metadata, indent=2))
-                        + "</pre></body></html>"
-                    )
-                    archive.writestr("report.html", report)
                     archive.writestr(paper_name, paper)
                 output.replace(job["folder"] / "results.zip")
             with self.lock:

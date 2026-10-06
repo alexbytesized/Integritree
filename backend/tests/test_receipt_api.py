@@ -1,7 +1,6 @@
 """Receipt HTTP lifecycle with synthetic images/outputs; no real dataset or models."""
 
 import io
-import json
 import threading
 import time
 import zipfile
@@ -161,12 +160,51 @@ def test_pdf_export_failure_is_retryable_without_recomputing(client, monkeypatch
     service = client.app.state.receipts
     monkeypatch.setattr(service, "_predict", broken)
     monkeypatch.setattr(service, "_explain", broken)
+    monkeypatch.setattr(service, "_contribution_chart", broken)
     response = client.get(path + "/download?revision=1", headers=owner)
     assert response.status_code == 200
-    assert len(zipfile.ZipFile(io.BytesIO(response.content)).namelist()) == 7
+    assert len(zipfile.ZipFile(io.BytesIO(response.content)).namelist()) == 1
     assert client.get(path, headers=owner).json() == before
     assert not list(service.folder.rglob("*.pdf"))
     assert not list(service.folder.rglob("*.zip"))
+
+
+@pytest.mark.parametrize("explanation_status", ["computed", "pending", "failed"])
+def test_pdf_only_download_uses_snapshot_without_rendering_svg(
+    client, monkeypatch, explanation_status
+):
+    owner, identifier, path = completed_receipt(client)
+    service = client.app.state.receipts
+    with service.lock:
+        if explanation_status != "computed":
+            service.jobs[identifier]["result"]["explanation"] = {
+                "status": explanation_status
+            }
+    before = client.get(path, headers=owner).json()
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Downloads must use the saved snapshot only")
+
+    monkeypatch.setattr(service, "_contribution_chart", forbidden)
+    monkeypatch.setattr(service, "bundle_provider", forbidden)
+    monkeypatch.setattr(service, "_predict", forbidden)
+    monkeypatch.setattr(service, "_explain", forbidden)
+    response = client.get(path + "/download?revision=1", headers=owner)
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/zip"
+    assert (
+        'filename="integritree_receipt.zip"' in response.headers["content-disposition"]
+    )
+    with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+        assert len(archive.namelist()) == 1
+        name = archive.namelist()[0]
+        assert name.startswith("Transaction-Results_") and name.endswith(".pdf")
+        reader = PdfReader(io.BytesIO(archive.read(name)))
+        assert len(reader.pages) == 4
+        if explanation_status != "computed":
+            for index in (1, 3):
+                assert "unavailable" in reader.pages[index].extract_text().lower()
+    assert client.get(path, headers=owner).json() == before
 
 
 def test_chart_layouts_preserve_receipt_revision_and_ownership(client):
@@ -218,13 +256,10 @@ def test_concurrent_pdf_exports_keep_session_snapshots_separate(client, monkeypa
     for response, (_, _, reference) in zip(responses, receipts_to_export):
         assert response.status_code == 200
         with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
-            assert (
-                json.loads(archive.read("results.json"))["original"]["reference"]
-                == reference
-            )
+            assert len(archive.namelist()) == 1
             name = next(n for n in archive.namelist() if n.endswith(".pdf"))
             reader = PdfReader(io.BytesIO(archive.read(name)))
-            assert len(reader.pages) == 2
+            assert len(reader.pages) == 4
             for page in reader.pages:
                 text = page.extract_text()
                 assert reference in text
@@ -257,9 +292,7 @@ def test_repeated_exports_capture_philippine_date_once(client, monkeypatch):
         response = client.get(path + "/download?revision=1", headers=owner)
         assert response.status_code == 200
         with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
-            assert [n for n in archive.namelist() if n.endswith(".pdf")] == [
-                f"Transaction-Results_2026-10-{day}.pdf"
-            ]
+            assert archive.namelist() == [f"Transaction-Results_2026-10-{day}.pdf"]
     assert Clock.calls == 2
 
 
@@ -348,27 +381,13 @@ def test_upload_confirmation_results_export_revision_and_clear(client):
         pdfs = [name for name in z.namelist() if name.endswith(".pdf")]
         assert len(pdfs) == 1
         assert pdfs[0] == receipt_pdf.pdf_filename(datetime.now(UTC))
-        assert set(z.namelist()) == {
-            "confirmed_inputs.json",
-            "results.json",
-            "explanations.json",
-            "metadata.json",
-            "rf_shap_contributions.svg",
-            "rf_smote_shap_contributions.svg",
-            pdfs[0],
-        }
-        assert len(PdfReader(io.BytesIO(z.read(pdfs[0]))).pages) == 2
-        metadata = json.loads(z.read("metadata.json"))
-        assert metadata["scope"] == "experimental_receipt" and metadata["revision"] == 1
-        for model in ("rf", "rf_smote"):
-            chart = z.read(f"{model}_shap_contributions.svg")
-            assert b"Contribution to Fraud Risk Score (Percentage Points)" in chart
-            assert (
-                chart
-                == client.get(
-                    path + f"/waterfall/{model}?revision=1", headers=headers
-                ).content
-            )
+        assert z.namelist() == pdfs
+        assert len(PdfReader(io.BytesIO(z.read(pdfs[0]))).pages) == 4
+    assert client.get(path, headers=headers).json() == status
+    for model in ("rf", "rf_smote"):
+        chart = client.get(path + f"/waterfall/{model}?revision=1", headers=headers)
+        assert chart.status_code == 200
+        assert b"Contribution to Fraud Risk Score (Percentage Points)" in chart.content
     assert (
         client.post(path + "/confirm", headers=headers, json=confirmation()).status_code
         == 409
@@ -629,12 +648,12 @@ def test_explanation_failure_keeps_predictions_and_can_retry(client):
     response = client.get(path + "/download?revision=1", headers=owner)
     with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
         assert not any(name.endswith(".svg") for name in archive.namelist())
-        assert len(archive.namelist()) == 5
+        assert len(archive.namelist()) == 1
         pdf_name = next(name for name in archive.namelist() if name.endswith(".pdf"))
         reader = PdfReader(io.BytesIO(archive.read(pdf_name)))
-        assert len(reader.pages) == 2
+        assert len(reader.pages) == 4
         assert "SHAP explanation is unavailable" in reader.pages[0].extract_text()
-        assert json.loads(archive.read("explanations.json"))["status"] == "failed"
+        assert client.get(path, headers=owner).json() == job
     service.engine = Explainer()
     assert client.post(path + "/retry", headers=owner).status_code == 202
     assert (

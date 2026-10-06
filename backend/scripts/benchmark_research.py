@@ -178,14 +178,14 @@ def run(client, path, pid, expected=None):
     completed = time.monotonic()
     max_error = 0.0
     with zipfile.ZipFile(zipped) as archive:
-        assert set(archive.namelist()) == {
-            "metadata.json",
-            "evaluation.json",
-            "report.html",
-            "results.csv",
-        }
+        raw_name = next(n for n in archive.namelist() if n.startswith("Raw-Data_"))
+        paper_name = raw_name.replace("Raw-Data_", "Experiment-Paper_").replace(
+            ".csv", ".pdf"
+        )
+        assert sorted(archive.namelist()) == sorted([raw_name, paper_name])
+        assert archive.read(paper_name).startswith(b"%PDF-")
         count = 0
-        with archive.open("results.csv") as stream:
+        with archive.open(raw_name) as stream:
             for row in csv.DictReader(io.TextIOWrapper(stream, encoding="utf-8")):
                 if expected is not None:
                     for model in ("rf", "rf_smote"):
@@ -202,7 +202,7 @@ def run(client, path, pid, expected=None):
                 count += 1
         assert count == job["rows_processed"]
         assert max_error < 1e-10, max_error
-        metadata = json.loads(archive.read("metadata.json"))
+        metadata = export["metadata"]
         assert (
             not metadata["held_out_membership_verified"]
             and metadata["threshold"] == 0.43

@@ -74,7 +74,7 @@ test('upload, refresh, search, pagination, details, real SHAP, download and anal
     testInfo.outputPath('results.zip')], { encoding: 'utf8' }))
   const paperName = exportedFiles.find(name => /^Experiment-Paper_\d{4}-\d{2}-\d{2}\.pdf$/.test(name))
   expect(exportedFiles.sort()).toEqual([
-    paperName, 'evaluation.json', 'metadata.json', 'report.html', 'results.csv',
+    paperName, paperName.replace('Experiment-Paper_', 'Raw-Data_').replace('.pdf', '.csv'),
   ])
   await page.getByRole('heading', { name: 'Results Overview' }).scrollIntoViewIfNeeded()
   await page.screenshot({ path: testInfo.outputPath('results.png') })

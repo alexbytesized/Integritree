@@ -110,21 +110,39 @@ the predictions available and allows retry; it does not become a fabricated char
 
 ## Download and retention
 
-The downloaded `integritree_receipt.zip` contains `confirmed_inputs.json`,
-`results.json`, `explanations.json`, `metadata.json`, and
+The downloaded `integritree_receipt.zip` contains only
 `Transaction-Results_YYYY-MM-DD.pdf`. The filename uses the Philippine date (UTC+8),
-captured once when each export starts. The PDF has two A4 landscape pages:
-Benchmark RF first, then RF-SMOTE, regardless of the selected results tab. Each page
-contains the transaction reference, risk gauge and threshold, prediction, score,
-interpretation, and SHAP explanation summary. It uses a white background and omits
-interactive controls and full SHAP charts. Missing references show `Not provided`;
-failed SHAP explanations show an unavailable message with instructions to retry
-in the application. Predictions remain available.
+captured once when each export starts. The PDF has four A4 landscape pages in this
+order, regardless of the selected results tab: Benchmark RF Results, Benchmark RF
+SHAP Evaluation, RF-SMOTE Results, and RF-SMOTE SHAP Evaluation. Existing results
+pages retain the transaction reference, risk gauge and threshold, prediction,
+score, interpretation, and SHAP explanation summary.
 
-Computed explanations also add `rf_shap_contributions.svg` and
-`rf_smote_shap_contributions.svg`. Metadata identifies the mapping, revision, input fingerprint,
-model run, preprocessing, threshold and explanation state. An unavailable explanation
-is explicit in the JSON. The ZIP excludes the original image and evaluation metrics.
+Each evaluation page repeats its model/transaction header and adds a vector chart
+of all eleven features in fixed order, without a chart section title. Red bars
+increase risk; green bars decrease it. Values use three significant digits in
+percentage points. Exact-zero rows are blank; tiny effects retain their true bar
+length and a visible hairline marker. The graph always has nine gridlines and
+includes zero and every contribution. It starts at -40 to +40 with 10-point
+intervals, shifts when needed (for example -30 to +50), and uses 20- or 25-point
+intervals only if an 80-point span is insufficient. Tick-aligned bounds remain
+within -100 to +100; the nearest-to-zero center wins, with the lower starting
+bound breaking ties.
+
+Reference Score and Output Score cards sit side by side below the graph, followed
+by a full-width Top Risk-Increasing Contributor card. Their blue tabs match the
+results-page cards. All body values are centered, regular-weight dark text, with
+scores shown as percentages to two decimal places and no explanatory definitions.
+Missing references show `Not provided`. Pending, failed, or incomplete SHAP data
+keeps all four pages, shows an unavailable message instead of an invented graph,
+and displays `Unavailable` for missing summary values. Predictions remain available.
+PDFs contain no interactive controls. The modal and standalone SVG presentations
+are unchanged; the adaptive axis applies only to PDF evaluation pages.
+
+JSON and SVG attachments are not included, and downloads do not render standalone
+SVGs. The application retains its confirmed inputs, predictions, explanations,
+and metadata, and the authorized SVG endpoints remain available to the UI.
+Previously downloaded ZIPs are unchanged.
 
 PDFs use ReportLab and embedded DejaVu Sans fonts from the existing Matplotlib
 installation. Install the updated backend dependencies with
@@ -132,7 +150,7 @@ installation. Install the updated backend dependencies with
 from `backend/`, then restart the backend. No LibreOffice or browser converter is
 needed for receipt PDFs. `pypdf` is a development dependency for export checks.
 
-Export captures the completed revision and chart bytes under the session lock,
+Export captures the completed revision and a deep copy of the saved result under the session lock,
 then renders entirely in memory outside that lock. It does not repeat prediction
 or SHAP calculations. Ownership and revision are checked again before returning
 the ZIP, so a cleared, expired, or edited receipt cannot deliver a stale export.

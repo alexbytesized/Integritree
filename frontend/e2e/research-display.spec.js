@@ -406,12 +406,12 @@ test('SHAP summaries show blue headings, help paragraphs and bulleted values, in
   await page.getByRole('button', { name: 'See Full SHAP Evaluation' }).click()
   const dialog = page.getByRole('dialog')
   const summary = dialog.locator('.shap-summary-sections')
-  await expect(summary.locator('h3')).toHaveText(['Reference', 'Output', 'Top Risk-Increasing Contributor'])
+  await expect(summary.locator('h3')).toHaveText(['Reference Score', 'Output Score', 'Top Risk-Increasing Contributor'])
   await expect(summary.locator('li')).toHaveText(['10.00%', '53.52%', 'Hour of the Day'])
   await expect(summary.locator('p')).toHaveText([
     'The model’s average fraud score for the SHAP reference sample. This is the starting score before this transaction’s feature contributions are added.',
-    'The model’s fraud score for this transaction. It equals the reference score plus all SHAP contributions, within numerical tolerance.',
-    'The feature with the largest positive SHAP contribution above the numerical tolerance. It increased the model’s score the most; it is not a proven cause of fraud.',
+    'The model’s fraud score for this transaction. It equals the reference score plus all SHAP contributions.',
+    'The feature with the largest positive SHAP contribution. It increased the model’s score the most, but it is not a proven cause of fraud.',
   ])
   await expect(summary.locator('button')).toHaveCount(0)
   await expect(dialog.getByRole('tooltip')).toHaveCount(0)

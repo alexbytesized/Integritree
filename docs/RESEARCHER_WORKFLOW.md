@@ -93,23 +93,23 @@ All new analyses, including the eventual official evaluation, use this retention
 policy. **Download results before stopping/restarting the backend.** There is no
 automatic permanent archive of uploaded analyses.
 
-Download results creates an asynchronous ZIP for the complete upload:
+Download results creates an asynchronous `integritree_results.zip` for the complete
+upload, containing exactly two files:
 
-- `results.csv`: stable upload-hash/row identities, source fields, paired full-precision
-  scores and labels, explanation status, and computed narratives.
-- `evaluation.json`: confusion matrices, precision, recall, F1, MCC, Average
-  Precision, accuracy, descriptive comparisons, and paired McNemar results.
-- `metadata.json`: upload fingerprint, model run and fingerprint, settings,
-  threshold, timestamp, evaluated population, and actual SHAP coverage.
-- `report.html`: escaped, offline evaluation and provenance report.
 - `Experiment-Paper_YYYY-MM-DD.pdf`: the supplied experiment paper with its five
   tables filled from the same full-upload evaluation. All explanatory notes are
   placed under the template's final **Notes:** heading.
-  The filename uses the Philippine date (UTC+8), captured once when building the
-  ZIP, for example `Experiment-Paper_2026-10-05.pdf`. Downloading the same analysis
-  on a later date uses that later export date. The ZIP remains `integritree_results.zip`.
+- `Raw-Data_YYYY-MM-DD.csv`: stable upload-hash/row identities, source fields, paired
+  full-precision scores and labels, explanation status, and computed narratives.
+  All rows remain in upload order with the existing columns and CSV safety handling.
 
-Exports state `scope: uploaded_dataset` and `held_out_membership_verified: false`.
+Both filenames use the same Philippine date (UTC+8), captured once before PDF
+conversion starts, even when generation crosses midnight. A later export uses
+its own start date. JSON files and the HTML report are no longer included or
+rendered for download. Evaluation and explanation data remain available to the
+application, and the export-status response retains its metadata, including
+`scope: uploaded_dataset` and `held_out_membership_verified: false`.
+Previously downloaded ZIPs are unchanged.
 The researcher establishes final-test provenance in the research record. Scores
 are model outputs; display risk bands do not establish real-world calibration.
 CSV text that could execute as a spreadsheet formula is prefixed with an apostrophe.
@@ -191,6 +191,8 @@ input/retry, and expired sessions. Browser diagnostics go to ignored `test-resul
 
 Final verification passed **208 backend tests** (five upstream warnings), all
 **three browser checks**, frontend lint/build, dependency checks, document links,
-and Git whitespace checks. The real browser ZIP was inspected for all four files,
+and Git whitespace checks. That milestone used the earlier four-file ZIP contract;
+the current download contract is the two-file PDF/CSV archive documented above.
+The earlier ZIP was inspected for
 43% threshold, unverified membership, full record count, and actual SHAP coverage.
 Receipt workflow readiness and final test evaluation are outside this milestone.

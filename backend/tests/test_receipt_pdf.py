@@ -39,8 +39,34 @@ def sample_result():
         "explanation": {
             "status": "computed",
             "models": {
-                "rf": {"features": features},
-                "rf_smote": {"features": deepcopy(features)},
+                model: {
+                    "features": [
+                        {
+                            "feature": name,
+                            "readable_value": name,
+                            "contribution": next(
+                                (
+                                    f["contribution"]
+                                    for f in features
+                                    if f["feature"] == name
+                                ),
+                                0,
+                            )
+                            * factor,
+                        }
+                        for name in receipt_pdf.FEATURE_COLUMNS
+                    ],
+                    "base_value": score - 0.048 * factor,
+                    "output_value": score,
+                    "top_positive_contributor": {
+                        "status": "available",
+                        "feature": "type_TRANSFER",
+                    },
+                }
+                for model, score, factor in (
+                    ("rf", 0.0107, 0.1),
+                    ("rf_smote", 0.8725, 1),
+                )
             },
         },
     }
@@ -65,14 +91,14 @@ def test_philippine_filename(instant, date):
     )
 
 
-def test_two_landscape_pages_with_correct_models_and_complete_text():
+def test_four_landscape_pages_with_correct_models_and_complete_text():
     result = sample_result()
     original = deepcopy(result)
     reader = read_pdf(result)
     assert result == original
-    assert len(reader.pages) == 2
+    assert len(reader.pages) == 4
     for page, name, score, prediction, band, model in zip(
-        reader.pages,
+        reader.pages[::2],
         ("Benchmark RF", "RF-SMOTE"),
         ("1.07", "87.25"),
         ("Legitimate", "Fraudulent"),
@@ -130,16 +156,22 @@ def test_failed_shap_keeps_both_predictions():
             "The SHAP explanation is unavailable. Retry it in the application" in text
         )
     assert "1.07 out of 100" in reader.pages[0].extract_text()
-    assert "87.25 out of 100" in reader.pages[1].extract_text()
+    assert "87.25 out of 100" in reader.pages[2].extract_text()
 
 
 def test_long_explanation_fits_and_overflow_is_explicit():
     result = sample_result()
     result["original"]["reference"] = "0123456789ABCDEF" * 16
     for item in result["explanation"]["models"].values():
-        item["features"][0]["readable_value"] = "Long transaction detail " * 8
-    assert len(read_pdf(result).pages) == 2
-    result["explanation"]["models"]["rf"]["features"][0]["readable_value"] *= 100
+        next(f for f in item["features"] if f["feature"] == "type_TRANSFER")[
+            "readable_value"
+        ] = "Long transaction detail " * 8
+    assert len(read_pdf(result).pages) == 4
+    next(
+        f
+        for f in result["explanation"]["models"]["rf"]["features"]
+        if f["feature"] == "type_TRANSFER"
+    )["readable_value"] *= 100
     with pytest.raises(ValueError, match="too long"):
         receipt_pdf.generate_pdf(result)
 
@@ -201,3 +233,165 @@ def test_gauge_markers_use_unrounded_positions_and_bounds():
     for score, expected_x in ((0, 50), (100, 750)):
         receipt_pdf._gauge(canvas, score, 43, 50, 500, 700)
         assert canvas.circle.call_args.args[0] == expected_x
+
+
+@pytest.mark.parametrize(
+    "values,expected",
+    [
+        ([0] * 11, (-40, 40, 10)),
+        ([12, -8], (-40, 40, 10)),
+        ([50], (-30, 50, 10)),
+        ([-50], (-50, 30, 10)),
+        ([-50, 50], (-80, 80, 20)),
+        ([90], (-60, 100, 20)),
+        ([-90], (-100, 60, 20)),
+        ([100], (-60, 100, 20)),
+        ([-100], (-100, 60, 20)),
+        ([-100, 100], (-100, 100, 25)),
+        ([1e-8, -1e-8], (-40, 40, 10)),
+    ],
+)
+def test_pdf_grid_keeps_nine_lines_zero_and_all_effects(values, expected):
+    ticks = receipt_pdf.contribution_ticks(values)
+    assert (ticks[0], ticks[-1], ticks[1] - ticks[0]) == expected
+    assert len(ticks) == 9 and 0 in ticks
+    assert ticks[0] <= min([0, *values]) <= max([0, *values]) <= ticks[-1]
+
+
+def test_pdf_evaluation_values_order_fonts_and_no_definitions():
+    result = sample_result()
+    for item in result["explanation"]["models"].values():
+        item["features"].reverse()
+    reader = read_pdf(result)
+    for index, model in enumerate(("rf", "rf_smote")):
+        page = reader.pages[index * 2 + 1]
+        text = " ".join(page.extract_text().split())
+        item = result["explanation"]["models"][model]
+        assert item["base_value"] + sum(
+            f["contribution"] for f in item["features"]
+        ) == pytest.approx(item["output_value"])
+        for title in (
+            "Reference Score",
+            "Output Score",
+            "Top Risk-Increasing Contributor",
+        ):
+            assert title in text
+        for key in ("base_value", "output_value"):
+            assert f"{receipt_pdf.score_text(item[key] * 100)}%" in text
+        assert "Contribution to Fraud Risk Score" not in text
+        assert "SHAP Feature Contributions" not in text
+        assert "starting score" not in text and "numerical tolerance" not in text
+        assert "Risk Score" not in text.replace("Fraud Risk Score", "")
+        offsets = [text.index(label) for label in receipt_pdf.FEATURE_LABELS.values()]
+        assert offsets == sorted(offsets)
+        assert not page.get("/Resources", {}).get("/XObject")  # Native vector content.
+        fragments = []
+        page.extract_text(
+            visitor_text=lambda value, cm, tm, font, size, captured=fragments: (
+                captured.append((value, font, size))
+            )
+        )
+        for key in ("base_value", "output_value"):
+            value = f"{receipt_pdf.score_text(item[key] * 100)}%"
+            matches = [(font, size) for part, font, size in fragments if value in part]
+            assert matches and all(
+                "Bold" not in str(font["/BaseFont"]) and size == 11
+                for font, size in matches
+            )
+    for index, page in enumerate(reader.pages):
+        assert f"{index + 1} / 4" in page.extract_text()
+        expected_model = "Benchmark RF" if index < 2 else "RF-SMOTE"
+        assert expected_model in page.extract_text()
+
+
+@pytest.mark.parametrize("status", ["pending", "failed"])
+def test_unavailable_shap_retains_four_pages_and_summary_cards(status):
+    result = sample_result()
+    result["explanation"] = {"status": status}
+    reader = read_pdf(result)
+    assert len(reader.pages) == 4
+    for page in reader.pages[1::2]:
+        text = page.extract_text()
+        assert "SHAP explanation is unavailable" in text
+        assert text.count("Unavailable") == 3
+
+
+def test_zero_and_missing_feature_data_are_distinct():
+    result = sample_result()
+    for item in result["explanation"]["models"].values():
+        for feature in item["features"]:
+            feature["contribution"] = 0
+        item["output_value"] = item["base_value"]
+        item["top_positive_contributor"] = {"status": "no_positive_contributor"}
+    for page in read_pdf(result).pages[1::2]:
+        text = page.extract_text()
+        assert "No transaction details meaningfully increased the score." in text
+        assert "0 pp" not in text
+        assert "unavailable" not in text
+    result["explanation"]["models"]["rf"]["features"].pop()
+    assert "unavailable" in read_pdf(result).pages[1].extract_text()
+
+
+def test_vector_bar_geometry_end_labels_and_tiny_markers(monkeypatch):
+    from reportlab.lib import colors
+    from reportlab.pdfgen.canvas import Canvas
+
+    receipt_pdf._register_fonts()
+    canvas = Canvas(io.BytesIO())
+    bars, lines, labels = [], [], []
+    original_bar, original_line = canvas.roundRect, canvas.line
+    original_left, original_right = canvas.drawString, canvas.drawRightString
+
+    def bar(x, y, width, height, radius, **kwargs):
+        bars.append((x, width, canvas._fillColorObj))
+        return original_bar(x, y, width, height, radius, **kwargs)
+
+    def line(*args):
+        lines.append(args)
+        return original_line(*args)
+
+    def left(x, y, text):
+        labels.append(
+            (x, x + receipt_pdf.pdfmetrics.stringWidth(text, "Receipt", 9), text)
+        )
+        return original_left(x, y, text)
+
+    def right(x, y, text):
+        labels.append(
+            (x - receipt_pdf.pdfmetrics.stringWidth(text, "Receipt", 9), x, text)
+        )
+        return original_right(x, y, text)
+
+    monkeypatch.setattr(canvas, "roundRect", bar)
+    monkeypatch.setattr(canvas, "line", line)
+    monkeypatch.setattr(canvas, "drawString", left)
+    monkeypatch.setattr(canvas, "drawRightString", right)
+    values = [1, -1, 0.4, -0.4, 1e-10, -1e-10] + [0] * 5
+    features = [
+        {"feature": name, "contribution": value}
+        for name, value in zip(receipt_pdf.FEATURE_COLUMNS, values)
+    ]
+    receipt_pdf._contribution_graph(canvas, features, 36, 510, 770, 260)
+    assert len(bars) == 6
+    assert len(lines) == 11  # Nine gridlines and two tiny-effect markers.
+    axis_left, axis_right = lines[0][0], lines[8][0]
+    scale = (axis_right - axis_left) / 200
+    zero = lines[4][0]
+    for (x, width, color), value in zip(bars, values):
+        assert width == pytest.approx(abs(value) * 100 * scale)
+        assert x == pytest.approx(zero + min(0, value) * 100 * scale)
+        assert color == colors.HexColor(
+            receipt_pdf.INCREASE_COLOR if value > 0 else receipt_pdf.DECREASE_COLOR
+        )
+    contributions = [
+        (left, right, text) for left, right, text in labels if text.endswith(" pp")
+    ]
+    assert [text for _, _, text in contributions] == [
+        f"{value * 100:+.3g} pp" for value in values if value != 0
+    ]
+    name_right = max(
+        right
+        for _, right, text in labels
+        if text in receipt_pdf.FEATURE_LABELS.values()
+    )
+    assert all(name_right < left < right <= 806 for left, right, _ in contributions)

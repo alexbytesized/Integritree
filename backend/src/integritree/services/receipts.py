@@ -591,37 +591,7 @@ class ReceiptService:
         with self.lock:
             job = self.current(token, identifier, revision)
             exported_at = datetime.now(UTC)
-            bundle = self.bundle_provider()
             result = deepcopy(job["result"])
-            metadata = {
-                "scope": "experimental_receipt",
-                "analysis_id": identifier,
-                "revision": revision,
-                "input_sha256": result["input_sha256"],
-                "mapping_version": result["mapping_version"],
-                "model_run_id": result["model_run_id"],
-                "threshold": result["threshold"],
-                "preprocessing": bundle.preprocessor.state.model_dump(),
-                "model_package_versions": bundle.metadata.get("package_versions"),
-                "explanation_status": result["explanation"]["status"],
-                "retention": "temporary until leaving the receipt flow, Clear, 30 seconds after the last browser connection disconnects, or backend shutdown/restart",
-            }
-            model_meta = self.settings.research_model_dir / "metadata.json"
-            if model_meta.exists():
-                metadata["model_metadata_sha256"] = file_sha256(model_meta)
-            files = {
-                "confirmed_inputs.json": job["confirmation"].model_dump(mode="json"),
-                "results.json": {k: v for k, v in result.items() if k != "explanation"},
-                "explanations.json": result["explanation"],
-                "metadata.json": metadata,
-            }
-            charts = {}
-            if result["explanation"]["status"] == "computed":
-                for model in ("rf", "rf_smote"):
-                    charts[f"{model}_shap_contributions.svg"] = (
-                        self._contribution_chart(job, model, revision).read_bytes()
-                    )
-            files = deepcopy(files)
 
         # Rendering uses only this snapshot and memory. Clear/reconfirmation and
         # other sessions must remain responsive while the PDF is built.
@@ -638,13 +608,6 @@ class ReceiptService:
             ) from None
         out = io.BytesIO()
         with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-            for name, value in files.items():
-                archive.writestr(
-                    name,
-                    json.dumps(value, indent=2, ensure_ascii=False, allow_nan=False),
-                )
-            for name, value in charts.items():
-                archive.writestr(name, value)
             archive.writestr(receipt_pdf.pdf_filename(exported_at), pdf)
         with self.lock:
             self.current(token, identifier, revision)
