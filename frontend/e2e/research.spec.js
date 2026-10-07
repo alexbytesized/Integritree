@@ -102,8 +102,9 @@ test('invalid rows show actionable errors and allow retry', async ({ page }) => 
     buffer: Buffer.from('step,type,amount,nameOrig,nameDest,isFraud\n0,TRANSFER,10,C_A,C_B,1\n') })
   await page.getByRole('button', { name: 'ANALYZE FILE' }).click()
   await expect(page.getByRole('alert')).toContainText('Invalid predictor values')
-  await expect(page.locator('pre')).toContainText('step')
-  await page.getByRole('link', { name: 'Return to upload / retry' }).click()
+  await page.getByText('View details', { exact: true }).click()
+  await expect(page.locator('.upload-error-details')).toContainText('step')
+  await page.getByRole('link', { name: 'Return', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Upload File', exact: true })).toBeVisible()
 })
 

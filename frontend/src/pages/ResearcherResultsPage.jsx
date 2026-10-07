@@ -6,13 +6,14 @@ import SystemResults from "../components/SystemResults"
 import SearchBar from "../components/SearchBar"
 import FilterBar from "../components/FilterBar"
 import TransactionTable from "../components/TransactionTable"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import StatisticCard from "../components/StatisticCard"
 import PercentageDifferenceCard from "../components/PercentageDifference"
 import ConfusionMatrix from "../components/ConfusionMatrix"
 import InfoButton from "../components/InfoButton"
 import InfoModal from "../components/InfoModal"
 import ResearchAnalysisLoading from "../components/ResearchAnalysisLoading"
+import UploadErrorPage from "../components/UploadErrorPage"
 import { Link, useSearchParams } from "react-router-dom"
 import { api, analysisKey, downloadAnalysis, metric } from "../researchApi"
 
@@ -41,6 +42,8 @@ const ResearcherResultsPage = () => {
   const [job, setJob] = useState(null)
   const [error, setError] = useState('')
   const [downloading, setDownloading] = useState(false)
+  const [clearing, setClearing] = useState(false)
+  const clearPending = useRef(false)
   const [activeInfoTopic, setActiveInfoTopic] = useState(null)
   const closeInfo = useCallback(() => setActiveInfoTopic(null), [])
   const change = (values) => setParams({ analysis: id, search: searchTerm, model, outcome, page: currentPage, ...values }, { replace: true })
@@ -70,22 +73,32 @@ const ResearcherResultsPage = () => {
     finally { setDownloading(false) }
   }
   const clear = async () => {
+    if (clearPending.current) return
+    clearPending.current = true
+    setClearing(true)
+    setError('')
     try {
       await api(`/analyses/${id}`, { method: 'DELETE' })
       sessionStorage.removeItem(analysisKey)
       window.location.assign('/researcher-upload')
     } catch (err) { setError(err.message) }
+    finally { clearPending.current = false; setClearing(false) }
   }
   if (id && !error && !['complete', 'failed'].includes(job?.status)) {
     return <ResearchAnalysisLoading status={job?.status} rowsProcessed={job?.rows_processed ?? 0} />
   }
+  if (job?.status === 'failed') return <UploadErrorPage
+    message={job.error_code === 'unsupported_csv_layout'
+      ? `The dataset layout of the uploaded CSV (${job.filename || 'unnamed CSV'}) is unsupported. Ensure that all expected columns are present (amount, isFraud, nameDest, nameOrig, step, type).`
+      : job.error || 'The CSV could not be processed. Please try uploading it again.'}
+    details={job.error_code === 'unsupported_csv_layout' ? job.error : undefined} issues={job.issues}
+    clearLabel="Clear CSV" onClear={clear} busy={clearing} actionError={error} returnTo="/researcher-upload" />
+  if (error && id && job?.status !== 'complete') return <UploadErrorPage message={error} returnTo="/researcher-upload" />
   if (!id || job?.status !== 'complete') return <main className="researcher-results-page">
     <h1>CSV analysis</h1>
     {error && <p role="alert">{error}</p>}
-    {job?.status === 'failed' ? <><p role="alert">{job.error}</p><pre>{job.issues && JSON.stringify(job.issues, null, 2)}</pre></>
-      : <p>Upload a CSV to start a new analysis.</p>}
+    <p>Upload a CSV to start a new analysis.</p>
     <Link to="/researcher-upload">Return to upload / retry</Link>
-    {job?.status === 'failed' && <button onClick={clear}>Clear failed analysis</button>}
   </main>
   const evaluation = job.evaluation
   const sm = evaluation.models.rf_smote

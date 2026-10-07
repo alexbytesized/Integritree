@@ -67,10 +67,11 @@ for (const failure of ['analysis', 'connection']) {
     await expect(page.getByRole('alert')).toContainText(failure === 'analysis' ? 'Invalid predictor values.' : 'The analysis service is unavailable.')
     await expect(page.locator('.research-loading')).toHaveCount(0)
     if (failure === 'analysis') {
-      await expect(page.locator('pre')).toContainText('13')
-      await expect(page.getByRole('button', { name: 'Clear failed analysis' })).toBeVisible()
+      await page.getByText('View details', { exact: true }).click()
+      await expect(page.locator('.upload-error-details')).toContainText('Affected rows: 13.')
+      await expect(page.getByRole('button', { name: 'Clear CSV' })).toBeVisible()
     }
-    await page.getByRole('link', { name: 'Return to upload / retry' }).click()
+    await page.getByRole('link', { name: 'Return', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Upload File', exact: true })).toBeVisible()
   })
 }

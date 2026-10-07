@@ -5,6 +5,7 @@ import ResearchAnalysisLoading from '../components/ResearchAnalysisLoading'
 import ReceiptParticles from '../components/ReceiptParticles'
 import ScreenshotPreview from '../components/ScreenshotPreview'
 import ReturnButton from '../components/ReturnButton'
+import UploadErrorPage from '../components/UploadErrorPage'
 import stars from '../assets/stars.png'
 import { receiptApi, receiptKey, clearReceipt, draftKey } from '../receiptApi'
 import { useReceipt, useReceiptImage } from '../useReceipt'
@@ -81,13 +82,27 @@ function ReceiptDetails({ id }) {
   const image = useReceiptImage(id, !!job?.workflow)
   const [error, setError] = useState('')
   const [working, setWorking] = useState(false)
-  const action = async fn => { setWorking(true); setError(''); try { await fn() } catch (err) { setError(err.message) } finally { setWorking(false) } }
+  const pending = useRef(false)
+  const action = async fn => {
+    if (pending.current) return
+    pending.current = true
+    setWorking(true); setError('')
+    try { await fn() } catch (err) { setError(err.message) }
+    finally { pending.current = false; setWorking(false) }
+  }
   const clear = () => action(async () => { await clearReceipt(); navigate('/upload') })
+  const retry = () => action(async () => { await receiptApi(`/${id}/retry`, { method: 'POST' }); setRefresh(v => v + 1) })
   const ready = job && !job.busy && job.workflow && ['awaiting_confirmation', 'complete', 'failed'].includes(job.status)
   if (!loadError && ((id && !job) || job?.busy)) return <ResearchAnalysisLoading
     title="Receipt analysis" message={job?.busy
       ? (['uploading', 'queued', 'extracting'].includes(job.status) ? 'Reading your receipt...' : 'Preparing your predictions and explanations...')
       : 'Loading your receipt...'} onReturn={clear} returning={working} error={error} />
+  if (job?.status === 'unsupported' || (job?.status === 'failed' && !job.workflow)) return <UploadErrorPage
+    message={job.error_code === 'unsupported_receipt_layout'
+      ? `The receipt layout of the uploaded photo (${job.filename || 'unnamed photo'}) is unclear or unsupported. Use a complete GCash Express Send, Pay Online, or bank-account transfer screenshot.`
+      : job.error || 'The receipt could not be processed. Please try another screenshot.'}
+    clearLabel="Clear Receipt" onClear={clear} onReturn={clear} busy={working} actionError={error || loadError}
+    onRetry={job.status === 'failed' ? retry : undefined} />
   return <div className="researcher-results-wrapper">
     <ReceiptParticles />
     <ReturnButton onClick={clear} />
@@ -100,7 +115,7 @@ function ReceiptDetails({ id }) {
         {job.error && <p role="alert">{job.error}</p>}
         {(!ready || job.status === 'failed') && <div className="receipt-actions">
           {!ready && <button className="proceed-button receipt-button-outline" disabled={working} onClick={clear}>Clear Receipt</button>}
-          {job.status === 'failed' && !job.busy && <button onClick={() => action(async () => { await receiptApi(`/${id}/retry`, { method: 'POST' }); setRefresh(v => v + 1) })}>Retry processing</button>}
+          {job.status === 'failed' && !job.busy && <button disabled={working} onClick={retry}>Retry processing</button>}
         </div>}
         {ready && <ConfirmationForm key={`${id}-${job.revision}`} job={job} onError={setError} onClear={clear} clearing={working}
           onSubmitted={() => navigate(`/user-results?receipt=${id}`)} />}

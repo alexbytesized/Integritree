@@ -1,0 +1,32 @@
+.upload-error-wrapper { position: relative; min-height: 100vh; }
+.upload-error-wrapper .particles-background { position: absolute; inset: 0; pointer-events: none; }
+.upload-error-page {
+  position: relative;
+  width: min(1100px, calc(100% - 64px));
+  margin: 0 auto;
+  padding: 130px 0 72px;
+  color: #23272a;
+  font-family: 'SF Pro Display', sans-serif;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.upload-error-heading { display: flex; align-items: center; margin-bottom: 34px; }
+.upload-error-heading h1 { margin: 0; font-size: clamp(25px, 2.2vw, 36px); font-weight: 600; line-height: 1.25; }
+.upload-error-heading img { width: 46px; height: auto; margin-left: 6px; transform: translateY(-14px); }
+.upload-error-page [role="alert"] { padding: 20px; margin: 0 0 20px; border-radius: 10px; color: #9c1824; background: #fff0f1; }
+.upload-error-details { padding: 16px 20px; border: 1px solid #dedfe3; border-radius: 10px; background: white; }
+.upload-error-details summary { width: fit-content; color: #086dc1; cursor: pointer; font-weight: 600; }
+.upload-error-details p { margin: 12px 0; }
+.upload-error-details ul { padding-left: 24px; margin-bottom: 0; }
+.upload-error-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 14px; margin-top: 24px; }
+.upload-error-actions button {
+  min-height: 44px; padding: 10px 28px; border: 1px solid #086dc1; border-radius: 24px;
+  background: white; color: #086dc1; font: inherit; font-weight: 600; cursor: pointer;
+}
+.upload-error-actions button:not(:disabled):hover { background: #086dc1; color: white; }
+.upload-error-wrapper button:disabled { opacity: .55; cursor: wait; }
+.upload-error-wrapper :focus-visible { outline: 3px solid #086dc1; outline-offset: 3px; }
+@media (max-width: 760px) {
+  .upload-error-page { width: calc(100% - 32px); padding-top: 110px; }
+  .upload-error-page [role="alert"], .upload-error-details { padding: 16px; }
+}

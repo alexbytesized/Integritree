@@ -288,6 +288,7 @@ def test_repeated_exports_use_current_date_not_analysis_date(client, monkeypatch
         (HEADER + '1,TRANSFER,1,"C_A,C_B,0\n', "unexpected end", None),
         ("step,step,isFraud\n1,1,0\n", "Duplicate", None),
         ("step,isFraud\n1,0\n", "Missing columns", None),
+        (HEADER.rstrip() + ",unexpected\n", "Unsupported columns: unexpected", None),
         (HEADER, "at least one", None),
     ],
 )
@@ -295,6 +296,12 @@ def test_invalid_upload_rejected_and_next_job_recovers(client, content, message,
     owner = session(client)
     identifier, job = upload(client, owner, content)
     assert job["status"] == "failed" and message in job["error"]
+    assert job.get("error_code") == (
+        "unsupported_csv_layout"
+        if message
+        in ("Duplicate", "Missing columns", "Unsupported columns: unexpected")
+        else None
+    )
     if issue:
         assert job["issues"][issue]["rows"] == [1]
     assert (

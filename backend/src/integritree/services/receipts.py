@@ -30,7 +30,7 @@ from integritree.receipts.contracts import (
     ReceiptSource,
     confirm_receipt,
 )
-from integritree.receipts.layouts import identify_layout
+from integritree.receipts.layouts import UNSUPPORTED_LAYOUT_ERROR, identify_layout
 from integritree.receipts.mapping import predict_receipt
 
 
@@ -285,7 +285,7 @@ class ReceiptService:
 
     def _ocr(self, job):
         with self.lock:
-            job.update(status="extracting", error=None)
+            job.update(status="extracting", error=None, error_code=None)
         path = job["folder"] / "image"
         try:
             with load_image(path):
@@ -316,7 +316,15 @@ class ReceiptService:
                 return
             job["media_type"] = media_type
             if not layout:
-                job.update(status="unsupported", error=error)
+                job.update(
+                    status="unsupported",
+                    error=error,
+                    error_code=(
+                        "unsupported_receipt_layout"
+                        if error == UNSUPPORTED_LAYOUT_ERROR
+                        else None
+                    ),
+                )
                 return
             candidates = extraction["parsed"]["fields"]
             job["source"] = ReceiptSource(
@@ -347,6 +355,8 @@ class ReceiptService:
                     "created_at",
                 )
             }
+            if job.get("error_code"):
+                result["error_code"] = job["error_code"]
             if job["source"]:
                 result["workflow"] = LAYOUT_WORKFLOWS[job["source"].layout_id]
                 result["candidates"] = job["source"].extracted.model_dump()

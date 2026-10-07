@@ -457,6 +457,7 @@ def test_invalid_image_and_unsupported_layout_cannot_be_overridden(client):
     owner = session(client)
     identifier, job = upload(client, owner, b"not an image")
     assert job["status"] == "unsupported"
+    assert job.get("error_code") is None
     assert (
         client.post(
             f"{PREFIX}/{identifier}/confirm", headers=owner, json=confirmation()
@@ -469,12 +470,32 @@ def test_invalid_image_and_unsupported_layout_cannot_be_overridden(client):
     )
     identifier, job = upload(client, owner)
     assert job["status"] == "unsupported"
+    assert job["error_code"] == "unsupported_receipt_layout"
+    assert job["filename"] == "synthetic.png"
     assert (
         client.post(
             f"{PREFIX}/{identifier}/confirm", headers=owner, json=confirmation()
         ).status_code
         == 409
     )
+
+
+@pytest.mark.parametrize(
+    "texts,message",
+    [
+        (TEXTS + ["Pending"], "Only completed transaction"),
+        (
+            ["Bank Transfer Complete", "Transfer Date", "Transfer Amount"],
+            "destination bank",
+        ),
+    ],
+)
+def test_specific_layout_rejections_keep_their_message(client, texts, message):
+    client.app.state.receipts.extractor = lambda _: extraction(texts)
+    _, job = upload(client, session(client))
+    assert job["status"] == "unsupported"
+    assert job.get("error_code") is None
+    assert message in job["error"]
 
 
 def test_size_limits_and_upload_abort_release_slot(client, monkeypatch):

@@ -49,9 +49,10 @@ LOG = logging.getLogger(__name__)
 
 
 class ResearchError(Exception):
-    def __init__(self, message, status=400, issues=None):
+    def __init__(self, message, status=400, issues=None, code=None):
         super().__init__(message)
         self.status, self.issues = status, issues
+        self.code = code
 
 
 @contextmanager
@@ -281,7 +282,8 @@ class ResearchService:
                     headers = next(reader, [])
                     if len(headers) != len(set(headers)):
                         raise ResearchError(
-                            "Duplicate CSV column headers are not allowed."
+                            "Duplicate CSV column headers are not allowed.",
+                            code="unsupported_csv_layout",
                         )
                     missing, extra = (
                         sorted(set(REQUIRED) - set(headers)),
@@ -289,7 +291,8 @@ class ResearchService:
                     )
                     if missing or extra:
                         raise ResearchError(
-                            f"Missing columns: {', '.join(missing) or 'none'}. Unsupported columns: {', '.join(extra) or 'none'}."
+                            f"Missing columns: {', '.join(missing) or 'none'}. Unsupported columns: {', '.join(extra) or 'none'}.",
+                            code="unsupported_csv_layout",
                         )
                     job["source_columns"] = headers
                     rows, start, batch_chars = [], 1, 0
@@ -328,7 +331,10 @@ class ResearchService:
             if isinstance(exc, csv.Error):
                 message = f"Malformed CSV near physical line {reader.line_num}: {exc}"
             job.update(
-                status="failed", error=message, issues=getattr(exc, "issues", None)
+                status="failed",
+                error=message,
+                issues=getattr(exc, "issues", None),
+                error_code=getattr(exc, "code", None),
             )
             for name in ("records.sqlite", "records.sqlite-journal"):
                 (job["folder"] / name).unlink(missing_ok=True)

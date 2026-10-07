@@ -2,12 +2,12 @@ import { ArrowLeft } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import './ReturnButton.css'
 
-const ReturnButton = ({ to, onClick }) => {
+const ReturnButton = ({ to, onClick, disabled = false }) => {
   const navigate = useNavigate()
 
   if (onClick) {
     return (
-      <button type="button" onClick={onClick} className="return-btn">
+      <button type="button" onClick={onClick} disabled={disabled} className="return-btn">
         <ArrowLeft size={18} strokeWidth={2.5} />
         Return
       </button>

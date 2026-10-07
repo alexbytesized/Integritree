@@ -6,6 +6,11 @@ conflicting heading/layout stays unsupported even if a client supplies valid fie
 
 import re
 
+UNSUPPORTED_LAYOUT_ERROR = (
+    "The receipt layout is unclear or unsupported. Use a complete Express Send, "
+    "Pay Online, or bank-account transfer screenshot."
+)
+
 
 def identify_layout(lines):
     texts = [row["text"].strip().lower() for row in lines]
@@ -70,6 +75,6 @@ def identify_layout(lines):
         return (
             None,
             None,
-            "The receipt layout is unclear or unsupported. Use a complete Express Send, Pay Online, or bank-account transfer screenshot.",
+            UNSUPPORTED_LAYOUT_ERROR,
         )
     return *layouts[0], None

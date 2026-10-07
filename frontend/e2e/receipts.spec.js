@@ -17,7 +17,8 @@ async function mockReceipts(page, unsupported = false, changes = {}) {
   })
   const job = { id: 'demo', filename: 'receipt.png', status: unsupported ? 'unsupported' : 'awaiting_confirmation',
     busy: false, revision: 0, workflow: unsupported ? undefined : 'express_send', candidates: { ...fields, date: null },
-    error: unsupported ? 'The receipt layout is unclear or unsupported.' : null, ...changes }
+    error: unsupported ? 'The receipt layout is unclear or unsupported.' : null,
+    error_code: unsupported ? 'unsupported_receipt_layout' : null, ...changes }
   const confirmations = [], charts = [], deletions = []
   await page.route('**/api/v1/receipts**', async route => {
     const request = route.request(), url = new URL(request.url())
@@ -47,11 +48,11 @@ async function mockReceipts(page, unsupported = false, changes = {}) {
   return { confirmations, charts, deletions, job }
 }
 
-async function begin(page, sample = null) {
+async function begin(page, sample = null, heading = 'Confirm Details') {
   await page.goto('/upload')
   await page.locator('input[type=file]').setInputFiles(sample || { name: 'receipt.png', mimeType: 'image/png', buffer: image })
   await page.getByRole('button', { name: 'ANALYZE FILE' }).click()
-  await expect(page.getByRole('heading', { name: 'Confirm Details' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: heading })).toBeVisible()
 }
 
 async function confirm(page) {
@@ -128,8 +129,9 @@ test('receipt confirmation, refresh, user model designs without labels, SHAP, re
 
 test('unsupported receipt cannot expose a confirmation form or fabricated results', async ({ page }) => {
   await mockReceipts(page, true)
-  await begin(page)
-  await expect(page.getByRole('alert')).toContainText('unsupported')
+  await begin(page, null, 'Error Encountered')
+  await expect(page.getByRole('alert')).toHaveText('The receipt layout of the uploaded photo (receipt.png) is unclear or unsupported. Use a complete GCash Express Send, Pay Online, or bank-account transfer screenshot.')
+  await expect(page.locator('.screenshot-preview')).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Proceed' })).toHaveCount(0)
   await page.goto('/user-results?receipt=demo')
   await expect(page.getByText('No confirmed receipt results yet.')).toHaveCount(0)
