@@ -13,6 +13,7 @@ supported GCash screenshots for an experimental receipt demonstration.
 | --- | --- | --- |
 | [Terms and concepts](STUDY_TERMS.md) | Data, models, scores, metrics, SHAP, receipts, and software vocabulary | Read the worked metric example and common misunderstandings. |
 | [Code and system guide](STUDY_CODE_GUIDE.md) | Tech stack, folders, important functions, request flow, and where to make changes | Follow one CSV and one receipt through the system. |
+| [ML pipeline explained](ML_PIPELINE_EXPLAINED.md) | Detailed preprocessing, splitting, paired training, and three-stage validation, with code and file interactions | Trace the pipeline diagram, then read the feature example and selection stages. |
 | [Methodology and remaining work](STUDY_METHODOLOGY_GUIDE.md) | What the experiment did, why the steps matter, measured status, and what remains | Read the status table, selection stages, and final-evaluation checklist. |
 
 You do not need to memorize every function. Start by explaining the path from an
