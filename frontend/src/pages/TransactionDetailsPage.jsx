@@ -10,7 +10,8 @@ import { useEffect, useState } from "react"
 import { Link, useParams, useSearchParams } from "react-router-dom"
 import { api, analysisKey, label, outcomeName } from "../researchApi"
 import ShapModal from '../components/ShapModal'
-import { MODEL_NAMES, booleanText, weekdayText, shapSummary } from '../researchDisplay'
+import { MODEL_NAMES, booleanText, weekdayText } from '../researchDisplay'
+import ShapSummary from '../components/ShapSummary'
 
 const TABS = [
   { key: "details",   label: "Transaction Details" },
@@ -68,7 +69,7 @@ const TransactionRecord = ({ analysis, number, returnQuery }) => {
     threshold: record.threshold * 100,
     modelName: MODEL_NAMES[name],
     onOpenShap: () => setShapModel(name),
-    shapSummary: shapSummary(record.explanation, name, record.derived),
+    shapSummary: <ShapSummary explanation={record.explanation} model={name} result={record[name]} />,
   })
   const original = record.original
   const derived = record.derived

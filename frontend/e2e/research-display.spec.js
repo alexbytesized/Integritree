@@ -56,8 +56,8 @@ test('input formatting and exact risk-band boundaries', () => {
   const cases = [[0, 'Minimal'], [19.9999, 'Minimal'], [20, 'Low'], [39.9999, 'Low'],
     [40, 'Moderate'], [59.9999, 'Moderate'], [60, 'High'], [79.9999, 'High'], [80, 'Critical'], [100, 'Critical']]
   for (const [score, band] of cases) expect(riskBand(score).label).toBe(`${band} Risk`)
-  expect(shapSummary({ models: { rf: { features: [{ contribution: 0 }] } } }, 'rf'))
-    .toContain('No transaction details meaningfully raised the score. No transaction details meaningfully lowered the score.')
+  expect(shapSummary({ models: { rf: { output_value: .1, predicted_label: 0, features: [{ feature: 'log_amount', contribution: 0 }] } } }, 'rf'))
+    .toContain('None of the transaction factors increased the score above the model’s reference score.')
 })
 
 test('all model views use display IDs, colored interpretations and model-specific modals', async ({ page }, testInfo) => {
@@ -79,8 +79,15 @@ test('all model views use display IDs, colored interpretations and model-specifi
     const interpretation = page.locator('.mrv-text').first()
     await expect(interpretation).toHaveText(`The ${name} model classified the transaction as ${prediction}, with a fraud risk score of ${score}%, corresponding to a ${band} level.`)
     await expect(interpretation.locator('strong').last()).toHaveCSS('color', model === 'rf_smote' ? 'rgb(244, 124, 32)' : 'rgb(29, 185, 84)')
-    await expect(page.locator('.mrv-text').last()).toContainText('39.95 percentage points')
-    await expect(page.locator('.mrv-text').last()).toContainText('5.12 percentage points')
+    const summary = page.locator('.shap-summary')
+    await expect(summary).toContainText(`The model classified this transaction as ${prediction}, with a fraud risk score of ${score}/100, which falls under the category of ${band}.`)
+    await expect(summary.locator('strong')).toHaveText([prediction, `${score}/100`, band, `${model === 'rf_smote' ? 'The' : 'the'} simulated hour of the day`])
+    await expect(summary.locator('strong').first()).toHaveCSS('color', model === 'rf_smote' ? 'rgb(192, 57, 43)' : 'rgb(29, 185, 84)')
+    await expect(summary.locator('strong').nth(2)).toHaveCSS('color', model === 'rf_smote' ? 'rgb(244, 124, 32)' : 'rgb(29, 185, 84)')
+    await expect(summary.locator('strong').nth(1)).toHaveCSS('font-weight', '700')
+    await expect(summary.locator('strong').last()).toHaveCSS('font-weight', '700')
+    await expect(summary).not.toContainText('percentage points')
+    await expect(summary).not.toContainText('simulated day of the week')
     await expect(page.getByRole('dialog')).toHaveCount(0)
     const before = requests.length
     const open = page.getByRole('button', { name: 'See Full SHAP Evaluation' })
@@ -109,6 +116,9 @@ test('all model views use display IDs, colored interpretations and model-specifi
     await expect(page.getByRole('dialog')).toHaveCount(0)
   }
   await page.getByRole('tab', { name: 'Both Models' }).click()
+  await expect(page.locator('.shap-summary')).toHaveCount(2)
+  await expect(page.locator('.shap-summary').nth(0)).toContainText('53.52/100')
+  await expect(page.locator('.shap-summary').nth(1)).toContainText('14.50/100')
   await expect(page.getByRole('button', { name: 'View risk classification thresholds' })).toHaveCount(2)
   await expect(page.locator('.bmv-section-text').first()).toHaveCSS('margin-bottom', '40px')
   for (const [index, name] of ['RF-SMOTE', 'Benchmark RF'].entries()) {
@@ -120,6 +130,13 @@ test('all model views use display IDs, colored interpretations and model-specifi
   await page.evaluate(() => window.scrollTo(0, 0))
   await page.screenshot({ path: testInfo.outputPath('both-models.png'), fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBeTruthy()
+  for (const index of [0, 1]) {
+    const summary = page.locator('.shap-summary').nth(index)
+    await summary.scrollIntoViewIfNeeded()
+    await expect(summary).toBeInViewport()
+    await page.screenshot({ path: testInfo.outputPath(`shap-summary-mobile-${index}.png`) })
+  }
   await expect(page.locator('.bmv-section-text').first()).toHaveCSS('margin-bottom', '32px')
   await page.getByRole('button', { name: 'See Full SHAP Evaluation' }).first().click()
   await expect(page.getByRole('dialog').locator('img')).toBeVisible()

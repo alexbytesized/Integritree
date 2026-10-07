@@ -79,6 +79,20 @@ test('receipt confirmation, refresh, user model designs without labels, SHAP, re
     await page.getByRole('tab', { name: tab, exact: true }).click()
     await expect(page.getByText('Ground Truth', { exact: true })).toHaveCount(0)
     await expect(page.getByText('Outcome', { exact: true })).toHaveCount(0)
+    const summaries = page.locator('.shap-summary')
+    await expect(summaries).toHaveCount(tab === 'Both Models' ? 2 : 1)
+    for (let index = 0; index < (tab === 'Both Models' ? 2 : 1); index++) {
+      const fraud = tab === 'RF-SMOTE' || (tab === 'Both Models' && index === 0)
+      const summary = summaries.nth(index)
+      await expect(summary.locator('strong')).toHaveText([
+        fraud ? 'Fraudulent' : 'Legitimate', fraud ? '53.52/100' : '12.50/100',
+        fraud ? 'Moderate Risk' : 'Minimal Risk', `${fraud ? 'The' : 'the'} hour of the day in Manila time`,
+      ])
+      await expect(summary.locator('strong').first()).toHaveCSS('color', fraud ? 'rgb(192, 57, 43)' : 'rgb(29, 185, 84)')
+      await expect(summary.locator('strong').nth(2)).toHaveCSS('color', fraud ? 'rgb(244, 124, 32)' : 'rgb(29, 185, 84)')
+      await expect(summary.locator('strong').nth(1)).toHaveCSS('font-weight', '700')
+      await expect(summary.locator('strong').last()).toHaveCSS('font-weight', '700')
+    }
     await expect(page.getByRole('button', { name: 'Fraud Threshold Line: 43.00%' })).toHaveCount(tab === 'Both Models' ? 2 : 1)
     await page.getByRole('button', { name: 'See Full SHAP Evaluation' }).first().click()
     await expect(page.getByRole('dialog').locator('img')).toBeVisible()
@@ -92,7 +106,12 @@ test('receipt confirmation, refresh, user model designs without labels, SHAP, re
   await page.screenshot({ path: testInfo.outputPath('receipt-models-desktop.png'), fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBeTruthy()
-  await page.screenshot({ path: testInfo.outputPath('receipt-models-mobile.png'), fullPage: true })
+  for (const index of [0, 1]) {
+    const summary = page.locator('.shap-summary').nth(index)
+    await summary.scrollIntoViewIfNeeded()
+    await expect(summary).toBeInViewport()
+    await page.screenshot({ path: testInfo.outputPath(`receipt-summary-mobile-${index}.png`) })
+  }
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download Results' }).click()
   expect((await download).suggestedFilename()).toBe('integritree_receipt.zip')

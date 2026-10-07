@@ -10,7 +10,8 @@ import TabBar from '../components/TabBar'
 import ModelResultView from '../components/ModelResultView'
 import BothModelsView from '../components/BothModelsView'
 import ShapModal from '../components/ShapModal'
-import { MODEL_NAMES, booleanText, weekdayText, shapSummary } from '../researchDisplay'
+import { MODEL_NAMES, booleanText, weekdayText } from '../researchDisplay'
+import ShapSummary from '../components/ShapSummary'
 import { receiptApi, receiptKey, clearReceipt, downloadReceipt } from '../receiptApi'
 import { useReceipt, useReceiptImage } from '../useReceipt'
 import { TRANSACTION_TYPES, roleLabel, receiptDate, receiptTime } from '../receiptDisplay'
@@ -55,7 +56,7 @@ function ReceiptResults({ id }) {
   </div>
   const modelProps = name => ({ modelName: MODEL_NAMES[name], prediction: record[name].predicted_label === 1 ? 'Fraudulent' : 'Legitimate',
     riskScore: record[name].score * 100, threshold: record.threshold * 100,
-    shapSummary: shapSummary(record.explanation, name, record.derived, 'receipt'), onOpenShap: () => setShapModel(name) })
+    shapSummary: <ShapSummary explanation={record.explanation} model={name} context="receipt" result={record[name]} />, onOpenShap: () => setShapModel(name) })
   const original = record.original
   const derived = record.derived
   return <div className="researcher-results-wrapper">
