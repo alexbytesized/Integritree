@@ -49,7 +49,7 @@ for (const kind of ['receipt', 'csv']) {
     await setup(page, kind, { filename })
     const message = kind === 'receipt'
       ? `The receipt layout of the uploaded photo (${filename}) is unclear or unsupported. Use a complete GCash Express Send, Pay Online, or bank-account transfer screenshot.`
-      : `The dataset layout of the uploaded CSV (${filename}) is unsupported. Ensure that all expected columns are present (amount, isFraud, nameDest, nameOrig, step, type).`
+      : `The dataset layout of the uploaded CSV (${filename}) is unsupported. Use either the raw columns or all eleven prepared feature columns, plus isFraud. Do not mix formats or include an index column. See Upload Instructions for the accepted columns.`
     await expect(page.getByRole('alert')).toHaveText(message)
     await expect(page.getByRole('alert').locator('img')).toHaveCount(0)
     await expect(page.locator('.screenshot-preview')).toHaveCount(0)

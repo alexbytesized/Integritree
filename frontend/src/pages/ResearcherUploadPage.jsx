@@ -109,8 +109,6 @@ const ResearcherUploadPage = () => {
 
       {/* Upload Card */}
       <div className="upload-card">
-        {new URLSearchParams(window.location.search).has('expired') && <p role="alert">Your backend session expired. Upload the CSV again to start a new analysis.</p>}
-
         {/* Card Header */}
         <div className="upload-card-header">
           <div className="upload-header-left">

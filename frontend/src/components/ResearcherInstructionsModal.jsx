@@ -74,13 +74,22 @@ export default function ResearcherInstructionsModal({ onClose }) {
             <div className="info-modal-section">
               <h3>Required Columns &amp; Format</h3>
               <p>
-                Required columns: <strong>step</strong>, <strong>type</strong>, <strong>amount</strong>, <strong>nameOrig</strong>, <strong>nameDest</strong>, <strong>isFraud</strong> (0 or 1). File must be a UTF-8 encoded CSV with no duplicate headers.
+                Required columns: for raw uploads, <strong>step</strong>, <strong>type</strong>, <strong>amount</strong>, <strong>nameOrig</strong>, <strong>nameDest</strong>, <strong>isFraud</strong> (0 or 1). File must be a UTF-8 encoded CSV with no duplicate headers. Column names are case-sensitive; column order may vary.
+              </p>
+              <p>
+                Prepared uploads require <strong>hour_of_day</strong>, <strong>day_of_week</strong>, <strong>type_CASH_IN</strong>, <strong>type_CASH_OUT</strong>, <strong>type_DEBIT</strong>, <strong>type_PAYMENT</strong>, <strong>type_TRANSFER</strong>, <strong>log_amount</strong>, <strong>is_zero_amount</strong>, <strong>is_merchant_origin</strong>, <strong>is_merchant_dest</strong>, and <strong>isFraud</strong>. Do not include an index column, extra columns, or a mixture of raw and prepared columns.
               </p>
             </div>
             <div className="info-modal-section">
               <h3>Validation &amp; Column Rules</h3>
               <p>
                 <strong>step</strong> must be a positive integer; account names must start with <strong>C</strong> or <strong>M</strong>. Allowed transaction types: <strong>CASH_IN</strong>, <strong>CASH_OUT</strong>, <strong>DEBIT</strong>, <strong>PAYMENT</strong>, <strong>TRANSFER</strong>, or <strong>unknown</strong>. Missing amount or type values will use the saved preprocessing rules. Other original PaySim columns are optional and are not predictors.
+              </p>
+              <p>
+                Prepared features bypass preprocessing and must already use the selected model&apos;s saved transformations, including scaling. Values must be finite numbers with no missing entries. Indicators must be 0 or 1, with at most one active transaction type; all-zero type indicators mean unknown. Scaled values may fall outside 0 to 1. The column names select the format; they do not verify its preprocessing history.
+              </p>
+              <p>
+                Both formats require isFraud as ground truth for evaluation; it is never a model input. When exporting prepared splits, align each label with its feature row before adding isFraud. Prepared uploads show “N/A (file uploaded is already preprocessed)” for unavailable Original Inputs. Uploads do not establish held-out test membership.
               </p>
             </div>
             <div className="info-modal-section">

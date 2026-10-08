@@ -89,7 +89,7 @@ const ResearcherResultsPage = () => {
   }
   if (job?.status === 'failed') return <UploadErrorPage
     message={job.error_code === 'unsupported_csv_layout'
-      ? `The dataset layout of the uploaded CSV (${job.filename || 'unnamed CSV'}) is unsupported. Ensure that all expected columns are present (amount, isFraud, nameDest, nameOrig, step, type).`
+      ? `The dataset layout of the uploaded CSV (${job.filename || 'unnamed CSV'}) is unsupported. Use either the raw columns or all eleven prepared feature columns, plus isFraud. Do not mix formats or include an index column. See Upload Instructions for the accepted columns.`
       : job.error || 'The CSV could not be processed. Please try uploading it again.'}
     details={job.error_code === 'unsupported_csv_layout' ? job.error : undefined} issues={job.issues}
     clearLabel="Clear CSV" onClear={clear} busy={clearing} actionError={error} returnTo="/researcher-upload" />

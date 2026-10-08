@@ -14,7 +14,7 @@ Preparation, paired RF/RF-SMOTE training, saved inference, evaluation, three-sta
 selection, SHAP, and the researcher HTTP/frontend workflow are implemented.
 See [researcher operation and retention](../docs/RESEARCHER_WORKFLOW.md).
 Researcher ZIP downloads contain only `Experiment-Paper_YYYY-MM-DD.pdf` and
-`Raw-Data_YYYY-MM-DD.csv`, with one Philippine export-start date. Run
+`Raw-Results_YYYY-MM-DD.csv`, with one Philippine export-start date. Run
 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/setup_research_pdf.ps1`
 from `backend` once to provision the dedicated converter; see the workflow guide
 for template and `INTEGRITREE_RESEARCH_PDF_CONVERTER` settings.

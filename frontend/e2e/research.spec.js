@@ -70,11 +70,11 @@ test('upload, refresh, search, pagination, details, real SHAP, download and anal
   expect(download.suggestedFilename()).toBe('integritree_results.zip')
   await download.saveAs(testInfo.outputPath('results.zip'))
   const exportedFiles = JSON.parse(execFileSync(backendPython, ['-c',
-    'import json,re,sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); names=[n for n in z.namelist() if re.fullmatch(r"Experiment-Paper_[0-9]{4}-[0-9]{2}-[0-9]{2}[.]pdf",n)]; assert len(names)==1; p=z.read(names[0]); assert p.startswith(b"%PDF-") and b"%%EOF" in p[-1024:]; print(json.dumps(z.namelist()))',
+    'import csv,io,json,re,sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); names=[n for n in z.namelist() if re.fullmatch(r"Experiment-Paper_[0-9]{4}-[0-9]{2}-[0-9]{2}[.]pdf",n)]; assert len(names)==1; p=z.read(names[0]); assert p.startswith(b"%PDF-") and b"%%EOF" in p[-1024:]; n=next(n for n in z.namelist() if n.startswith("Raw-Results_")); rows=list(csv.DictReader(io.StringIO(z.read(n).decode()))); assert len(rows)==23; assert list(rows[0])==["transaction_id","upload_row_number","step","type","amount","nameOrig","nameDest","isFraud","rf_score","rf_predicted_label","rf_smote_score","rf_smote_predicted_label"]; assert all(None not in r and None not in r.values() for r in rows); print(json.dumps(z.namelist()))',
     testInfo.outputPath('results.zip')], { encoding: 'utf8' }))
   const paperName = exportedFiles.find(name => /^Experiment-Paper_\d{4}-\d{2}-\d{2}\.pdf$/.test(name))
   expect(exportedFiles.sort()).toEqual([
-    paperName, paperName.replace('Experiment-Paper_', 'Raw-Data_').replace('.pdf', '.csv'),
+    paperName, paperName.replace('Experiment-Paper_', 'Raw-Results_').replace('.pdf', '.csv'),
   ])
   await page.getByRole('heading', { name: 'Results Overview' }).scrollIntoViewIfNeeded()
   await page.screenshot({ path: testInfo.outputPath('results.png') })
@@ -108,8 +108,67 @@ test('invalid rows show actionable errors and allow retry', async ({ page }) => 
   await expect(page.getByRole('heading', { name: 'Upload File', exact: true })).toBeVisible()
 })
 
-test('an expired backend session returns to upload with an explanation', async ({ page }) => {
+test('prepared CSV upload supports details, real SHAP and complete export', async ({ page }, testInfo) => {
+  const prepared = execFileSync(backendPython, ['-c',
+    'import io,sys,pandas as pd; from integritree.settings import load_settings; from integritree.ml.preprocessing import FittedPreprocessor; from integritree.ml.features import SOURCE_COLUMNS; s=load_settings(); raw=pd.read_csv(io.StringIO(sys.stdin.read())); p=FittedPreprocessor.load(s.research_prepared_dir / "preprocessing.json"); x=p.transform(raw[SOURCE_COLUMNS]); x["isFraud"]=raw.isFraud; sys.stdout.write(x.loc[:,list(reversed(x.columns))].to_csv(index=False,lineterminator="\\n"))',
+  ], { input: csv, encoding: 'utf8' })
+  const errors = []
+  page.on('pageerror', error => errors.push(error.message))
+  await page.goto('/researcher-upload')
+  await page.locator('input[type=file]').setInputFiles({ name: 'prepared_demo.csv', mimeType: 'text/csv', buffer: Buffer.from(prepared) })
+  await page.getByRole('button', { name: 'ANALYZE FILE' }).click()
+  await expect(page.locator('.transactionTable tbody tr')).toHaveCount(10)
+  const analysisId = new URL(page.url()).searchParams.get('analysis')
+  await page.getByRole('button', { name: /^View transaction/ }).first().click()
+  await expect(page.getByText('N/A (file uploaded is already preprocessed)', { exact: true })).toHaveCount(9)
+  await expect(page.locator('.td-field-row').filter({ hasText: 'Transaction is Fraudulent:' })).toContainText('1 (True)')
+  await expect(page.locator('.td-field-row').filter({ hasText: 'Day of the Week' })).toContainText('0 (Monday)')
+  await page.getByRole('tab', { name: 'RF-SMOTE', exact: true }).click()
+  await page.getByRole('button', { name: 'See Full SHAP Evaluation' }).click()
+  await expect(page.getByRole('dialog').locator('img')).toBeVisible()
+  await page.getByRole('button', { name: 'Close SHAP evaluation' }).click()
+  await page.getByRole('link', { name: 'Return', exact: true }).click()
+  const downloading = page.waitForEvent('download', { timeout: 150000 })
+  await page.getByRole('button', { name: 'Download Results', exact: true }).click()
+  const download = await downloading
+  await download.saveAs(testInfo.outputPath('prepared-results.zip'))
+  const exported = JSON.parse(execFileSync(backendPython, ['-c',
+    'import csv,io,json,sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); n=next(n for n in z.namelist() if n.startswith("Raw-Results_")); rows=list(csv.DictReader(io.StringIO(z.read(n).decode()))); print(json.dumps({"rows":len(rows),"first":rows[0]}))',
+    testInfo.outputPath('prepared-results.zip'),
+  ], { encoding: 'utf8' }))
+  expect(exported.rows).toBe(23)
+  expect(exported.first.isFraud).toBe('1')
+  expect(exported.first).toHaveProperty('log_amount')
+  expect(exported.first).not.toHaveProperty('step')
+  for (const column of ['explanation_status', 'rf_narrative', 'rf_smote_narrative']) {
+    expect(exported.first).not.toHaveProperty(column)
+  }
+  for (const column of ['transaction_id', 'upload_row_number', 'rf_score', 'rf_predicted_label', 'rf_smote_score', 'rf_smote_predicted_label']) {
+    expect(exported.first).toHaveProperty(column)
+  }
+  await page.evaluate(async id => {
+    const { api } = await import('/src/researchApi.js')
+    const job = await api(`/analyses/${id}`)
+    if (job.input_format !== 'prepared' || job.export.metadata.preprocessing_applied !== false) throw new Error('Incorrect prepared-upload metadata')
+  }, analysisId)
+  await page.getByRole('link', { name: 'Clear Results', exact: true }).click()
+  await expect(page).toHaveURL(/researcher-upload$/)
+  await expect.poll(() => page.evaluate(async id => {
+    const { api } = await import('/src/researchApi.js')
+    try {
+      await api(`/analyses/${id}`, { method: 'DELETE' })
+      return 204
+    } catch (error) {
+      if (error.status === 409) return 409
+      throw error
+    }
+  }, analysisId), { timeout: 60000 }).toBe(204)
+  expect(errors).toEqual([])
+})
+
+test('an expired backend session returns to the upload page without an alert', async ({ page }) => {
   await page.goto('/researcher?analysis=expired-session-test')
   await expect(page).toHaveURL(/researcher-upload\?expired=1$/)
-  await expect(page.getByRole('alert')).toContainText('session expired')
+  await expect(page.getByRole('heading', { name: 'Upload File', exact: true })).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveCount(0)
 })

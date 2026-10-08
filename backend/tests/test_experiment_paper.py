@@ -65,7 +65,7 @@ def test_fills_all_tables_and_preserves_template(evaluation, tmp_path):
         for row in evaluation["statistical_test"]["table"]["matrix"]
     ]
     assert filled[4][1] == ["0.0000", "1.0000"]
-    # All 29 answer slots inherit the revised template's italic, non-bold style.
+    # All 29 answer slots retain the requested italic, non-bold result style.
     answer_count = 0
     for index, table in enumerate(document.getElementsByTagNameNS(paper.W, "tbl")):
         rows = paper.children(table, "tr")[2 if index == 2 else 1 :]
@@ -73,7 +73,10 @@ def test_fills_all_tables_and_preserves_template(evaluation, tmp_path):
             for cell in paper.children(row, "tc")[0 if index == 4 else 1 :]:
                 run = cell.getElementsByTagNameNS(paper.W, "r")[0]
                 assert run.getElementsByTagNameNS(paper.W, "i")
-                assert not run.getElementsByTagNameNS(paper.W, "b")
+                assert all(
+                    flag.getAttributeNS(paper.W, "val") == "0"
+                    for flag in run.getElementsByTagNameNS(paper.W, "b")
+                )
                 answer_count += 1
     assert answer_count == 29
     assert hashlib.sha256(paper.TEMPLATE.read_bytes()).hexdigest() == before
@@ -83,7 +86,15 @@ def test_fills_all_tables_and_preserves_template(evaluation, tmp_path):
             if name != "word/document.xml":
                 assert source.read(name) == output.read(name), name
     original = read_document(paper.TEMPLATE)
-    # Every pre-existing text node and equation remains, in the same order.
+    # Apart from recognized answer placeholders, all existing text is retained.
+    for index, table in enumerate(original.getElementsByTagNameNS(paper.W, "tbl")):
+        if index not in (0, 1, 3):
+            continue
+        for row in paper.children(table, "tr")[1:]:
+            for cell in paper.children(row, "tc")[1:]:
+                for text in cell.getElementsByTagNameNS(paper.W, "t"):
+                    while text.firstChild:
+                        text.removeChild(text.firstChild)
     original_text = [
         paper.text_of(p) for p in original.getElementsByTagNameNS(paper.W, "p")
     ]
@@ -137,6 +148,37 @@ def test_edge_values_are_explained_only_in_notes(evaluation, tmp_path):
         assert note not in paragraphs[:index]
 
 
+def test_empty_and_split_placeholder_slots_are_supported(evaluation, tmp_path):
+    with ZipFile(paper.TEMPLATE) as archive:
+        parts = {name: archive.read(name) for name in archive.namelist()}
+    document = minidom.parseString(parts["word/document.xml"])
+    table_nodes = document.getElementsByTagNameNS(paper.W, "tbl")
+    first = paper.children(paper.children(table_nodes[0], "tr")[1], "tc")[1]
+    run = first.getElementsByTagNameNS(paper.W, "r")[0]
+    text = run.getElementsByTagNameNS(paper.W, "t")[0]
+    text.firstChild.data = "T"
+    second_run = run.cloneNode(True)
+    second_run.getElementsByTagNameNS(paper.W, "t")[0].firstChild.data = "P"
+    run.parentNode.appendChild(second_run)
+    for table in (table_nodes[1], table_nodes[3]):
+        for row in paper.children(table, "tr")[1:]:
+            for cell in paper.children(row, "tc")[1:]:
+                for text in cell.getElementsByTagNameNS(paper.W, "t"):
+                    while text.firstChild:
+                        text.removeChild(text.firstChild)
+    parts["word/document.xml"] = document.toxml(encoding="UTF-8")
+    template = tmp_path / "mixed.docx"
+    with ZipFile(template, "w") as archive:
+        for name, data in parts.items():
+            archive.writestr(name, data)
+    filled = tmp_path / "filled.docx"
+    paper.fill_template(evaluation, filled, template)
+    actual = tables(read_document(filled))
+    assert [row[1:] for row in actual[0][1:]] == [["3", "1"], ["2", "4"]]
+    assert [row[1:] for row in actual[1][1:]] == [["1", "3"], ["1", "5"]]
+    assert [row[1:] for row in actual[3][1:]] == [["5", "2"], ["1", "2"]]
+
+
 @pytest.mark.parametrize(
     "value,expected",
     [(0, "0.0000"), (1e-12, "1.000e-12"), (0.00001, "1.000e-05"), (0.123456, "0.1235")],
@@ -152,7 +194,9 @@ def test_no_edge_notes_for_ordinary_results(evaluation):
     assert paper.table_values(evaluation)[1] == []
 
 
-@pytest.mark.parametrize("change", ["missing_notes", "filled_cell", "swapped_axes"])
+@pytest.mark.parametrize(
+    "change", ["missing_notes", "filled_cell", "swapped_axes", "wrong_placeholder"]
+)
 def test_rejects_incompatible_template(evaluation, tmp_path, change):
     with ZipFile(paper.TEMPLATE) as archive:
         parts = {name: archive.read(name) for name in archive.namelist()}
@@ -166,6 +210,8 @@ def test_rejects_incompatible_template(evaluation, tmp_path, change):
         )
         heading.parentNode.removeChild(heading)
         xml = document.toxml(encoding="UTF-8")
+    elif change == "wrong_placeholder":
+        xml = xml.replace(b">TP<", b">FN<", 1)
     elif change == "swapped_axes":
         xml = xml.replace(b">Actual Fraudulent<", b">Actual Legitimate<", 1)
     else:

@@ -44,6 +44,24 @@ async function setup(page, record, options = {}) {
   return chartRequests
 }
 
+test('prepared details mark unavailable originals and retain ground truth and derived inputs', async ({ page }, testInfo) => {
+  const record = recordFixture()
+  record.input_format = 'prepared'
+  record.original = { ...record.derived, isFraud: 1 }
+  await setup(page, record)
+  await expect(page.getByText('N/A (file uploaded is already preprocessed)', { exact: true })).toHaveCount(9)
+  await expect(page.locator('.td-field-row').filter({ hasText: 'Transaction is Fraudulent:' })).toContainText('1 (True)')
+  await expect(page.locator('.td-field-row').filter({ hasText: 'Hour of the Day' })).toContainText('5')
+  await expect(page.locator('.td-field-row').filter({ hasText: 'Day of the Week' })).toContainText('0 (Monday)')
+  await page.screenshot({ path: testInfo.outputPath('prepared-details-desktop.png'), fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true)
+  await page.screenshot({ path: testInfo.outputPath('prepared-details-mobile.png'), fullPage: true })
+  await page.getByRole('tab', { name: 'RF-SMOTE', exact: true }).click()
+  await page.getByRole('button', { name: 'See Full SHAP Evaluation' }).click()
+  await expect(page.getByRole('dialog').locator('img')).toBeVisible()
+})
+
 test('input formatting and exact risk-band boundaries', () => {
   expect(weekdayText(0)).toBe('0 (Monday)')
   expect(weekdayText(6)).toBe('6 (Sunday)')

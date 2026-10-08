@@ -35,7 +35,10 @@ the current selection), using `score >= threshold`, without fitting anything.
 
 ## CSV inputs and capacity
 
-Use UTF-8 CSV with unique headers and these six required columns:
+Use UTF-8 CSV with unique, case-sensitive headers. Column names automatically
+select the raw or prepared format; column order may vary.
+
+Raw uploads require these six columns:
 `step,type,amount,nameOrig,nameDest,isFraud`. The download-template link provides
 demonstration data, not test data. The other five original PaySim columns are
 optional source information; arbitrary additional columns are rejected.
@@ -45,6 +48,37 @@ optional source information; arbitrary additional columns are rejected.
 - `amount`: finite nonnegative number, or blank for saved training-median imputation.
 - `nameOrig`, `nameDest`: C/M-prefixed entity identities, as required by the saved validator.
 - `isFraud`: complete binary 0/1 labels; never a predictor. No label imputation.
+
+Prepared uploads require exactly these twelve columns, with no index or extra
+columns:
+
+```text
+hour_of_day,day_of_week,type_CASH_IN,type_CASH_OUT,type_DEBIT,type_PAYMENT,type_TRANSFER,log_amount,is_zero_amount,is_merchant_origin,is_merchant_dest,isFraud
+```
+
+These eleven features must already use the selected model bundle's preprocessing,
+including scaling. Prepared uploads bypass preprocessing entirely. Header names
+identify the format but do not prove how the file was processed. All predictors
+must be finite numbers without missing values. Binary indicators must be 0 or 1;
+at most one transaction-type indicator may be 1, with all-zero meaning unknown.
+Scaled numeric values may fall outside `[0, 1]`; the uploader does not clip them.
+`isFraud` remains required ground truth and never enters the models.
+
+To create a CSV from an internal prepared split, use `load_prepared_split` to obtain
+aligned features and labels, add the labels as `isFraud`, and export with
+`index=False`. Do not include `source_row_number`, and preserve feature/label row
+alignment. Mixed raw/prepared layouts are rejected.
+
+Prepared uploads show `N/A (file uploaded is already preprocessed)` for unavailable
+Original Inputs, while retaining the ground-truth label. Derived Inputs reverses
+scaling for readable display only. Model predictions and SHAP use the supplied
+prepared features. Neither format verifies that uploaded rows belong to the
+official held-out test set.
+
+Status, record detail, and export metadata identify `input_format` as `raw` or
+`prepared`. Export metadata records `preprocessing_applied`. The existing ZIP and
+CSV filenames are retained; the CSV preserves the actual uploaded columns and
+values alongside predictions for both formats.
 
 Invalid input rejects the entire analysis. No partial metrics or records are
 published. Errors report columns and one-based data-record numbers, excluding the
@@ -99,9 +133,10 @@ upload, containing exactly two files:
 - `Experiment-Paper_YYYY-MM-DD.pdf`: the supplied experiment paper with its five
   tables filled from the same full-upload evaluation. All explanatory notes are
   placed under the template's final **Notes:** heading.
-- `Raw-Data_YYYY-MM-DD.csv`: stable upload-hash/row identities, source fields, paired
-  full-precision scores and labels, explanation status, and computed narratives.
-  All rows remain in upload order with the existing columns and CSV safety handling.
+- `Raw-Results_YYYY-MM-DD.csv`: stable upload-hash/row identities, source fields, paired
+  full-precision scores and predicted labels. Explanation status and narratives
+  are excluded, including when SHAP has already been requested. All rows remain
+  in upload order with the existing CSV safety handling.
 
 Both filenames use the same Philippine date (UTC+8), captured once before PDF
 conversion starts, even when generation crosses midnight. A later export uses
@@ -120,11 +155,15 @@ the intermediate Word document is temporary and is not included in the ZIP.
 
 The retained template is
 `backend/src/integritree/templates/Experiment-Paper-Template.docx` and is included
-in the Python package. Keep its five result tables, their labels and blank answer
-cells, and the final `Notes:` heading followed by an empty paragraph. The exporter
+in the Python package. Keep its five result tables and their labels. Answer cells
+may be blank; Tables 1-2 also support `TP`, `FN`, `FP`, `TN` in their corresponding
+positions, and Table 4 supports `A`, `B`, `C`, `D` in row order. Other prefilled
+values are rejected. Keep the final `Notes:` heading followed by an empty paragraph. The exporter
 changes only answer cells and the Notes area in a temporary copy. It preserves
 the supplied wording, equations, headers, styles, and page settings. Replacing the
-template with a different structure requires updating the table mapping.
+template with a different structure requires updating the table mapping. Generated
+answer numbers remain italic and non-bold. Each export reads the current template;
+after replacing it, use Download Results again to generate an updated PDF.
 
 From the project root on Windows, run:
 

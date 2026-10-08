@@ -73,6 +73,8 @@ const TransactionRecord = ({ analysis, number, returnQuery }) => {
   })
   const original = record.original
   const derived = record.derived
+  const originalValue = value => record.input_format === 'prepared'
+    ? 'N/A (file uploaded is already preprocessed)' : value
   const transaction = { ...original, id: record.row_number, isFraud: record.actual_label,
     oldBalanceOrig: original.oldbalanceOrg, newBalanceOrig: original.newbalanceOrig,
     oldBalanceDest: original.oldbalanceDest, newBalanceDest: original.newbalanceDest,
@@ -116,15 +118,15 @@ const TransactionRecord = ({ analysis, number, returnQuery }) => {
               <div className="td-card">
                 <div className="td-card-header">Original Inputs</div>
                 <div className="td-card-body">
-                  <Field label="Step:"                      value={transaction.step} />
-                  <Field label="Transaction Type:"          value={transaction.type} />
-                  <Field label="Transaction Amount:"        value={transaction.amount} />
-                  <Field label="Origin Name:"               value={transaction.nameOrig} />
-                  <Field label="Origin Old Balance:"        value={transaction.oldBalanceOrig} />
-                  <Field label="Origin New Balance:"        value={transaction.newBalanceOrig} />
-                  <Field label="Destination Name:"          value={transaction.nameDest} />
-                  <Field label="Destination Old Balance:"   value={transaction.oldBalanceDest} />
-                  <Field label="Destination New Balance:"   value={transaction.newBalanceDest} />
+                  <Field label="Step:"                      value={originalValue(transaction.step)} />
+                  <Field label="Transaction Type:"          value={originalValue(transaction.type)} />
+                  <Field label="Transaction Amount:"        value={originalValue(transaction.amount)} />
+                  <Field label="Origin Name:"               value={originalValue(transaction.nameOrig)} />
+                  <Field label="Origin Old Balance:"        value={originalValue(transaction.oldBalanceOrig)} />
+                  <Field label="Origin New Balance:"        value={originalValue(transaction.newBalanceOrig)} />
+                  <Field label="Destination Name:"          value={originalValue(transaction.nameDest)} />
+                  <Field label="Destination Old Balance:"   value={originalValue(transaction.oldBalanceDest)} />
+                  <Field label="Destination New Balance:"   value={originalValue(transaction.newBalanceDest)} />
                   <Field label="Transaction is Fraudulent:" value={booleanText(transaction.isFraud)} />
                 </div>
               </div>

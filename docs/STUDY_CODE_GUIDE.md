@@ -181,8 +181,9 @@ generic defaults to rewrite historical model evidence.
    streams the body to temporary disk, enforces the 500 MiB limit, and calculates
    its SHA-256. It reserves/submits a job and returns HTTP 202.
 3. `ResearchService._run()` parses and validates the CSV. `_batch()` handles
-   bounded batches, validates labels separately, applies saved preprocessing, and
-   calls paired inference. Records and scores go into SQLite.
+   bounded batches and validates labels separately. Raw records receive saved
+   preprocessing; prepared features bypass it. Both paths call paired inference.
+   Records and scores go into SQLite.
 4. `evaluate_database()` computes metrics over the entire upload, including
    score-grouped AP and paired McNemar results. Invalid input fails the analysis;
    the system does not publish partial metrics as if the upload succeeded.
@@ -193,10 +194,18 @@ generic defaults to rewrite historical model evidence.
 7. Download starts an export job. The ZIP contains results CSV, evaluation JSON,
    provenance metadata, and an offline HTML report.
 
-Required upload columns are `step,type,amount,nameOrig,nameDest,isFraud`.
+Raw upload columns are `step,type,amount,nameOrig,nameDest,isFraud`.
 The five remaining original PaySim columns are optional source information;
 arbitrary additional columns are rejected. Source identifiers and labels are
 kept for identity/evaluation, not passed directly into the forest.
+
+Prepared CSV uploads instead contain exactly the eleven `FEATURE_COLUMNS` plus
+`isFraud`, in any order, without an index column. Header detection selects the
+format. Prepared features are validated and passed directly to the models without
+preprocessing. They must already match the selected model's saved transformations.
+The ground-truth label stays separate from predictors. See
+[Researcher workflow](RESEARCHER_WORKFLOW.md#csv-inputs-and-capacity) for the full
+schema, display behavior, and export rules.
 
 ```text
 Source predictors ── saved preprocessing ── eleven numeric features ── RF + RF-SMOTE

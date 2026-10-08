@@ -156,8 +156,8 @@ def test_complete_flow_isolation_and_cleanup(client, bundle, monkeypatch):
     )
     response = client.get(path + "/exports/download", headers=owner)
     with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
-        raw_name = next(n for n in archive.namelist() if n.startswith("Raw-Data_"))
-        paper_name = raw_name.replace("Raw-Data_", "Experiment-Paper_").replace(
+        raw_name = next(n for n in archive.namelist() if n.startswith("Raw-Results_"))
+        paper_name = raw_name.replace("Raw-Results_", "Experiment-Paper_").replace(
             ".csv", ".pdf"
         )
         assert set(archive.namelist()) == {raw_name, paper_name}
@@ -176,9 +176,6 @@ def test_complete_flow_isolation_and_cleanup(client, bundle, monkeypatch):
             "rf_predicted_label",
             "rf_smote_score",
             "rf_smote_predicted_label",
-            "explanation_status",
-            "rf_narrative",
-            "rf_smote_narrative",
         ]
         source = list(csv.DictReader(io.StringIO(CSV)))
         for i, record in enumerate(records):
@@ -268,7 +265,9 @@ def test_repeated_exports_use_current_date_not_analysis_date(client, monkeypatch
         )
         with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
             name = f"Experiment-Paper_{date}.pdf"
-            assert sorted(archive.namelist()) == sorted([name, f"Raw-Data_{date}.csv"])
+            assert sorted(archive.namelist()) == sorted(
+                [name, f"Raw-Results_{date}.csv"]
+            )
             assert archive.read(name).startswith(b"%PDF-")
         assert job["evaluation"] == original["evaluation"]
         assert job["completed_at"] == original["completed_at"]
@@ -522,6 +521,23 @@ def test_explanation_failure_retry_cache_and_export_coverage(client, tmp_path):
     owner = session(client)
     identifier, _ = upload(client, owner)
     path = PREFIX + f"/analyses/{identifier}"
+    client.post(path + "/exports", headers=owner)
+    wait_for(
+        lambda: client.get(path, headers=owner).json(),
+        lambda j: j["export"]["status"] == "complete",
+    )
+    with zipfile.ZipFile(
+        io.BytesIO(client.get(path + "/exports/download", headers=owner).content)
+    ) as archive:
+        csv_name = next(n for n in archive.namelist() if n.startswith("Raw-Results_"))
+        before_explanations = archive.read(csv_name)
+        fields = next(csv.reader(io.StringIO(before_explanations.decode())))
+        assert not {
+            "explanation_status",
+            "rf_narrative",
+            "rf_smote_narrative",
+        }.intersection(fields)
+    assert engine.calls == 0
     for expected in ("failed", "computed"):
         assert (
             client.post(path + "/records/1/explanation", headers=owner).status_code
@@ -603,11 +619,18 @@ def test_explanation_failure_retry_cache_and_export_coverage(client, tmp_path):
     assert exported["export"]["metadata"]["shap_coverage"]["computed_records"] == 1
     exported_zip = client.get(path + "/exports/download", headers=owner)
     with zipfile.ZipFile(io.BytesIO(exported_zip.content)) as archive:
+        csv_name = next(n for n in archive.namelist() if n.startswith("Raw-Results_"))
+        assert archive.read(csv_name) == before_explanations
+        assert engine.calls == 2
         rows = list(
             csv.DictReader(
                 io.StringIO(
                     archive.read(
-                        next(n for n in archive.namelist() if n.startswith("Raw-Data_"))
+                        next(
+                            n
+                            for n in archive.namelist()
+                            if n.startswith("Raw-Results_")
+                        )
                     ).decode()
                 )
             )
@@ -615,7 +638,7 @@ def test_explanation_failure_retry_cache_and_export_coverage(client, tmp_path):
         assert rows[0]["transaction_id"] == fingerprint + ":1"
 
 
-def test_raw_data_preserves_csv_formula_protection_and_precision(
+def test_raw_results_preserves_csv_formula_protection_and_precision(
     client, bundle, monkeypatch
 ):
     scores = np.array([0.12345678901234568, 0.9876543210987654])
@@ -645,7 +668,11 @@ def test_raw_data_preserves_csv_formula_protection_and_precision(
             csv.DictReader(
                 io.StringIO(
                     archive.read(
-                        next(n for n in archive.namelist() if n.startswith("Raw-Data_"))
+                        next(
+                            n
+                            for n in archive.namelist()
+                            if n.startswith("Raw-Results_")
+                        )
                     ).decode()
                 )
             )

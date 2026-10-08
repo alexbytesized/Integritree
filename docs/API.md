@@ -45,7 +45,7 @@ return 410; another session's analysis returns 404.
 | `GET /analyses/{id}/records/{row}` | One-based upload record, original fields, unscaled derived fields, model inputs, paired scores/labels, and explanation state. |
 | `POST /analyses/{id}/records/{row}/explanation` | Queue paired on-demand SHAP; 202. Duplicate pending/computed requests reuse work; failed requests retry. |
 | `GET /analyses/{id}/records/{row}/waterfall/{model}` | Authenticated signed contribution bar-chart SVG for `rf` or `rf_smote` after computation. |
-| `POST /analyses/{id}/exports` | Queue complete-upload ZIP; 202. Repeat after completion refreshes explanation coverage. |
+| `POST /analyses/{id}/exports` | Queue complete-upload ZIP; 202. Repeat after completion refreshes the dated files and export-status metadata. |
 | `GET /analyses/{id}/exports/download` | Download completed ZIP. |
 | `DELETE /analyses/{id}` | Clear an inactive complete/failed analysis; 204. Active work returns 409. |
 
@@ -146,7 +146,7 @@ requirements below are not literal wire field names. See [the alignment audit](B
 | Bands | [0,20) Minimal Risk; [20,40) Low Risk; [40,60) Moderate Risk; [60,80) High Risk; [80,100] Critical Risk. Class and band use unrounded values and separate rules. |
 | Explanation | Per-model state, top positive contributor or explicit no-positive state, deterministic narrative, contribution bar-chart asset and accessible description. Pending/failed is different from no positive contribution. Keep numerical contributions internally; a frontend numerical table is suggestion-only. |
 | Evaluation | Independently labeled, declared population; metric value or null/status/reason, named PR-AUC method, confusion matrices, comparison method/units, paired McNemar table/method/statistic/p-value/alpha/status. Actual methods drive help copy. |
-| Export | `integritree_results.zip` contains exactly `Experiment-Paper_YYYY-MM-DD.pdf` and `Raw-Data_YYYY-MM-DD.csv`, using one Philippine export-start date. Complete-upload CSV data and export-status metadata are preserved; JSON/HTML attachments are omitted. |
+| Export | `integritree_results.zip` contains exactly `Experiment-Paper_YYYY-MM-DD.pdf` and `Raw-Results_YYYY-MM-DD.csv`, using one Philippine export-start date. CSV columns retain identities, source fields, scores and predicted labels; explanation status and narratives are excluded. Export-status metadata is preserved; JSON/HTML attachments are omitted. |
 | Job | Bounded asynchronous analysis/explanation/export work, progress/stage, partial/failed/expired states, actionable recovery, and declared download scope/lifetime. |
 
 `run_id` and explanation versions remain provenance, not UI panel requirements.
@@ -155,10 +155,36 @@ Avoid including sensitive raw receipt details in logs or error bodies.
 
 ### Research input and query rules
 
-- Publish an exact upload schema and downloadable CSV template. Reuse predictor
-  validation and saved preprocessing, not source-fingerprint-bound preparation or
-  training. The five raw predictor sources can construct the eleven model features;
-  `isFraud` is separately required for evaluation. Balance columns are not predictors.
+- The uploader detects one of two case-sensitive CSV layouts from column names;
+  column order may vary. The downloadable demonstration template remains raw.
+  Raw uploads require `step,type,amount,nameOrig,nameDest,isFraud`, with optional
+  `oldbalanceOrg,newbalanceOrig,oldbalanceDest,newbalanceDest,isFlaggedFraud`.
+  They reuse saved preprocessing without fitting.
+- Prepared uploads require exactly
+  `hour_of_day,day_of_week,type_CASH_IN,type_CASH_OUT,type_DEBIT,type_PAYMENT,type_TRANSFER,log_amount,is_zero_amount,is_merchant_origin,is_merchant_dest,isFraud`.
+  They bypass feature engineering, imputation, and scaling. Features must already
+  match the selected model's fitted preprocessing; header detection does not verify
+  preprocessing history. No metadata attachment or format selector is required.
+- Both layouts require complete binary `isFraud` ground truth, kept out of model
+  inputs. Duplicate headers, mixed layouts, extra columns, and incomplete layouts
+  are rejected. Prepared predictors must be finite numeric values with no missing
+  entries. Binary indicators must be 0 or 1; at most one type indicator may be 1
+  (all-zero means unknown). Scaled values are not restricted to `[0, 1]` or clipped.
+- Export prepared features without an index column. For internal prepared splits,
+  use the aligned features and labels returned by `load_prepared_split`, add labels
+  as `isFraud`, and write CSV with `index=False`. Do not include `source_row_number`
+  or join labels by a separately reordered row position.
+- Analysis status (after header detection), record detail, and export metadata
+  include `input_format: "raw" | "prepared"`. Export metadata also includes
+  `preprocessing_applied`, true only for raw uploads. Existing endpoints and ZIP
+  filenames are unchanged; the CSV export preserves the uploaded columns and
+  their values alongside predictions in `Raw-Results_YYYY-MM-DD.csv`.
+- Record detail retains supplied row fields in `original` and the exact numeric
+  predictors in `model_inputs`. For prepared uploads, `derived` reverses saved
+  scaling for display only; these display values never enter prediction. Original
+  Inputs shows `N/A (file uploaded is already preprocessed)` for unavailable raw
+  fields and continues to show the supplied ground-truth label. SHAP uses the
+  prepared model inputs. Neither upload format verifies held-out test membership.
 - Search transaction IDs across the complete analysis before pagination, with
   stable source ordering and total/filtered counts. Risk-score sorting is not required.
 - Model filter: Both, RF-SMOTE, Benchmark RF. Prediction outcome: All, TP, FP, TN, FN.

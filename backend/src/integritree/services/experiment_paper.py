@@ -63,6 +63,43 @@ def add_text(paragraph, value):
     paragraph.appendChild(run)
 
 
+def fill_answer(cell, value, placeholder=None):
+    """Replace only a recognized slot; keep its surrounding Word structure."""
+    existing = text_of(cell).strip()
+    if existing and existing != placeholder:
+        raise ValueError(
+            "answer cells must be empty or contain their expected placeholder"
+        )
+    if existing:
+        texts = list(cell.getElementsByTagNameNS(W, "t"))
+        for index, text in enumerate(texts):
+            while text.firstChild:
+                text.removeChild(text.firstChild)
+            if index == 0:
+                text.appendChild(cell.ownerDocument.createTextNode(value))
+    else:
+        add_text(children(cell, "p")[0], value)
+    # Retain the requested uniform answer style even when an empty slot's
+    # paragraph mark is bold or its new placeholder has different formatting.
+    for run in cell.getElementsByTagNameNS(W, "r"):
+        if not text_of(run):
+            continue
+        properties = children(run, "rPr")
+        props = (
+            properties[0]
+            if properties
+            else cell.ownerDocument.createElementNS(W, "w:rPr")
+        )
+        if not properties:
+            run.insertBefore(props, run.firstChild)
+        for name, setting in (("b", "0"), ("bCs", "0"), ("i", "1"), ("iCs", "1")):
+            for old in children(props, name):
+                props.removeChild(old)
+            flag = cell.ownerDocument.createElementNS(W, f"w:{name}")
+            flag.setAttributeNS(W, "w:val", setting)
+            props.appendChild(flag)
+
+
 def p_value(value):
     return f"{value:.3e}" if 0 < abs(value) < 0.00005 else f"{value:.4f}"
 
@@ -214,9 +251,16 @@ def fill_template(evaluation, destination, template=TEMPLATE):
                 for row_index, row in enumerate(data, start_row):
                     for col_index, value in enumerate(row, start_col):
                         cell = grid[row_index][col_index]
-                        if text_of(cell).strip():
-                            raise ValueError("answer cells must be empty")
-                        add_text(children(cell, "p")[0], value)
+                        placeholder = None
+                        if index in (0, 1):
+                            placeholder = (("TP", "FN"), ("FP", "TN"))[row_index - 1][
+                                col_index - 1
+                            ]
+                        elif index == 3:
+                            placeholder = (("A", "B"), ("C", "D"))[row_index - 1][
+                                col_index - 1
+                            ]
+                        fill_answer(cell, value, placeholder)
             note_slot = following[0]
             empty_note = deepcopy(note_slot)
             for index, note in enumerate(notes):
@@ -240,7 +284,8 @@ def fill_template(evaluation, destination, template=TEMPLATE):
     except (OSError, BadZipFile, ValueError, IndexError, KeyError, ExpatError) as exc:
         raise PaperExportError(
             "Experiment paper template is missing or incompatible. Restore the "
-            "five-table template with its final Notes: section, then retry."
+            "five-table template with empty answer cells or correctly placed "
+            "TP/FN/FP/TN and A/B/C/D placeholders, and its final Notes: section, then retry."
         ) from exc
 
 

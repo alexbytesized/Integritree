@@ -1,41 +1,47 @@
 """Temporary researcher analyses; no inference of held-out membership."""
 
-from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager
-from datetime import datetime, timezone
 import csv
 import io
 import json
 import logging
-from pathlib import Path
 import secrets
 import shutil
 import sqlite3
 import threading
 import uuid
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
+from datetime import datetime, timezone
+from pathlib import Path
+
+import numpy as np
 import pandas as pd
+
+from integritree.ml import features as feature_module
+from integritree.ml import inference, preprocessing
 from integritree.ml.artifacts import load_bundle
 from integritree.ml.data import file_sha256
 from integritree.ml.features import (
-    SOURCE_COLUMNS,
     FEATURE_COLUMNS,
+    SCALED_COLUMNS,
+    SOURCE_COLUMNS,
     DataValidationError,
-    validate_predictors,
     engineer_features,
+    validate_predictors,
 )
 from integritree.ml.inference import predict_features
-from integritree.ml import inference, features as feature_module, preprocessing
 from integritree.ml.staged_selection import run_lock
-from integritree.services.research_metrics import evaluate_database
 from integritree.services.experiment_paper import (
-    PaperExportError,
     PHILIPPINE_TIME,
+    PaperExportError,
     generate_paper,
     paper_filename,
 )
+from integritree.services.research_metrics import evaluate_database
 
 REQUIRED = SOURCE_COLUMNS + ["isFraud"]
+PREPARED_REQUIRED = FEATURE_COLUMNS + ["isFraud"]
 OPTIONAL = [
     "oldbalanceOrg",
     "newbalanceOrig",
@@ -53,6 +59,77 @@ class ResearchError(Exception):
         super().__init__(message)
         self.status, self.issues = status, issues
         self.code = code
+
+
+def detect_input_format(headers):
+    """Select a declared CSV layout; names do not prove preprocessing history."""
+    layouts = (
+        ("raw", REQUIRED, OPTIONAL),
+        ("prepared", PREPARED_REQUIRED, []),
+    )
+    guidance = (
+        " Accepted layouts: "
+        + "; ".join(f"{name}: {', '.join(required)}" for name, required, _ in layouts)
+        + ". Raw uploads may also contain the documented optional PaySim columns."
+    )
+    if len(headers) != len(set(headers)):
+        raise ResearchError(
+            "Duplicate CSV column headers are not allowed." + guidance,
+            code="unsupported_csv_layout",
+        )
+    problems = []
+    for name, required, optional in layouts:
+        missing = sorted(set(required) - set(headers))
+        extra = sorted(set(headers) - set(required + optional))
+        if not missing and not extra:
+            return name
+        problems.append(
+            f"{name}: Missing columns: {', '.join(missing) or 'none'}. "
+            f"Unsupported columns: {', '.join(extra) or 'none'}."
+        )
+    raise ResearchError(" ".join(problems) + guidance, code="unsupported_csv_layout")
+
+
+def validate_prepared_features(frame):
+    """Validate model-ready values without transforming, imputing, or clipping."""
+    features = frame.loc[:, FEATURE_COLUMNS].apply(pd.to_numeric, errors="coerce")
+    issues = {}
+
+    def report(name, invalid):
+        positions = np.flatnonzero(invalid)
+        if len(positions):
+            issues[name] = {
+                "count": len(positions),
+                "row_positions": positions[:20].tolist(),
+            }
+
+    for name in FEATURE_COLUMNS:
+        values = features[name].to_numpy(dtype="float64")
+        invalid = ~np.isfinite(values)
+        if name not in SCALED_COLUMNS:
+            invalid |= ~np.isin(values, [0, 1])
+        report(name, invalid)
+    types = [name for name in FEATURE_COLUMNS if name.startswith("type_")]
+    report("transaction_type_indicators", (features[types] == 1).sum(axis=1) > 1)
+    if issues:
+        raise DataValidationError(issues)
+    return features.astype("float64")
+
+
+def prepared_display_features(features, state):
+    """Undo scaling for display only; prediction always uses the supplied values."""
+    derived = dict(features)
+    for name, scale, offset in zip(state.scaled_columns, state.scale, state.offset):
+        value = (derived[name] - offset) / scale
+        # CSV round trips can leave an integer time value a few ulps away.
+        if (
+            name in ("hour_of_day", "day_of_week")
+            and np.isfinite(value)
+            and abs(value - round(value)) < 1e-9
+        ):
+            value = round(value)
+        derived[name] = value if np.isfinite(value) else None
+    return derived
 
 
 @contextmanager
@@ -215,7 +292,10 @@ class ResearchService:
                 },
             )
         try:
-            inputs = validate_predictors(frame[SOURCE_COLUMNS])
+            if job["input_format"] == "prepared":
+                features = validate_prepared_features(frame)
+            else:
+                inputs = validate_predictors(frame[SOURCE_COLUMNS])
         except DataValidationError as exc:
             issues = {
                 name: {
@@ -225,11 +305,14 @@ class ResearchService:
                 for name, info in exc.issues.items()
             }
             raise ResearchError(
-                "Invalid predictor values. Row numbers count data records, excluding the header.",
+                "Invalid predictor values. Prepared features must be finite numbers, with binary indicators and at most one active transaction type. Row numbers count data records, excluding the header."
+                if job["input_format"] == "prepared"
+                else "Invalid predictor values. Row numbers count data records, excluding the header.",
                 issues=issues,
             ) from exc
         bundle = self.get_bundle()
-        features = bundle.preprocessor.transform(inputs)
+        if job["input_format"] == "raw":
+            features = bundle.preprocessor.transform(inputs)
         identities = [
             f"{job['upload_sha256']}:{i}" for i in range(start, start + len(frame))
         ]
@@ -280,20 +363,7 @@ class ResearchService:
                 ) as stream:
                     reader = csv.reader(stream, strict=True)
                     headers = next(reader, [])
-                    if len(headers) != len(set(headers)):
-                        raise ResearchError(
-                            "Duplicate CSV column headers are not allowed.",
-                            code="unsupported_csv_layout",
-                        )
-                    missing, extra = (
-                        sorted(set(REQUIRED) - set(headers)),
-                        sorted(set(headers) - set(REQUIRED + OPTIONAL)),
-                    )
-                    if missing or extra:
-                        raise ResearchError(
-                            f"Missing columns: {', '.join(missing) or 'none'}. Unsupported columns: {', '.join(extra) or 'none'}.",
-                            code="unsupported_csv_layout",
-                        )
+                    job["input_format"] = detect_input_format(headers)
                     job["source_columns"] = headers
                     rows, start, batch_chars = [], 1, 0
                     for number, row in enumerate(reader, 1):
@@ -360,15 +430,21 @@ class ResearchService:
             for item in result["explanation"].get("models", {}).values():
                 item["chart_description"] = chart_description(item)
             result["original"] = json.loads(original)
+            result["input_format"] = job["input_format"]
             result["model_inputs"] = dict(zip(FEATURE_COLUMNS, json.loads(features)))
-            inputs = pd.DataFrame([result["original"]])[SOURCE_COLUMNS]
-            result["derived"] = (
-                engineer_features(
-                    inputs, self.get_bundle().preprocessor.state.amount_median
+            if job["input_format"] == "prepared":
+                result["derived"] = prepared_display_features(
+                    result["model_inputs"], self.get_bundle().preprocessor.state
                 )
-                .iloc[0]
-                .to_dict()
-            )
+            else:
+                inputs = pd.DataFrame([result["original"]])[SOURCE_COLUMNS]
+                result["derived"] = (
+                    engineer_features(
+                        inputs, self.get_bundle().preprocessor.state.amount_median
+                    )
+                    .iloc[0]
+                    .to_dict()
+                )
             result["threshold"] = job["threshold"]
         return result
 
@@ -546,6 +622,8 @@ class ResearchService:
                 metadata = {
                     "analysis_id": job["id"],
                     "filename": job["filename"],
+                    "input_format": job["input_format"],
+                    "preprocessing_applied": job["input_format"] == "raw",
                     "upload_sha256": job["upload_sha256"],
                     "scope": "uploaded_dataset",
                     "held_out_membership_verified": False,
@@ -591,9 +669,7 @@ class ResearchService:
                     metadata["model_metadata_sha256"] = file_sha256(model_meta)
                 output = job["folder"] / "results.partial.zip"
                 paper_name = paper_filename(exported_at)
-                csv_name = (
-                    f"Raw-Data_{exported_at.astimezone(PHILIPPINE_TIME):%Y-%m-%d}.csv"
-                )
+                csv_name = f"Raw-Results_{exported_at.astimezone(PHILIPPINE_TIME):%Y-%m-%d}.csv"
                 with zipfile.ZipFile(
                     output, "w", compression=zipfile.ZIP_DEFLATED
                 ) as archive:
@@ -611,55 +687,45 @@ class ResearchService:
                                     "rf_predicted_label",
                                     "rf_smote_score",
                                     "rf_smote_predicted_label",
-                                    "explanation_status",
-                                    "rf_narrative",
-                                    "rf_smote_narrative",
                                 ]
                             )
                             for row in db.execute(
-                                "SELECT * FROM records ORDER BY row_number"
+                                "SELECT row_number, transaction_id, original, "
+                                "rf_score, rf_pred, rf_smote_score, rf_smote_pred "
+                                "FROM records ORDER BY row_number"
                             ):
                                 (
                                     number,
                                     identity,
                                     original,
-                                    _,
-                                    _,
                                     rs,
                                     rp,
                                     ss,
                                     sp,
-                                    explanation,
                                 ) = row
                                 original = json.loads(original)
-                                explanation = (
-                                    json.loads(explanation) if explanation else {}
-                                )
-                                models = explanation.get("models", {})
+                                # Prepared source cells have already passed numeric
+                                # validation. Preserve signed values such as -0.25
+                                # instead of escaping them as potential formulas.
+                                source_values = [
+                                    original[c]
+                                    if job["input_format"] == "prepared"
+                                    else safe_csv(original[c])
+                                    for c in job["source_columns"]
+                                ]
                                 writer.writerow(
                                     [
+                                        safe_csv(identity),
+                                        number,
+                                        *source_values,
+                                    ]
+                                    + [
                                         safe_csv(v)
                                         for v in [
-                                            identity,
-                                            number,
-                                            *[
-                                                original[c]
-                                                for c in job["source_columns"]
-                                            ],
                                             rs,
                                             rp,
                                             ss,
                                             sp,
-                                            explanation.get(
-                                                "status",
-                                                job["explanations"]
-                                                .get(number, {})
-                                                .get("status", "not_requested"),
-                                            ),
-                                            models.get("rf", {}).get("narrative", ""),
-                                            models.get("rf_smote", {}).get(
-                                                "narrative", ""
-                                            ),
                                         ]
                                     ]
                                 )
