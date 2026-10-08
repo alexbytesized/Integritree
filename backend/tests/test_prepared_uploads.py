@@ -127,6 +127,7 @@ def test_invalid_prepared_values(client, bundle, column, value):
     _, job = upload(client, session(client), frame.to_csv(index=False))
     assert job["status"] == "failed"
     assert job["issues"][column]["rows"] == [1]
+    assert "layout_issues" not in job
 
 
 @pytest.mark.parametrize(
@@ -152,6 +153,76 @@ def test_invalid_prepared_layouts(client, bundle, change):
     assert job["status"] == "failed"
     assert job["error_code"] == "unsupported_csv_layout"
     assert "Accepted layouts: raw:" in job["error"] and "prepared:" in job["error"]
+    assert job["layout_issues"]["formats"]["prepared"]["missing_columns"] == (
+        ["log_amount"]
+        if change == "missing_feature"
+        else ["isFraud"]
+        if change in ("missing_label", "wrong_case")
+        else []
+    )
+    assert job["layout_issues"]["duplicate_columns"] == (
+        ["log_amount"] if change == "duplicate" else []
+    )
+
+
+@pytest.mark.parametrize(
+    "headers,missing,unsupported,duplicates",
+    [
+        (SOURCE_COLUMNS, ["isFraud"], [], []),
+        (SOURCE_COLUMNS + ["isFraud", "Action"], [], ["Action"], []),
+        (
+            SOURCE_COLUMNS + ["isFraud", "amount", "amount", "type"],
+            [],
+            [],
+            ["amount", "type"],
+        ),
+        (
+            [
+                "Action",
+                "Actor Code",
+                "Actor Email",
+                "Date and Time",
+                "Entity Code",
+                "Entity Email",
+                "New Status",
+                "Previous Status",
+            ],
+            sorted(SOURCE_COLUMNS + ["isFraud"]),
+            [
+                "Action",
+                "Actor Code",
+                "Actor Email",
+                "Date and Time",
+                "Entity Code",
+                "Entity Email",
+                "New Status",
+                "Previous Status",
+            ],
+            [],
+        ),
+        (
+            ["<img src=x>", "Column, with: punctuation.", ""],
+            sorted(SOURCE_COLUMNS + ["isFraud"]),
+            ["", "<img src=x>", "Column, with: punctuation."],
+            [],
+        ),
+    ],
+)
+def test_raw_layout_diagnostics_preserve_header_names(
+    client, headers, missing, unsupported, duplicates
+):
+    content = io.StringIO()
+    csv.writer(content).writerow(headers)
+    _, job = upload(client, session(client), content.getvalue())
+    assert job["status"] == "failed"
+    assert job["error_code"] == "unsupported_csv_layout"
+    assert job["issues"] is None
+    assert job["layout_issues"]["duplicate_columns"] == duplicates
+    assert job["layout_issues"]["formats"]["raw"] == {
+        "missing_columns": missing,
+        "unsupported_columns": unsupported,
+    }
+    assert set(job["layout_issues"]["formats"]) == {"raw", "prepared"}
 
 
 def test_prepared_indicators_and_unbounded_scaling(client, bundle):

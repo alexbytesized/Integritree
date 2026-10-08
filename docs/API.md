@@ -155,6 +155,15 @@ Avoid including sensitive raw receipt details in logs or error bodies.
 
 ### Research input and query rules
 
+Unsupported CSV layouts retain the existing `error` and `error_code` and add
+`layout_issues` to failed-analysis status responses. It contains
+`duplicate_columns` (each duplicate header once) and `formats.raw` / `formats.prepared`,
+each with `missing_columns` and `unsupported_columns` arrays. Names are preserved
+verbatim and lists are sorted; empty lists indicate no issues in that category.
+This field is absent for row-value errors and successful analyses. The researcher
+error page renders these diagnostics by format, with plain-text fallback for older
+responses. Row-level `issues` and receipt errors are unchanged.
+
 - The uploader detects one of two case-sensitive CSV layouts from column names;
   column order may vary. The downloadable demonstration template remains raw.
   Raw uploads require `step,type,amount,nameOrig,nameDest,isFraud`, with optional

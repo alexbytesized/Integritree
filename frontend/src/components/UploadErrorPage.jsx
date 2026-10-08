@@ -16,7 +16,7 @@ export default function UploadErrorPage({ message, details, issues, clearLabel, 
       <p role="alert">{message}</p>
       {(details || rowIssues.length > 0) && <details className="upload-error-details">
         <summary>View details</summary>
-        {details && <p>{details}</p>}
+        {details && (typeof details === 'string' ? <p>{details}</p> : details)}
         {rowIssues.length > 0 && <>
           <p>Row numbers count data records, excluding the header.</p>
           <ul>{rowIssues.map(([field, issue]) => <li key={field}>

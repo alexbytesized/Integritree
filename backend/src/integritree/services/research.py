@@ -10,6 +10,7 @@ import sqlite3
 import threading
 import uuid
 import zipfile
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -55,10 +56,11 @@ LOG = logging.getLogger(__name__)
 
 
 class ResearchError(Exception):
-    def __init__(self, message, status=400, issues=None, code=None):
+    def __init__(self, message, status=400, issues=None, code=None, layout_issues=None):
         super().__init__(message)
         self.status, self.issues = status, issues
         self.code = code
+        self.layout_issues = layout_issues
 
 
 def detect_input_format(headers):
@@ -72,22 +74,39 @@ def detect_input_format(headers):
         + "; ".join(f"{name}: {', '.join(required)}" for name, required, _ in layouts)
         + ". Raw uploads may also contain the documented optional PaySim columns."
     )
-    if len(headers) != len(set(headers)):
+    layout_issues = {
+        "duplicate_columns": sorted(
+            name for name, count in Counter(headers).items() if count > 1
+        ),
+        "formats": {
+            name: {
+                "missing_columns": sorted(set(required) - set(headers)),
+                "unsupported_columns": sorted(set(headers) - set(required + optional)),
+            }
+            for name, required, optional in layouts
+        },
+    }
+    if layout_issues["duplicate_columns"]:
         raise ResearchError(
             "Duplicate CSV column headers are not allowed." + guidance,
             code="unsupported_csv_layout",
+            layout_issues=layout_issues,
         )
     problems = []
-    for name, required, optional in layouts:
-        missing = sorted(set(required) - set(headers))
-        extra = sorted(set(headers) - set(required + optional))
+    for name, diagnostics in layout_issues["formats"].items():
+        missing = diagnostics["missing_columns"]
+        extra = diagnostics["unsupported_columns"]
         if not missing and not extra:
             return name
         problems.append(
             f"{name}: Missing columns: {', '.join(missing) or 'none'}. "
             f"Unsupported columns: {', '.join(extra) or 'none'}."
         )
-    raise ResearchError(" ".join(problems) + guidance, code="unsupported_csv_layout")
+    raise ResearchError(
+        " ".join(problems) + guidance,
+        code="unsupported_csv_layout",
+        layout_issues=layout_issues,
+    )
 
 
 def validate_prepared_features(frame):
@@ -400,6 +419,8 @@ class ResearchService:
             )
             if isinstance(exc, csv.Error):
                 message = f"Malformed CSV near physical line {reader.line_num}: {exc}"
+            if getattr(exc, "layout_issues", None) is not None:
+                job["layout_issues"] = exc.layout_issues
             job.update(
                 status="failed",
                 error=message,

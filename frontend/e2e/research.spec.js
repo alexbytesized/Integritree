@@ -23,7 +23,7 @@ test('upload, refresh, search, pagination, details, real SHAP, download and anal
   await page.getByRole('button', { name: 'Upload Instructions' }).click()
   await expect(page.getByText('Required columns:', { exact: false })).toBeVisible()
   const template = page.waitForEvent('download')
-  await page.getByRole('link', { name: 'Download Demonstration CSV Template' }).click()
+  await page.getByRole('link', { name: 'Download Raw CSV Example' }).click()
   expect((await template).suggestedFilename()).toBe('research_template.csv')
   await page.getByRole('button', { name: 'Close dataset instructions' }).click()
   await page.locator('input[type=file]').setInputFiles({ name: 'browser_demo.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) })

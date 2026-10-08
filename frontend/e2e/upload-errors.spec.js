@@ -49,7 +49,7 @@ for (const kind of ['receipt', 'csv']) {
     await setup(page, kind, { filename })
     const message = kind === 'receipt'
       ? `The receipt layout of the uploaded photo (${filename}) is unclear or unsupported. Use a complete GCash Express Send, Pay Online, or bank-account transfer screenshot.`
-      : `The dataset layout of the uploaded CSV (${filename}) is unsupported. Use either the raw columns or all eleven prepared feature columns, plus isFraud. Do not mix formats or include an index column. See Upload Instructions for the accepted columns.`
+      : `The dataset layout of the uploaded CSV (${filename}) is unsupported. See Upload Instructions for the accepted columns.`
     await expect(page.getByRole('alert')).toHaveText(message)
     await expect(page.getByRole('alert').locator('img')).toHaveCount(0)
     await expect(page.locator('.screenshot-preview')).toHaveCount(0)
@@ -112,6 +112,83 @@ test('duplicate headers retain the friendly message and details; CSV Return pres
   await page.getByRole('link', { name: 'Return', exact: true }).click()
   await expect(page).toHaveURL(/researcher-upload$/)
   expect(state.deletes).toEqual([])
+  expect(await page.evaluate(key => sessionStorage.getItem(key), analysisKey)).toBe('error-fixture')
+})
+
+const rawColumns = ['amount', 'isFraud', 'nameDest', 'nameOrig', 'step', 'type']
+const preparedColumns = ['day_of_week', 'hour_of_day', 'isFraud', 'is_merchant_dest', 'is_merchant_origin',
+  'is_zero_amount', 'log_amount', 'type_CASH_IN', 'type_CASH_OUT', 'type_DEBIT', 'type_PAYMENT', 'type_TRANSFER']
+
+test('CSV layout details group audit-log columns by format on desktop and mobile', async ({ page }, testInfo) => {
+  const auditColumns = ['Action', 'Actor Code', 'Actor Email', 'Date and Time', 'Entity Code', 'Entity Email', 'New Status', 'Previous Status']
+  await setup(page, 'csv', { filename: 'accounts-audit-logs.csv', layout_issues: {
+    duplicate_columns: [], formats: {
+      raw: { missing_columns: rawColumns, unsupported_columns: auditColumns },
+      prepared: { missing_columns: preparedColumns, unsupported_columns: auditColumns },
+    },
+  } })
+  await expect(page.getByRole('alert')).toHaveText('The dataset layout of the uploaded CSV (accounts-audit-logs.csv) is unsupported. See Upload Instructions for the accepted columns.')
+  const details = page.locator('.upload-error-details')
+  await expect(details).not.toHaveAttribute('open', '')
+  await page.getByRole('link', { name: 'Return', exact: true }).focus()
+  await page.keyboard.press('Tab')
+  await expect(details.locator('summary')).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(details).toHaveAttribute('open', '')
+  await expect(details.getByText('Your file must match either of these formats.', { exact: true })).toBeVisible()
+  const raw = details.getByRole('region', { name: 'Raw CSV', exact: true })
+  const prepared = details.getByRole('region', { name: 'Preprocessed CSV' })
+  for (const [section, columns] of [[raw, rawColumns], [prepared, preparedColumns]]) {
+    await expect(section.getByRole('heading', { level: 3 })).toHaveText(['Missing required columns', 'Unsupported columns'])
+    await expect(section.locator('ul').first().locator('li')).toHaveText(columns)
+    await expect(section.locator('ul').last().locator('li')).toHaveText(auditColumns)
+  }
+  await expect(details).not.toContainText('Accepted layouts:')
+  await expect(details).not.toContainText('optional PaySim')
+  await expect(details.locator('details')).toHaveCount(0)
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 1000 })
+    expect(await page.evaluate(() => document.body.scrollWidth <= innerWidth)).toBe(true)
+    const first = await raw.boundingBox()
+    const second = await prepared.boundingBox()
+    if (width === 1440) {
+      expect(Math.abs(first.y - second.y)).toBeLessThan(1)
+      expect(second.x).toBeGreaterThan(first.x)
+    } else {
+      expect(second.y).toBeGreaterThanOrEqual(first.y + first.height)
+    }
+    await details.scrollIntoViewIfNeeded()
+    await page.screenshot({ path: testInfo.outputPath(`csv-layout-${width}.png`), fullPage: true })
+  }
+  await details.locator('summary').focus()
+  await page.keyboard.press('Tab')
+  await expect(page.getByRole('button', { name: 'Clear CSV' })).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(/researcher-upload$/)
+})
+
+test('CSV diagnostics preserve punctuation, wrap long names, and show duplicates before formats', async ({ page }, testInfo) => {
+  const strange = '<img src=x onerror=alert(1)>; Column, with: punctuation.'
+  const long = 'very_long_column_name_'.repeat(16)
+  await setup(page, 'csv', { filename: `${long}.csv`, layout_issues: {
+    duplicate_columns: ['amount'], formats: {
+      raw: { missing_columns: [], unsupported_columns: [strange, long] },
+      prepared: { missing_columns: ['log_amount'], unsupported_columns: [] },
+    },
+  } })
+  const details = page.locator('.upload-error-details')
+  await details.locator('summary').click()
+  await expect(details.getByRole('heading', { level: 2 })).toHaveText(['Duplicate column names', 'Raw CSV', 'Preprocessed CSV'])
+  await expect(details.getByRole('region', { name: 'Duplicate column names' }).locator('li')).toHaveText(['amount'])
+  await expect(details.locator('.csv-layout-none')).toHaveText(['None', 'None'])
+  await expect(details.locator('img')).toHaveCount(0)
+  await expect(details.getByText(strange, { exact: true })).toBeVisible()
+  await page.setViewportSize({ width: 320, height: 844 })
+  expect(await page.evaluate(() => document.body.scrollWidth <= innerWidth)).toBe(true)
+  await details.scrollIntoViewIfNeeded()
+  await page.screenshot({ path: testInfo.outputPath('csv-layout-long-names.png'), fullPage: true })
+  await page.getByRole('link', { name: 'Return', exact: true }).click()
+  await expect(page).toHaveURL(/researcher-upload$/)
   expect(await page.evaluate(key => sessionStorage.getItem(key), analysisKey)).toBe('error-fixture')
 })
 

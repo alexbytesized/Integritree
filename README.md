@@ -17,6 +17,7 @@ remain pending. Expanded SHAP details use a signed contribution bar chart; a num
 a suggestion.
 
 - [Study guides: terms, code, and methodology](docs/STUDY_GUIDE.md)
+- [SHAP explainability: code flow, functions, text, and charts](docs/SHAP_EXPLAINABILITY_GUIDE.md)
 - [Validation protocol](docs/THREE_STAGE_VALIDATION.md)
 - [Current run status and historical protocol revision](docs/VALIDATION_RUN_STATUS.md)
 - [Backend setup and commands](backend/README.md)
