@@ -165,19 +165,12 @@ template with a different structure requires updating the table mapping. Generat
 answer numbers remain italic and non-bold. Each export reads the current template;
 after replacing it, use Download Results again to generate an updated PDF.
 
-From the project root on Windows, run:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File backend/scripts/setup_research_pdf.ps1
-```
-
-This downloads the pinned LibreOffice installer, verifies its SHA-256 and signed
-publisher, and extracts a dedicated runtime under `backend/runtime/document_tools`.
-It does not install LibreOffice system-wide or change the persistent PowerShell
-execution policy. Windows Installer must be able to use its temporary directories.
-The converter default is `runtime/document_tools/libreoffice/program/soffice.com`,
-relative to the backend root. An alternate LibreOffice executable can be selected
-with `INTEGRITREE_RESEARCH_PDF_CONVERTER` in the environment or backend `.env`.
+PDF exports require LibreOffice. An existing dedicated runtime can continue to
+be used at `backend/runtime/document_tools/libreoffice/program/soffice.com`, the
+default converter location. On a fresh setup, install LibreOffice and set
+`INTEGRITREE_RESEARCH_PDF_CONVERTER` in the environment or backend `.env` to its
+executable, such as `C:/Program Files/LibreOffice/program/soffice.com` on Windows.
+Relative converter paths are resolved against the backend root.
 Restart the backend after changing settings. No Word installation is required.
 
 Conversion runs in the existing export worker with a separate temporary LibreOffice

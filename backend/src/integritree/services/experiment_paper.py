@@ -293,7 +293,7 @@ def convert_pdf(document, converter, output_dir):
     converter = Path(converter)
     if not converter.is_file():
         raise PaperExportError(
-            "PDF converter is missing. Run scripts/setup_research_pdf.ps1 or set "
+            "PDF converter is missing. Set "
             "INTEGRITREE_RESEARCH_PDF_CONVERTER to the LibreOffice executable, "
             "restart the backend, and retry."
         )

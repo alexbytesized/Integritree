@@ -14,10 +14,9 @@ Preparation, paired RF/RF-SMOTE training, saved inference, evaluation, three-sta
 selection, SHAP, and the researcher HTTP/frontend workflow are implemented.
 See [researcher operation and retention](../docs/RESEARCHER_WORKFLOW.md).
 Researcher ZIP downloads contain only `Experiment-Paper_YYYY-MM-DD.pdf` and
-`Raw-Results_YYYY-MM-DD.csv`, with one Philippine export-start date. Run
-`powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/setup_research_pdf.ps1`
-from `backend` once to provision the dedicated converter; see the workflow guide
-for template and `INTEGRITREE_RESEARCH_PDF_CONVERTER` settings.
+`Raw-Results_YYYY-MM-DD.csv`, with one Philippine export-start date. PDF exports
+require an available LibreOffice executable; see the workflow guide for template
+and `INTEGRITREE_RESEARCH_PDF_CONVERTER` settings.
 The local receipt audit/OCR comparison and internal confirmed-input mapping/paired
 prediction are implemented. See [receipt mapping contracts](../docs/RECEIPT_MAPPING.md).
 The [receipt API/frontend connection](../docs/RECEIPT_APPLICATION.md) now includes local
