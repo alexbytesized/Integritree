@@ -1,0 +1,13 @@
+schema_version: 1
+# Paths resolve relative to this file. Outputs always stay beside the runner.
+models: ../artifacts/paysim_three_stage_20260928_172539
+prepared: ../data/prepared/paysim_phase2_20260918
+# Each pair is [max_depth, min_samples_leaf]. Keep the baseline first.
+forests: [[10, 1], [8, 1], [6, 1], [10, 10], [10, 50], [8, 10]]
+reuse_existing: true
+seed: 42
+shap_uniform_rows: 200
+shap_fraud_rows: 100
+shap_baseline_flagged_rows: 50
+background_rows: 200
+sensitivity_rows: 50

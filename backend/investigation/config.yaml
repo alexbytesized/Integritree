@@ -1,0 +1,8 @@
+schema_version: 1
+# All relative paths are resolved against this configuration file's directory.
+models: ../artifacts/paysim_three_stage_20260928_172539
+prepared: ../data/prepared/paysim_phase2_20260918
+report: ../reports/paysim_three_stage_20260928_172539/final_validation
+sample_per_group: 5
+seed: 42
+minimum_denominator: 20

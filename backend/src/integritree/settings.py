@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from typing import Self
 
-from pydantic import field_validator, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     uploads_dir: Path = Path("runtime/uploads")
     exports_dir: Path = Path("runtime/exports")
     research_model_dir: Path = Path("artifacts/paysim_three_stage_20260928_172539")
+    research_threshold: float | None = Field(
+        default=None, ge=0, le=1, allow_inf_nan=False
+    )
     research_prepared_dir: Path = Path("data/prepared/paysim_phase2_20260918")
     receipt_ocr_python: Path = Path("runtime/receipt_tools/venv/Scripts/python.exe")
     research_pdf_converter: Path = Path(

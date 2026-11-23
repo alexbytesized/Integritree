@@ -105,6 +105,59 @@ def upload(client, headers, content=CSV, name="demo.csv"):
     return identifier, job
 
 
+@pytest.mark.parametrize("override", [None, 0.47, 0.0, 1.0])
+def test_candidate_bundle_and_shared_cutoff(settings, bundle, override, monkeypatch):
+    bundle.metadata = {"run_id": "synthetic-candidate", "stage": "baseline_not_final"}
+    original_config = bundle.config
+    settings.research_threshold = override
+    loaded_paths = []
+
+    def load_candidate(path):
+        loaded_paths.append(path)
+        return bundle
+
+    monkeypatch.setattr("integritree.services.research.load_bundle", load_candidate)
+    app = create_app(settings)
+    with TestClient(app) as client:
+        app.state.research.experiment = original_config
+        owner = session(client)
+        identifier, job = upload(client, owner)
+        threshold = 0.43 if override is None else override
+        assert job["status"] == "complete"
+        assert job["model_run_id"] == "synthetic-candidate"
+        assert job["threshold"] == threshold
+        rows = client.get(
+            PREFIX + f"/analyses/{identifier}/records", headers=owner
+        ).json()["records"]
+        for row in rows:
+            for name in ("rf", "rf_smote"):
+                assert row[name]["predicted_label"] == int(
+                    row[name]["score"] >= threshold
+                )
+        # Receipts share the same cached pair and effective cutoff.
+        assert app.state.receipts.bundle_provider() is app.state.research.get_bundle()
+        assert (
+            app.state.receipts.bundle_provider().config.scoring.threshold == threshold
+        )
+        assert loaded_paths == [settings.research_model_dir]
+        assert bundle.metadata["stage"] == "baseline_not_final"
+        assert original_config.scoring.threshold == 0.43
+
+
+def test_candidate_integrity_failure_is_not_bypassed(settings, experiment, monkeypatch):
+    def invalid_bundle(path):
+        raise ValueError("Model bundle fingerprint mismatch: rf.joblib")
+
+    monkeypatch.setattr("integritree.services.research.load_bundle", invalid_bundle)
+    service = ResearchService(settings, experiment)
+    try:
+        with pytest.raises(ValueError, match="fingerprint mismatch"):
+            service.get_bundle()
+        assert service.bundle is None
+    finally:
+        service.close()
+
+
 def test_complete_flow_isolation_and_cleanup(client, bundle, monkeypatch):
     def no_fit(*args, **kwargs):
         raise AssertionError("Inference must not fit")

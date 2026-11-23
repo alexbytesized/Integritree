@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "saved_candidates": "../backend/artifacts/paysim_three_stage_20260928_172539/candidates",
+  "prepared": "../backend/data/prepared/paysim_phase2_20260918",
+  "validation_csv": "C:/Users/Carpicorn/Downloads/Experiment-Dataset.csv",
+  "previous_results": "../backend/forest_regularization_experiment/outputs/csv_validation_20261118",
+  "n_estimators": 200,
+  "forests": [[20, 1], [16, 1], [12, 1], [20, 10], [20, 50], [16, 10]],
+  "seed": 42,
+  "background_rows": 200,
+  "shap_uniform_rows": 200,
+  "shap_fraud_rows": 100,
+  "shap_baseline_flagged_rows": 50,
+  "sensitivity_rows": 50
+}

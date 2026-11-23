@@ -1,0 +1,190 @@
+{
+  "analysis_date": "2026-11-18",
+  "source": "C:\\Users\\Carpicorn\\Downloads\\Experiment-Dataset.csv",
+  "source_sha256": "4a883825dfe58a8f9e445131e06c4251ce2c7fa9e8a29e1490f667b27d961b1d",
+  "rows": 636262,
+  "fraud": 822,
+  "legitimate": 635440,
+  "missing_cells": 0,
+  "duplicate_feature_label_rows": 407,
+  "model_directory": "C:\\Users\\Carpicorn\\Downloads\\Thesis\\Tool\\Integritree\\backend\\artifacts\\paysim_three_stage_20260928_172539\\candidates\\ratio_0.01_trees_100_depth_10_leaf_1\\train_20260928T092543_93f9a4e8",
+  "model_sha256": {
+    "rf": "43dbeabd0a79979c82ca4fef67a17c9763a56f187910db919ffeb89fd3a11e28",
+    "rf_smote": "d98547ad07e75e195dd69138bc950534675f519ba2c252276725b33b7ad3b477"
+  },
+  "model_parameters": {
+    "bootstrap": true,
+    "class_weight": null,
+    "criterion": "gini",
+    "max_depth": 10,
+    "max_features": "sqrt",
+    "min_samples_leaf": 1,
+    "min_samples_split": 2,
+    "n_estimators": 100,
+    "n_jobs": 1,
+    "random_state": 42
+  },
+  "smote_ratio": 0.01,
+  "objective": "Arithmetic mean of positive-class F1 for RF and RF-SMOTE, using a common threshold",
+  "comparison": "score >= threshold",
+  "grid": {
+    "threshold": 0.46,
+    "mean_f1_fraction": "1232765/1991758",
+    "candidate_count": 100,
+    "metrics": {
+      "rf": {
+        "tp": 364,
+        "fp": 45,
+        "tn": 635395,
+        "fn": 458,
+        "precision": 0.8899755501222494,
+        "recall": 0.44282238442822386,
+        "f1": 0.5913891145410236,
+        "accuracy": 0.9992094451656708,
+        "flagged": 409
+      },
+      "rf_smote": {
+        "tp": 523,
+        "fp": 273,
+        "tn": 635167,
+        "fn": 299,
+        "precision": 0.657035175879397,
+        "recall": 0.6362530413625304,
+        "f1": 0.646477132262052,
+        "accuracy": 0.9991009992738841,
+        "flagged": 796
+      },
+      "mean_f1": 0.6189331234015378
+    }
+  },
+  "exact": {
+    "threshold": 0.46841,
+    "optimal_interval_lower_exclusive": 0.468231291906978,
+    "optimal_interval_upper_inclusive": 0.4685883705581469,
+    "mean_f1_fraction": "611895/985658",
+    "score_boundary_candidates": 30000,
+    "equally_optimal_boundary_count": 1,
+    "metrics": {
+      "rf": {
+        "tp": 363,
+        "fp": 44,
+        "tn": 635396,
+        "fn": 459,
+        "precision": 0.8918918918918919,
+        "recall": 0.4416058394160584,
+        "f1": 0.5907241659886087,
+        "accuracy": 0.9992094451656708,
+        "flagged": 407
+      },
+      "rf_smote": {
+        "tp": 522,
+        "fp": 260,
+        "tn": 635180,
+        "fn": 300,
+        "precision": 0.6675191815856778,
+        "recall": 0.635036496350365,
+        "f1": 0.6508728179551122,
+        "accuracy": 0.9991198594289774,
+        "flagged": 782
+      },
+      "mean_f1": 0.6207984919718604
+    }
+  },
+  "reference_043": {
+    "rf": {
+      "tp": 381,
+      "fp": 51,
+      "tn": 635389,
+      "fn": 441,
+      "precision": 0.8819444444444444,
+      "recall": 0.4635036496350365,
+      "f1": 0.6076555023923444,
+      "accuracy": 0.999226733641173,
+      "flagged": 432
+    },
+    "rf_smote": {
+      "tp": 530,
+      "fp": 351,
+      "tn": 635089,
+      "fn": 292,
+      "precision": 0.601589103291714,
+      "recall": 0.6447688564476886,
+      "f1": 0.6224310041103934,
+      "accuracy": 0.9989894100229151,
+      "flagged": 881
+    },
+    "mean_f1": 0.615043253251369
+  },
+  "reference_050": {
+    "rf": {
+      "tp": 334,
+      "fp": 37,
+      "tn": 635403,
+      "fn": 488,
+      "precision": 0.9002695417789758,
+      "recall": 0.40632603406326034,
+      "f1": 0.5599329421626152,
+      "accuracy": 0.9991748682146663,
+      "flagged": 371
+    },
+    "rf_smote": {
+      "tp": 514,
+      "fp": 233,
+      "tn": 635207,
+      "fn": 308,
+      "precision": 0.6880856760374833,
+      "recall": 0.6253041362530414,
+      "f1": 0.6551943913320586,
+      "accuracy": 0.9991497213412085,
+      "flagged": 747
+    },
+    "mean_f1": 0.607563666747337
+  },
+  "individual_optima": {
+    "rf": {
+      "threshold": 0.15938945591422946,
+      "metrics": {
+        "tp": 500,
+        "fp": 199,
+        "tn": 635241,
+        "fn": 322,
+        "precision": 0.7153075822603719,
+        "recall": 0.6082725060827251,
+        "f1": 0.6574621959237343,
+        "accuracy": 0.9991811549330307,
+        "flagged": 699
+      }
+    },
+    "rf_smote": {
+      "threshold": 0.5115420946163042,
+      "metrics": {
+        "tp": 514,
+        "fp": 225,
+        "tn": 635215,
+        "fn": 308,
+        "precision": 0.6955345060893099,
+        "recall": 0.6253041362530414,
+        "f1": 0.6585522101217168,
+        "accuracy": 0.9991622947779374,
+        "flagged": 739
+      }
+    }
+  },
+  "average_precision": {
+    "rf": 0.6176567526809636,
+    "rf_smote": 0.6061282935481336
+  },
+  "validation_overlap": {
+    "method": "Multiset overlap of feature and label rows, cast to float and rounded to 12 decimals, counted using pandas row hashes",
+    "matching_rows": 635952,
+    "fraction": 0.9995127793267553,
+    "exact_dataset_match": false
+  },
+  "versions": {
+    "python": "3.12.5",
+    "numpy": "2.5.3",
+    "pandas": "2.3.3",
+    "scikit_learn": "1.9.1",
+    "joblib": "1.6.0"
+  }
+}

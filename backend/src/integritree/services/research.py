@@ -231,10 +231,10 @@ class ResearchService:
         with self.model_lock:
             if self.bundle is None:
                 bundle = load_bundle(self.settings.research_model_dir)
-                if bundle.metadata.get("stage") != "validation_selected":
-                    raise ValueError(
-                        "Research app requires a frozen selected model bundle"
-                    )
+                if self.settings.research_threshold is not None:
+                    # Apply only to this process; saved artifact hashes stay valid.
+                    bundle.config = bundle.config.model_copy(deep=True)
+                    bundle.config.scoring.threshold = self.settings.research_threshold
                 self.bundle = bundle
             return self.bundle
 

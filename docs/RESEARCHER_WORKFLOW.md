@@ -29,9 +29,42 @@ failures. Previously completed temporary analyses cannot survive a backend resta
 The trusted model path defaults to `artifacts/paysim_three_stage_20260928_172539`;
 the training-background preparation defaults to `data/prepared/paysim_phase2_20260918`.
 Override them with `INTEGRITREE_RESEARCH_MODEL_DIR` and
-`INTEGRITREE_RESEARCH_PREPARED_DIR`. Frozen selection verification happens once,
-on first analysis. The application applies the saved common threshold (43% for
-the current selection), using `score >= threshold`, without fitting anything.
+`INTEGRITREE_RESEARCH_PREPARED_DIR`. The application accepts compatible trusted
+paired model bundles, including training candidates that were not selected by
+the study. File hashes, dependency versions, feature order, preprocessing, and
+paired forest settings are still checked on first use. Selected bundles retain
+their selection-evidence checks.
+
+### Switching experimental models
+
+Set `INTEGRITREE_RESEARCH_MODEL_DIR` in `backend/.env` to a complete bundle folder
+containing both RF and RF-SMOTE, rather than an individual `.joblib` file. Set the
+matching `INTEGRITREE_RESEARCH_PREPARED_DIR` when its training preparation differs.
+Optionally set `INTEGRITREE_RESEARCH_THRESHOLD` to a common cutoff from 0 to 1;
+omit the setting to use the bundle's saved cutoff. Process environment variables
+take precedence over `.env`.
+
+For the saved depth-10 / minimum-leaf-50 pair and its evaluated 47% shared cutoff:
+
+```dotenv
+INTEGRITREE_RESEARCH_MODEL_DIR=artifacts/paysim_three_stage_20260928_172539/candidates/ratio_0.01_trees_100_depth_10_leaf_50/train_20260928T144913_39813db2
+INTEGRITREE_RESEARCH_THRESHOLD=0.47
+```
+
+Download any temporary results, then restart the backend after changing these
+settings. The model pair and cutoff remain fixed for that process, so existing
+analyses cannot silently switch models. Both researcher and receipt predictions
+use this configuration. Results record the actual model run ID and cutoff;
+research export metadata also records the forest and SMOTE settings. Classification
+uses `score >= threshold` without retraining or modifying saved model artifacts.
+SHAP uses the active pair and matching training background.
+
+To restore the original selection, use
+`artifacts/paysim_three_stage_20260928_172539` and remove the threshold override
+to restore its saved 43% cutoff. Experimental bundles need the standard application
+bundle format; standalone files from an isolated experiment must first be packaged
+in that format. Accepting a candidate does not mark it as validation-selected or
+change the separate command-line final-test selection requirements.
 
 ## CSV inputs and capacity
 

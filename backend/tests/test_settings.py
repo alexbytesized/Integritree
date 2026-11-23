@@ -49,6 +49,24 @@ def test_unknown_dotenv_setting_rejected(tmp_path):
         load_settings(tmp_path)
 
 
+def test_experimental_model_settings_from_dotenv(tmp_path):
+    (tmp_path / ".env").write_text(
+        "INTEGRITREE_RESEARCH_MODEL_DIR=artifacts/candidate\n"
+        "INTEGRITREE_RESEARCH_THRESHOLD=0.47\n",
+        encoding="utf-8",
+    )
+    settings = load_settings(tmp_path)
+    assert settings.research_model_dir == tmp_path / "artifacts/candidate"
+    assert settings.research_threshold == 0.47
+
+
+@pytest.mark.parametrize("threshold", ["-0.01", "1.01", "nan", "inf", "-inf"])
+def test_invalid_research_threshold_rejected(tmp_path, monkeypatch, threshold):
+    monkeypatch.setenv("INTEGRITREE_RESEARCH_THRESHOLD", threshold)
+    with pytest.raises(ValidationError, match="research_threshold"):
+        load_settings(tmp_path)
+
+
 @pytest.mark.parametrize(
     "origin",
     ["*", "http://localhost:5173/path", "file:///tmp", "https://user:pass@host"],
